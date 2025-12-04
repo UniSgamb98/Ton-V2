@@ -1,0 +1,114 @@
+/* Tutte le proprietà css sono disponibili nella documentazione ufficiale del SDK in utilizzo. In questo caso uso
+SDK 21 e le proprietà sono reperibili al link
+https://openjfx.io/javadoc/21/javafx.graphics/javafx/scene/doc-files/cssref.html
+
+Nota bene: Non tutti i nodi hanno tutti i parametri elencati in quanto molti vengono ereditati. Ad esempio Button
+eredita tutti i parametri da ButtonBase, Labeled, Control, Region, Parent, Node.
+In ogni caso se leggete bene potete risalire a tutta la scala gerarchica.
+*/
+.root {
+    -fx-font-family: "Segoe UI", "Roboto", sans-serif;
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: #f0f0f0;
+}
+
+.button {
+    -fx-background-color: #444;
+    -fx-text-fill: #fff;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8;
+    -fx-padding: 6 12;
+}
+
+.button:hover {
+    -fx-background-color: #666;
+}
+
+.list-view {
+    -fx-background-color: #3a3a3a;
+    -fx-control-inner-background: #3a3a3a;
+    -fx-cell-hover-color: #555;
+    -fx-text-fill: white;
+}
+
+.label {
+    -fx-text-fill: white;
+}
+
+.title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f0f0f0;
+}
+
+.container {
+    -fx-padding: 20;
+    -fx-spacing: 12;
+    -fx-alignment: center;
+}
+
+/* ==== Header Bar ==== */
+.header-bar {
+    -fx-background-color: #252526;
+    -fx-padding: 10 20;
+    -fx-alignment: center-left;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0.3, 0, 2);
+}
+
+.header-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+}
+
+.header-button {
+    -fx-background-color: #007acc;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-font-weight: 600;
+    -fx-padding: 5 12;
+}
+
+.header-button:hover {
+    -fx-background-color: #1490df;
+}
+
+
+/* ==== Sidebar Layout ==== */
+.header-bar {
+    -fx-background-color: #252526;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0.3, 0, 2);
+}
+
+.menu-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-cursor: hand;
+    -fx-padding: 5 10;
+}
+
+.menu-button:hover {
+    -fx-background-color: #333;
+}
+
+.sidebar {
+    -fx-background-color: #1e1e1e;
+    -fx-border-color: #3c3c3c;
+    -fx-border-width: 0 1 0 0;
+}
+
+.sidebar-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cccccc;
+    -fx-font-size: 14px;
+    -fx-alignment: center-left;
+    -fx-padding: 8 10;
+    -fx-cursor: hand;
+    -fx-background-radius: 6;
+}
+
+.sidebar-button:hover {
+    -fx-background-color: #007acc;
+    -fx-text-fill: white;
+}
