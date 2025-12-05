@@ -4,6 +4,8 @@ import com.orodent.tonv2.features.inventory.database.model.Lot;
 import com.orodent.tonv2.features.inventory.database.repository.LotRepository;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class LotRepositoryImpl implements LotRepository {
 
@@ -32,6 +34,36 @@ public class LotRepositoryImpl implements LotRepository {
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public List<Lot> findByItem(int itemId) {
+        String sql = "SELECT id, lot_code AS code, item_id FROM lot WHERE item_id = ? ORDER BY lot_code";
+
+        List<Lot> result = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    // uso "code" nella resultset per mantenere compatibilità con i costruttori che
+                    // si aspettano un campo chiamato 'code' (se il tuo Lot ha nomi diversi, adatta)
+                    result.add(new Lot(
+                            rs.getInt("id"),
+                            rs.getString("code"),
+                            rs.getInt("item_id")
+                    ));
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return result;
+    }
+
+
 
     @Override
     public Lot insert(String lotCode, int itemId) {

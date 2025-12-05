@@ -8,6 +8,7 @@ public interface ItemRepository {
     Item findByCode(String code);
     Item insert(String code);
     List<Item> findAll();
+    List<Item> findByDepot(String depotName);
 
 }
 

@@ -31,6 +31,40 @@ public class ItemRepositoryImpl implements ItemRepository {
     }
 
     @Override
+    public List<Item> findByDepot(String depotName) {
+        String sql = """
+        SELECT DISTINCT i.*
+        FROM item i
+        JOIN lot l ON l.item_id = i.id
+        JOIN stock s ON s.lot_id = l.id
+        JOIN depot d ON d.id = s.depot_id
+        WHERE d.name = ?
+        AND s.quantity > 0
+    """;
+
+        List<Item> list = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, depotName);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                list.add(new Item(
+                        rs.getInt("id"),
+                        rs.getString("code")
+                ));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return list;
+    }
+
+
+    @Override
     public List<Item> findAll() {
         String sql = "SELECT id, code FROM item ORDER BY code ASC";
 

@@ -6,6 +6,7 @@ module com.orodent.tonv2 {
     requires org.apache.derby.server;
     requires org.apache.derby.tools;
     requires java.sql;
+    requires java.desktop;
 
     // Core
     exports com.orodent.tonv2.core.csv;
@@ -18,6 +19,7 @@ module com.orodent.tonv2 {
     // Features
     exports com.orodent.tonv2.features.inventory.database.model;
     exports com.orodent.tonv2.features.inventory.database.repository;
-    exports com.orodent.tonv2.features.inventory.database.repository.implementation;
     exports com.orodent.tonv2.core.database;
+
+    opens com.orodent.tonv2.core.csv to com.google.gson;
 }

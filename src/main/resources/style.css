@@ -112,3 +112,66 @@ In ogni caso se leggete bene potete risalire a tutta la scala gerarchica.
     -fx-background-color: #007acc;
     -fx-text-fill: white;
 }
+
+/* Popup con bordi arrotondati */
+.rounded-popup {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-border-radius: 20;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1;
+
+    /* Ombra moderna */
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.30), 16, 0.22, 0, 3);
+}
+
+/* Riga inventario compatta */
+.inventory-item-row {
+    -fx-background-color: transparent;
+    -fx-text-fill: #333;
+    -fx-font-size: 13px;
+    -fx-background-radius: 6;
+    -fx-transition: all 0.15s ease-in-out;
+}
+
+/* Hover ben visibile */
+.inventory-item-row:hover {
+    -fx-background-color: #e0e0e0; /* molto più evidente */
+    -fx-text-fill: black;
+    -fx-cursor: hand;
+}
+
+.popup-title {
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-fill: #222;
+    -fx-padding: 0 0 4 0;
+}
+
+/* contenuto interno del popup */
+.popup-content {
+    -fx-padding: 10;
+    -fx-background-color: white;
+    -fx-border-color: #cccccc;
+    -fx-border-width: 1;
+    -fx-background-radius: 12;
+    -fx-border-radius: 12;
+}
+.popup-content .label {
+     -fx-text-fill: #333333;
+ }
+
+ .popup-lot-row {
+     -fx-text-fill: #333;
+     -fx-font-size: 13px;
+     -fx-padding: 2 0;
+ }
+
+ .popup-lot-row:hover {
+     -fx-background-color: #efefef;
+     -fx-background-radius: 4;
+ }
+
+
+
+

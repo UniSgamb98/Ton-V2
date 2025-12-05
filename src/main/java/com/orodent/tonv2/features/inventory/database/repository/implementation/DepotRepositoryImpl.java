@@ -4,6 +4,8 @@ import com.orodent.tonv2.features.inventory.database.model.Depot;
 import com.orodent.tonv2.features.inventory.database.repository.DepotRepository;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DepotRepositoryImpl implements DepotRepository {
 
@@ -27,6 +29,52 @@ public class DepotRepositoryImpl implements DepotRepository {
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public Depot findById(int id) {
+        String sql = "SELECT id, name FROM depot WHERE id = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Depot(
+                            rs.getInt("id"),
+                            rs.getString("name")
+                    );
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return null; // nessun depot trovato
+    }
+
+
+    @Override
+    public List<Depot> findAll() {
+        String sql = "SELECT * FROM depot";
+        List<Depot> list = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                list.add(new Depot(
+                        rs.getInt("id"),
+                        rs.getString("name")
+                ));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return list;
+    }
+
 
     @Override
     public Depot insert(String name) {

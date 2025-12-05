@@ -1,6 +1,8 @@
 package com.orodent.tonv2.app;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.inventory.other.controller.InventoryController;
+import com.orodent.tonv2.features.inventory.other.view.InventoryView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -32,7 +34,7 @@ public class AppController {
         this.app = new AppContainer();
         this.cssPath = Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm();
 
-        showHome();
+        showInventory();
         stage.setOnCloseRequest(e -> shutdown());
         stage.show();
     }
@@ -49,6 +51,15 @@ public class AppController {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Home");
+    }
+
+    public void showInventory() {
+        InventoryView view = new InventoryView();
+        configureHeader(view.getHeader());
+        new InventoryController(view, app.itemRepo(), app.depotRepo(), app.stockRepo(), app.lotRepo());
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Inventory");
     }
 
     /*
