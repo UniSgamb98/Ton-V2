@@ -12,6 +12,8 @@ import com.orodent.tonv2.features.inventory.database.repository.implementation.D
 import com.orodent.tonv2.features.inventory.database.repository.implementation.ItemRepositoryImpl;
 import com.orodent.tonv2.features.inventory.database.repository.implementation.LotRepositoryImpl;
 import com.orodent.tonv2.features.inventory.database.repository.implementation.StockRepositoryImpl;
+import com.orodent.tonv2.features.production.repository.PowderRepository;
+import com.orodent.tonv2.features.production.repository.implementation.PowderRepositoryImpl;
 
 public class AppContainer {
 
@@ -23,6 +25,7 @@ public class AppContainer {
     private final LotRepository lotRepo;
     private final DepotRepository depotRepo;
     private final StockRepository stockRepo;
+    private final PowderRepository powderRepo;
 
     // --- Database ---
     protected final Database database;
@@ -45,6 +48,7 @@ public class AppContainer {
         this.lotRepo = new LotRepositoryImpl(database.getConnection());
         this.depotRepo = new DepotRepositoryImpl(database.getConnection());
         this.stockRepo = new StockRepositoryImpl(database.getConnection());
+        this.powderRepo = new PowderRepositoryImpl(database.getConnection());
         System.out.println("Caricati le repository.");
 
         // PARSER
@@ -65,6 +69,7 @@ public class AppContainer {
     public LotRepository lotRepo() { return lotRepo; }
     public DepotRepository depotRepo() { return depotRepo; }
     public StockRepository stockRepo() { return stockRepo; }
+    public PowderRepository powderRepo() { return powderRepo; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
 }

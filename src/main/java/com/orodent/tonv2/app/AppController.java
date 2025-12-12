@@ -3,6 +3,10 @@ package com.orodent.tonv2.app;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.inventory.other.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.other.view.InventoryView;
+import com.orodent.tonv2.features.production.controller.CreateCompositionController;
+import com.orodent.tonv2.features.production.controller.LaboratoryController;
+import com.orodent.tonv2.features.production.view.CreateCompositionView;
+import com.orodent.tonv2.features.production.view.LaboratoryView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -34,7 +38,7 @@ public class AppController {
         this.app = new AppContainer();
         this.cssPath = Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm();
 
-        showInventory();
+        showCreateComposition();
         stage.setOnCloseRequest(e -> shutdown());
         stage.show();
     }
@@ -59,31 +63,43 @@ public class AppController {
         new InventoryController(view, app.itemRepo(), app.depotRepo(), app.stockRepo(), app.lotRepo());
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Inventory");
+        stage.setTitle("TON - Inventario");
+    }
+
+    public void showCreateComposition() {
+        CreateCompositionView view = new CreateCompositionView();
+        new CreateCompositionController(view, this, app.powderRepo());
+        stage.setScene(createSceneWithCSS(view));
+    }
+
+
+    public void showLaboratory() {
+        LaboratoryView view = new LaboratoryView();
+        configureHeader(view.getHeader());
+        new LaboratoryController();
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Laboratorio");
     }
 
     /*
     Creando le Scenes con questo metodo vengono collegate al CSS che può essere scritto tutto in un unico file.
      */
     private Scene createSceneWithCSS(Object root) {
-        Scene scene = new Scene((javafx.scene.Parent) root, 400, 300);
+        Scene scene = new Scene((javafx.scene.Parent) root, 900, 700);
         scene.getStylesheets().add(cssPath);
         return scene;
     }
 
     private void configureHeader(AppHeader header) {
         header.getHomeButton().setOnAction(e -> showHome());
+        header.getInventoryButton().setOnAction( e -> showInventory());
       //  header.getOrdersButton().setOnAction(e -> showOrderList());
     }
 
     public void shutdown() {
         app.database.stop();
     }
-
-
-
-
-
 
 
     private void ass(){

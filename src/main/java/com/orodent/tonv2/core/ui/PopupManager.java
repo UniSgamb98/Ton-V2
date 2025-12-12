@@ -1,7 +1,6 @@
 package com.orodent.tonv2.core.ui;
 
 import javafx.scene.Node;
-import javafx.scene.input.MouseEvent;
 
 import java.util.function.Function;
 
@@ -25,19 +24,12 @@ public class PopupManager {
             popup.show(target, e.getScreenX(), e.getScreenY());
         });
 
+        //TRACKING DEL MOUSE
         target.setOnMouseMoved(e -> {
             popup.show(target, e.getScreenX(), e.getScreenY());
         });
 
         // USCITA MOUSE
         target.setOnMouseExited(e -> popup.hide());
-
-        // CLICK DESTRO
-        target.setOnMouseClicked(e -> {
-            if (e.isSecondaryButtonDown()) {
-                popup.setContent(generateContent.apply(target));
-                popup.show(target, e.getScreenX(), e.getScreenY());
-            }
-        });
     }
 }

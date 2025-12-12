@@ -21,7 +21,6 @@ public class InventoryController {
     private final DepotRepository depotRepo;
     private final StockRepository stockRepo;
     private final LotRepository lotRepo;
-    private Depot currentDepot;
 
     public InventoryController(InventoryView view, ItemRepository itemRepo, DepotRepository depotRepo, StockRepository stockRepo, LotRepository lotRepo) {
         this.view = view;
@@ -97,12 +96,9 @@ public class InventoryController {
         return box;
     }
 
-
-
-
     private void loadDepot(String depotName) {
         var items = itemRepo.findByDepot(depotName);
-        currentDepot = depotRepo.findByName(depotName);
+        Depot currentDepot = depotRepo.findByName(depotName);
 
         Map<Integer, Integer> itemQuantities = new HashMap<>();
         for (Item item : items) {

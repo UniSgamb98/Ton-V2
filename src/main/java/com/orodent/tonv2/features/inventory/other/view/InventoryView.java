@@ -73,12 +73,15 @@ public class InventoryView extends VBox {
             String depotName,
             List<Item> items,
             Map<Integer, Integer> qtyMap,
-            Function<Item, Node> popupFactory    // <<--- nuova funzione!
+            Function<Item, Node> popupFactory
     ) {
         VBox box = itemsBoxes.get(depotName);
         if (box == null) return;
 
         box.getChildren().clear();
+
+        // usa un solo PopupManager per questa lista
+        PopupManager pm = new PopupManager();
 
         for (Item item : items) {
 
@@ -87,10 +90,8 @@ public class InventoryView extends VBox {
             Label lbl = new Label(item.code() + " — " + qty + " pz");
             lbl.getStyleClass().add("inventory-item-row");
 
-            // 🔥 ATTACCA IL POPUP
-            Node popupContent = popupFactory.apply(item);
-            PopupManager pm = new PopupManager();
-            popupManager.attach(label, node -> createPopupForItem(item));
+            // ATTACCA IL POPUP: la factory genera il contenuto per ogni item
+            pm.attach(lbl, node -> popupFactory.apply(item));
 
             box.getChildren().add(lbl);
         }
