@@ -14,7 +14,7 @@ esporre ai controller i tasti in modo da poter assegnare loro una funzione.
 public class AppHeader extends HBox {
 
     private final Button homeButton;
-    private final Button orderButton;
+    private final Button laboratoryButton;
     private final Button inventoryButton;
 
     public AppHeader(String title) {
@@ -22,11 +22,11 @@ public class AppHeader extends HBox {
         titleLabel.getStyleClass().add("header-title");
 
         homeButton = new Button("🏠 Home");
-        orderButton = new Button("Orders");
+        laboratoryButton = new Button("Laboratorio");
         inventoryButton = new Button("Inventario");
 
         homeButton.getStyleClass().add("header-button");
-        orderButton.getStyleClass().add("header-button");
+        laboratoryButton.getStyleClass().add("header-button");
         inventoryButton.getStyleClass().add("header-button");
 
         setAlignment(Pos.CENTER_LEFT);
@@ -37,11 +37,11 @@ public class AppHeader extends HBox {
         HBox spacer = new HBox();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
-        this.getChildren().addAll(titleLabel, spacer, inventoryButton, orderButton, homeButton);
+        this.getChildren().addAll(titleLabel, spacer, inventoryButton, laboratoryButton, homeButton);
     }
 
     public Button getHomeButton() { return homeButton; }
-    public Button getOrdersButton() { return  orderButton; }
+    public Button getLaboratoryButton() { return laboratoryButton; }
     public Button getInventoryButton() {
         return inventoryButton;
     }

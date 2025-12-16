@@ -17,9 +17,9 @@ module com.orodent.tonv2 {
     exports com.orodent.tonv2.app;
 
     // Features
-    exports com.orodent.tonv2.features.inventory.database.model;
-    exports com.orodent.tonv2.features.inventory.database.repository;
     exports com.orodent.tonv2.core.database;
 
     opens com.orodent.tonv2.core.csv to com.google.gson;
+    exports com.orodent.tonv2.core.database.model;
+    exports com.orodent.tonv2.core.database.repository;
 }

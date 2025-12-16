@@ -1,12 +1,12 @@
 package com.orodent.tonv2.app;
 
 import com.orodent.tonv2.core.components.AppHeader;
-import com.orodent.tonv2.features.inventory.other.controller.InventoryController;
-import com.orodent.tonv2.features.inventory.other.view.InventoryView;
-import com.orodent.tonv2.features.production.controller.CreateCompositionController;
-import com.orodent.tonv2.features.production.controller.LaboratoryController;
-import com.orodent.tonv2.features.production.view.CreateCompositionView;
-import com.orodent.tonv2.features.production.view.LaboratoryView;
+import com.orodent.tonv2.features.inventory.controller.InventoryController;
+import com.orodent.tonv2.features.inventory.view.InventoryView;
+import com.orodent.tonv2.features.laboratory.controller.CreateCompositionController;
+import com.orodent.tonv2.features.laboratory.controller.LaboratoryController;
+import com.orodent.tonv2.features.laboratory.view.CreateCompositionView;
+import com.orodent.tonv2.features.laboratory.view.LaboratoryView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -38,7 +38,7 @@ public class AppController {
         this.app = new AppContainer();
         this.cssPath = Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm();
 
-        showCreateComposition();
+        showHome();
         stage.setOnCloseRequest(e -> shutdown());
         stage.show();
     }
@@ -68,7 +68,7 @@ public class AppController {
 
     public void showCreateComposition() {
         CreateCompositionView view = new CreateCompositionView();
-        new CreateCompositionController(view, this, app.powderRepo());
+        new CreateCompositionController(view, this, app.powderRepo(), app.compositionRepo(), app.compositionLayerRepo(), app.compositionLayerIngredientRepo(), app.productRepo());
         stage.setScene(createSceneWithCSS(view));
     }
 
@@ -76,7 +76,7 @@ public class AppController {
     public void showLaboratory() {
         LaboratoryView view = new LaboratoryView();
         configureHeader(view.getHeader());
-        new LaboratoryController();
+        new LaboratoryController(view, this);
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Laboratorio");
@@ -94,7 +94,7 @@ public class AppController {
     private void configureHeader(AppHeader header) {
         header.getHomeButton().setOnAction(e -> showHome());
         header.getInventoryButton().setOnAction( e -> showInventory());
-      //  header.getOrdersButton().setOnAction(e -> showOrderList());
+        header.getLaboratoryButton().setOnAction(e -> showLaboratory());
     }
 
     public void shutdown() {
