@@ -1,12 +1,12 @@
 package com.orodent.tonv2.core.csv.parser;
 
-import com.orodent.tonv2.features.inventory.database.model.Depot;
-import com.orodent.tonv2.features.inventory.database.model.Item;
-import com.orodent.tonv2.features.inventory.database.model.Lot;
-import com.orodent.tonv2.features.inventory.database.repository.DepotRepository;
-import com.orodent.tonv2.features.inventory.database.repository.ItemRepository;
-import com.orodent.tonv2.features.inventory.database.repository.LotRepository;
-import com.orodent.tonv2.features.inventory.database.repository.StockRepository;
+import com.orodent.tonv2.core.database.model.Depot;
+import com.orodent.tonv2.core.database.model.Item;
+import com.orodent.tonv2.core.database.model.Lot;
+import com.orodent.tonv2.core.database.repository.DepotRepository;
+import com.orodent.tonv2.core.database.repository.ItemRepository;
+import com.orodent.tonv2.core.database.repository.LotRepository;
+import com.orodent.tonv2.core.database.repository.StockRepository;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,7 +33,7 @@ public class MagazzinoCsvParser implements CsvParser {
         this.depotRepo = depotRepo;
         this.stockRepo = stockRepo;
     }
-
+        //TODO da modificare in quanto è stato introdotto product e modificato item
     @Override
     public void parse(Path path) {
 
