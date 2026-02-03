@@ -5,7 +5,7 @@ import java.util.List;
 
 public class LayerDraft {
 
-    private final int layerNumber;
+    private int layerNumber;
     private final List<IngredientDraft> ingredients = new ArrayList<>();
     private String notes;
 
@@ -15,6 +15,10 @@ public class LayerDraft {
 
     public int layerNumber() {
         return layerNumber;
+    }
+
+    public void setLayerNumber(int layerNumber) {
+        this.layerNumber = layerNumber;
     }
 
     public List<IngredientDraft> ingredients() {

@@ -172,6 +172,36 @@ In ogni caso se leggete bene potete risalire a tutta la scala gerarchica.
      -fx-background-radius: 4;
  }
 
+ .layer-editor {
+     -fx-background-color: white;
+     -fx-border-color: #cccccc;
+     -fx-border-radius: 8;
+     -fx-background-radius: 8;
+ }
+
+ .layer-editor .label {
+     -fx-text-fill: #333333;
+ }
+
+ .layer-title {
+     -fx-font-weight: bold;
+     -fx-font-size: 14px;
+     -fx-text-fill: #222222;
+ }
+
+.ingredient-row {
+    -fx-padding: 4 0;
+}
+
+.ingredient-row .label {
+    -fx-text-fill: #333333;
+}
+
+.ingredient-row .text-field {
+    -fx-text-fill: #222;
+    -fx-background-color: #f7f7f7;
+}
+
 
 
 

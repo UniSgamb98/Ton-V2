@@ -8,8 +8,6 @@ import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
 import com.orodent.tonv2.features.laboratory.view.CreateCompositionView;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
-import javafx.geometry.Insets;
 
 import java.time.LocalDateTime;
 
@@ -17,7 +15,6 @@ public class CreateCompositionController {
 
     private final CreateCompositionView view;
     private final AppController app;
-    private int layerCounter = 1;
     private final PowderRepository powderRepo;
     private final CompositionRepository compositionRepo;
     private final CompositionLayerRepository compositionLayerRepo;
@@ -34,6 +31,7 @@ public class CreateCompositionController {
         this.productRepo = productRepo;
 
         loadProducts();
+        loadPowders();
         setupActions();
     }
 
@@ -41,51 +39,14 @@ public class CreateCompositionController {
     private void loadProducts() {
         view.getProductSelector().getItems().setAll(productRepo.findAll());
     }
+    private void loadPowders() {
+        view.setAvailablePowders(powderRepo.findAll());
+    }
 
     private void setupActions() {
+        view.getSaveButton().setOnAction(e -> saveComposition());
+       // view.getCancelButton().setOnAction(e -> app.showLaboratory());
 
-        view.getAddLayerBtn().setOnAction(e -> addNewLayer());
-
-        view.getSaveBtn().setOnAction(e -> saveComposition());
-
-        view.getCancelBtn().setOnAction(e -> app.showLaboratory()); // torna al menu laboratorio
-    }
-
-    /** Aggiunge un nuovo layer */
-    private void addNewLayer() {
-
-        VBox layerBox = new VBox(10);
-        layerBox.setPadding(new Insets(10));
-        layerBox.getStyleClass().add("layer-box");
-
-        Label layerTitle = new Label("Strato " + layerCounter++);
-
-        VBox ingredientList = new VBox(5);
-
-        Button addIngredientBtn = new Button("Aggiungi Polvere");
-        addIngredientBtn.setOnAction(e -> ingredientList.getChildren().add(createIngredientRow()));
-
-        layerBox.getChildren().addAll(layerTitle, ingredientList, addIngredientBtn);
-
-        view.addLayer(layerBox);
-    }
-
-    /** Riga di un ingrediente: polvere + percentuale */
-    private HBox createIngredientRow() {
-        ComboBox<String> powderSelector = new ComboBox<>();
-        TextField percentageField = new TextField();
-
-        powderSelector.setPromptText("Polvere");
-        percentageField.setPromptText("%");
-
-        powderSelector.getItems().addAll(
-                powderRepo.findAll().stream().map(Powder::name).toList()
-        );
-
-
-        HBox row = new HBox(10, powderSelector, percentageField);
-        row.setPadding(new Insets(5));
-        return row;
     }
 
     /** Quando si salva la composizione */
@@ -122,6 +83,7 @@ public class CreateCompositionController {
         int compositionId = compositionRepo.insert(composition);
 
         // 5️⃣ Salvo layer e ingredienti
+        view.renumberLayers();
         for (LayerDraft layerDraft : view.getLayers()) {
 
             CompositionLayer layer = new CompositionLayer(
@@ -155,6 +117,4 @@ public class CreateCompositionController {
 
         app.showLaboratory();
     }
-
-
 }

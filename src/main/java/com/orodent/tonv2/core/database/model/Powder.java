@@ -8,4 +8,10 @@ public record Powder(
         Double translucency,
         int yttria,
         String notes
-) {}
+) {
+    @Override
+    public String toString(){
+        return name + ", codice: " + code + ", resistenza:" + strength + ", traslucenza: " + translucency;
+    }
+
+}
