@@ -20,6 +20,9 @@ public class CreateCompositionView extends BorderPane {
        ======================= */
 
     private final ComboBox<Product> productSelector = new ComboBox<>();
+    private final Button loadLatestVersionBtn = new Button("↵");
+    private final Label loadLatestVersionLabel = new Label("carica ultima versione");
+    private final HBox loadLatestVersionBox = new HBox(6, loadLatestVersionBtn, loadLatestVersionLabel);
     private final TextArea notesArea = new TextArea();
     private final VBox layersBox = new VBox(10);
 
@@ -55,6 +58,12 @@ public class CreateCompositionView extends BorderPane {
 
         productSelector.setPromptText("Seleziona prodotto");
 
+        loadLatestVersionBtn.setFocusTraversable(false);
+        loadLatestVersionBtn.setStyle("-fx-font-size: 11px; -fx-padding: 2 8 2 8;");
+        loadLatestVersionLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #4b5563;");
+        loadLatestVersionBox.setAlignment(Pos.CENTER_LEFT);
+        setLoadLatestVersionVisible(false);
+
         notesArea.setPromptText("Note sulla composizione...");
         notesArea.setWrapText(true);
         notesArea.setPrefRowCount(3);
@@ -62,6 +71,7 @@ public class CreateCompositionView extends BorderPane {
         VBox topBox = new VBox(10,
                 new Label("Prodotto"),
                 productSelector,
+                loadLatestVersionBox,
                 new Label("Note"),
                 notesArea
         );
@@ -158,5 +168,13 @@ public class CreateCompositionView extends BorderPane {
     public Button getSaveButton() {
         return saveBtn;
     }
-}
 
+    public Button getLoadLatestVersionButton() {
+        return loadLatestVersionBtn;
+    }
+
+    public void setLoadLatestVersionVisible(boolean visible) {
+        loadLatestVersionBox.setVisible(visible);
+        loadLatestVersionBox.setManaged(visible);
+    }
+}

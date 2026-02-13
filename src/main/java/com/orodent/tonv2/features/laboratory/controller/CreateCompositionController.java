@@ -53,8 +53,19 @@ public class CreateCompositionController {
 
     private void setupActions() {
         view.getSaveButton().setOnAction(e -> saveComposition());
-       // view.getCancelButton().setOnAction(e -> app.showLaboratory());
+        view.getProductSelector().valueProperty().addListener((obs, oldValue, newValue) ->
+                view.setLoadLatestVersionVisible(newValue != null && !isNewProductOption(newValue))
+        );
+        view.getLoadLatestVersionButton().setOnAction(e -> loadLatestVersion());
+        view.setLoadLatestVersionVisible(false);
 
+    }
+
+    private void loadLatestVersion() {
+        Alert info = new Alert(Alert.AlertType.INFORMATION);
+        info.setHeaderText("Funzione in arrivo");
+        info.setContentText("Caricamento ultima versione disponibile prossimamente.");
+        info.showAndWait();
     }
 
     /** Quando si salva la composizione */
