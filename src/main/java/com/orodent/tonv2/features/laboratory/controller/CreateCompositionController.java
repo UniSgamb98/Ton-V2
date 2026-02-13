@@ -10,6 +10,7 @@ import com.orodent.tonv2.features.laboratory.view.CreateCompositionView;
 import javafx.scene.control.*;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 public class CreateCompositionController {
 
@@ -56,8 +57,11 @@ public class CreateCompositionController {
         Product product = view.getProductSelector().getValue();
 
         if (product == null) {
-            showMissingProductAlert();
-            return;
+            Optional<Product> maybeNewProduct = showMissingProductDialog();
+            if (maybeNewProduct.isEmpty()) {
+                return;
+            }
+            product = maybeNewProduct.get();
         }
 
         // 2️⃣ Calcolo nuova versione per quel product
@@ -117,16 +121,48 @@ public class CreateCompositionController {
         app.showLaboratory();
     }
 
-    private void showMissingProductAlert() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Nuovo prodotto");
-        alert.setHeaderText("Product selector vuoto");
-        alert.setContentText(
+    private Optional<Product> showMissingProductDialog() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Nuovo prodotto");
+        dialog.setHeaderText("Product selector vuoto");
+        dialog.setContentText("Nome nuovo prodotto:");
+
+        dialog.getEditor().setPromptText("Inserisci nome prodotto");
+
+        Label helper = new Label(
                 "Stai creando una composizione per un nuovo prodotto.\n" +
-                "Inserisci il nome del nuovo prodotto prima di salvare.\n\n" +
-                "Se invece vuoi creare una nuova versione di un prodotto esistente, " +
-                "premi Indietro e seleziona un prodotto nel Product selector."
+                "Se vuoi creare una nuova versione di un prodotto esistente, " +
+                "premi Annulla, torna indietro e seleziona il prodotto nel Product selector."
         );
-        alert.showAndWait();
+        helper.setWrapText(true);
+        dialog.getDialogPane().setExpandableContent(helper);
+        dialog.getDialogPane().setExpanded(true);
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return Optional.empty();
+        }
+
+        String newProductName = result.get().trim();
+        if (newProductName.isEmpty()) {
+            Alert warning = new Alert(Alert.AlertType.WARNING);
+            warning.setHeaderText("Nome prodotto mancante");
+            warning.setContentText("Inserisci un nome prodotto valido per continuare.");
+            warning.showAndWait();
+            return Optional.empty();
+        }
+
+        try {
+            Product newProduct = productRepo.insert(newProductName);
+            view.getProductSelector().getItems().add(newProduct);
+            view.getProductSelector().setValue(newProduct);
+            return Optional.of(newProduct);
+        } catch (RuntimeException e) {
+            Alert error = new Alert(Alert.AlertType.ERROR);
+            error.setHeaderText("Errore creazione prodotto");
+            error.setContentText("Non è stato possibile creare il nuovo prodotto: " + e.getMessage());
+            error.showAndWait();
+            return Optional.empty();
+        }
     }
 }

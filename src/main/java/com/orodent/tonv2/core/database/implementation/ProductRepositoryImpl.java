@@ -46,4 +46,29 @@ public class ProductRepositoryImpl implements ProductRepository {
         return products;
     }
 
+
+    @Override
+    public Product insert(String type) {
+        String sql = """
+        INSERT INTO product (type, color)
+        VALUES (?, ?)
+        """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, type);
+            ps.setString(2, "");
+            ps.executeUpdate();
+
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return new Product(rs.getInt(1), type, "");
+                }
+            }
+
+            throw new SQLException("No ID returned for product insert");
+        } catch (SQLException e) {
+            throw new RuntimeException("Error inserting product", e);
+        }
+    }
+
 }
