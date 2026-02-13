@@ -14,6 +14,8 @@ import java.util.Optional;
 
 public class CreateCompositionController {
 
+    private static final Product NEW_PRODUCT_OPTION = new Product(-1, "➕ Nuovo prodotto", "");
+
     private final CreateCompositionView view;
     private final AppController app;
     private final PowderRepository powderRepo;
@@ -39,6 +41,9 @@ public class CreateCompositionController {
     /** Carica gli articoli dal repo */
     private void loadProducts() {
         view.getProductSelector().getItems().setAll(productRepo.findAll());
+        if (!view.getProductSelector().getItems().contains(NEW_PRODUCT_OPTION)) {
+            view.getProductSelector().getItems().add(0, NEW_PRODUCT_OPTION);
+        }
     }
     private void loadPowders() {
         view.setAvailablePowders(powderRepo.findAll());
@@ -56,7 +61,7 @@ public class CreateCompositionController {
         // 1️⃣ Leggo il Product dalla view
         Product product = view.getProductSelector().getValue();
 
-        if (product == null) {
+        if (product == null || isNewProductOption(product)) {
             Optional<Product> maybeNewProduct = showMissingProductDialog();
             if (maybeNewProduct.isEmpty()) {
                 return;
@@ -121,6 +126,11 @@ public class CreateCompositionController {
         app.showLaboratory();
     }
 
+
+    private boolean isNewProductOption(Product product) {
+        return product != null && product.id() == NEW_PRODUCT_OPTION.id();
+    }
+
     private Optional<Product> showMissingProductDialog() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Nuovo prodotto");
@@ -155,6 +165,8 @@ public class CreateCompositionController {
         try {
             Product newProduct = productRepo.insert(newProductName);
             view.getProductSelector().getItems().add(newProduct);
+            view.getProductSelector().getItems().remove(NEW_PRODUCT_OPTION);
+            view.getProductSelector().getItems().add(0, NEW_PRODUCT_OPTION);
             view.getProductSelector().setValue(newProduct);
             return Optional.of(newProduct);
         } catch (RuntimeException e) {
