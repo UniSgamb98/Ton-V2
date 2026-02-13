@@ -48,6 +48,7 @@ public class LayerEditorView extends HBox {
 
         notesArea.setPromptText("Note layer...");
         notesArea.setWrapText(true);
+        notesArea.setText(layerDraft.notes());
         updateNotesAreaSize();
 
 
@@ -58,6 +59,9 @@ public class LayerEditorView extends HBox {
         /* ---- Ingredient list ---- */
 
         ingredientsBox.setSpacing(5);
+        for (IngredientDraft ingredient : layerDraft.ingredients()) {
+            addIngredientRow(ingredient);
+        }
 
         /* ---- Add ingredient ---- */
 
@@ -76,9 +80,15 @@ public class LayerEditorView extends HBox {
     private void addIngredient() {
         IngredientDraft ingredient = new IngredientDraft(0, 0);
         layerDraft.ingredients().add(ingredient);
+        addIngredientRow(ingredient);
+    }
 
-        IngredientRowView rowView = new IngredientRowView(ingredient);  //Creo la vista
-        rowView.getPowderSelector().getItems().setAll(availablePowders);    //Popolo il choiceBox powder
+    private void addIngredientRow(IngredientDraft ingredient) {
+        IngredientRowView rowView = new IngredientRowView(ingredient);
+        rowView.setAvailablePowders(availablePowders);
+        rowView.setPowderById(ingredient.powderId());
+        rowView.setPercentage(ingredient.percentage());
+
         rowView.setOnRemove(() -> {
             layerDraft.ingredients().remove(ingredient);
             ingredientsBox.getChildren().remove(rowView);

@@ -4,6 +4,8 @@ import com.orodent.tonv2.core.database.model.CompositionLayer;
 import com.orodent.tonv2.core.database.repository.CompositionLayerRepository;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CompositionLayerRepositoryImpl implements CompositionLayerRepository {
     private final Connection conn;
@@ -42,6 +44,41 @@ public class CompositionLayerRepositoryImpl implements CompositionLayerRepositor
         } catch (SQLException e) {
             throw new RuntimeException("Error inserting composition layer", e);
         }
+    }
+
+
+    @Override
+    public List<CompositionLayer> findByCompositionId(int compositionId) {
+
+        String sql = """
+        SELECT id, composition_id, layer_number, notes
+        FROM composition_layer
+        WHERE composition_id = ?
+        ORDER BY layer_number ASC
+        """;
+
+        List<CompositionLayer> layers = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, compositionId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    layers.add(new CompositionLayer(
+                            rs.getInt("id"),
+                            rs.getInt("composition_id"),
+                            rs.getInt("layer_number"),
+                            rs.getString("notes")
+                    ));
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error finding composition layers for composition " + compositionId, e);
+        }
+
+        return layers;
     }
 
 }

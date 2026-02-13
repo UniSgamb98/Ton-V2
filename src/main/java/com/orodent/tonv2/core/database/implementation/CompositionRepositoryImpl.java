@@ -66,6 +66,45 @@ public class CompositionRepositoryImpl implements CompositionRepository {
         return Optional.empty();
     }
 
+
+    @Override
+    public Optional<Composition> findLatestByProduct(int itemId) {
+
+        String sql = """
+        SELECT id, item_id, version, is_active, created_at, notes
+        FROM composition
+        WHERE item_id = ?
+        ORDER BY version DESC
+        FETCH FIRST 1 ROW ONLY
+        """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, itemId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Timestamp createdAt = rs.getTimestamp("created_at");
+                    return Optional.of(new Composition(
+                            rs.getInt("id"),
+                            rs.getInt("item_id"),
+                            rs.getInt("version"),
+                            rs.getInt("is_active") == 1,
+                            createdAt != null ? createdAt.toLocalDateTime() : null,
+                            rs.getString("notes")
+                    ));
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error finding latest composition for item " + itemId, e
+            );
+        }
+
+        return Optional.empty();
+    }
+
     @Override
     public int insert(Composition composition) {
         String sql = """

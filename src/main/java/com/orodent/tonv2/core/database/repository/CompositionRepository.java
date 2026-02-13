@@ -7,5 +7,6 @@ import java.util.Optional;
 public interface CompositionRepository {
     void deactivateActiveByProduct(int itemId);
     Optional<Integer> findMaxVersionByProduct(int itemId);
+    Optional<Composition> findLatestByProduct(int itemId);
     int insert(Composition composition);
 }

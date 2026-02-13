@@ -8,6 +8,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 
+import java.util.List;
+
 public class IngredientRowView extends HBox {
 
     private final IngredientDraft ingredient;
@@ -64,6 +66,26 @@ public class IngredientRowView extends HBox {
 
     public void setOnRemove(Runnable action) {
         removeBtn.setOnAction(e -> action.run());
+    }
+
+    public void setAvailablePowders(List<Powder> powders) {
+        powderSelector.getItems().setAll(powders);
+    }
+
+    public void setPowderById(int powderId) {
+        if (powderId <= 0) {
+            return;
+        }
+        for (Powder powder : powderSelector.getItems()) {
+            if (powder.id() == powderId) {
+                powderSelector.setValue(powder);
+                return;
+            }
+        }
+    }
+
+    public void setPercentage(double percentage) {
+        percentageField.setText(Double.toString(percentage));
     }
 
     /* =======================

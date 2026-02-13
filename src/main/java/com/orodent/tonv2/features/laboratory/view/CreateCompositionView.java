@@ -2,6 +2,7 @@ package com.orodent.tonv2.features.laboratory.view;
 
 import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.database.model.Product;
+import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
 import com.orodent.tonv2.features.laboratory.view.partial.LayerEditorView;
 import javafx.geometry.Insets;
@@ -116,9 +117,12 @@ public class CreateCompositionView extends BorderPane {
        ======================= */
 
     private void addLayer() {
-        LayerDraft layerDraft = new LayerDraft(layers.size()+1);
+        LayerDraft layerDraft = new LayerDraft(layers.size() + 1);
         layers.add(layerDraft);
+        createLayerView(layerDraft);
+    }
 
+    private void createLayerView(LayerDraft layerDraft) {
         LayerEditorView layerView = new LayerEditorView(layerDraft, availablePowders);
 
         layerView.setOnRemove(() -> {
@@ -161,8 +165,33 @@ public class CreateCompositionView extends BorderPane {
         return text == null || text.isBlank() ? null : text.trim();
     }
 
+    public void setNotes(String notes) {
+        notesArea.setText(notes == null ? "" : notes);
+    }
+
     public List<LayerDraft> getLayers() {
         return List.copyOf(layers);
+    }
+
+    public void replaceLayers(List<LayerDraft> newLayers) {
+        layers.clear();
+        layersBox.getChildren().clear();
+
+        for (LayerDraft newLayer : newLayers) {
+            LayerDraft draft = new LayerDraft(newLayer.layerNumber());
+            draft.setNotes(newLayer.notes());
+            newLayer.ingredients().forEach(ingredient ->
+                    draft.ingredients().add(new IngredientDraft(
+                            ingredient.powderId(),
+                            ingredient.percentage()
+                    ))
+            );
+
+            layers.add(draft);
+            createLayerView(draft);
+        }
+
+        renumberLayers();
     }
 
     public Button getSaveButton() {

@@ -10,6 +10,8 @@ import com.orodent.tonv2.features.laboratory.view.CreateCompositionView;
 import javafx.scene.control.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class CreateCompositionController {
@@ -62,10 +64,43 @@ public class CreateCompositionController {
     }
 
     private void loadLatestVersion() {
-        Alert info = new Alert(Alert.AlertType.INFORMATION);
-        info.setHeaderText("Funzione in arrivo");
-        info.setContentText("Caricamento ultima versione disponibile prossimamente.");
-        info.showAndWait();
+        Product selectedProduct = view.getProductSelector().getValue();
+
+        if (selectedProduct == null || isNewProductOption(selectedProduct)) {
+            return;
+        }
+
+        Item item = findExistingItemForProduct(selectedProduct);
+        if (item == null) {
+            showWarning("Nessuna versione trovata", "Il prodotto selezionato non ha ancora versioni salvate.");
+            return;
+        }
+
+        Optional<Composition> latestComposition = compositionRepo.findLatestByProduct(item.id());
+        if (latestComposition.isEmpty()) {
+            showWarning("Nessuna versione trovata", "Non esiste ancora una composizione da caricare per questo prodotto.");
+            return;
+        }
+
+        Composition composition = latestComposition.get();
+        List<LayerDraft> layerDrafts = new ArrayList<>();
+
+        for (CompositionLayer layer : compositionLayerRepo.findByCompositionId(composition.id())) {
+            LayerDraft draft = new LayerDraft(layer.layerNumber());
+            draft.setNotes(layer.notes());
+
+            for (CompositionLayerIngredient ingredient : compositionLayerIngredientRepo.findByLayerId(layer.id())) {
+                draft.ingredients().add(new IngredientDraft(
+                        ingredient.powderId(),
+                        ingredient.percentage()
+                ));
+            }
+
+            layerDrafts.add(draft);
+        }
+
+        view.setNotes(composition.notes());
+        view.replaceLayers(layerDrafts);
     }
 
     /** Quando si salva la composizione */
@@ -158,6 +193,16 @@ public class CreateCompositionController {
         return itemRepo.insert(generatedCode);
     }
 
+    private Item findExistingItemForProduct(Product product) {
+        Item existing = itemRepo.findById(product.id());
+        if (existing != null) {
+            return existing;
+        }
+
+        String generatedCode = "PROD-" + product.id();
+        return itemRepo.findByCode(generatedCode);
+    }
+
     private boolean isNewProductOption(Product product) {
         return product != null && product.id() == NEW_PRODUCT_OPTION.id();
     }
@@ -207,5 +252,12 @@ public class CreateCompositionController {
             error.showAndWait();
             return Optional.empty();
         }
+    }
+
+    private void showWarning(String header, String content) {
+        Alert warning = new Alert(Alert.AlertType.WARNING);
+        warning.setHeaderText(header);
+        warning.setContentText(content);
+        warning.showAndWait();
     }
 }
