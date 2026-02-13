@@ -56,8 +56,7 @@ public class CreateCompositionController {
         Product product = view.getProductSelector().getValue();
 
         if (product == null) {
-            System.out.println("Seleziona un prodotto prima di salvare la composizione");
-            //TODO showError("Seleziona un prodotto prima di salvare la composizione");
+            showMissingProductAlert();
             return;
         }
 
@@ -116,5 +115,18 @@ public class CreateCompositionController {
         alert.showAndWait();
 
         app.showLaboratory();
+    }
+
+    private void showMissingProductAlert() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Nuovo prodotto");
+        alert.setHeaderText("Product selector vuoto");
+        alert.setContentText(
+                "Stai creando una composizione per un nuovo prodotto.\n" +
+                "Inserisci il nome del nuovo prodotto prima di salvare.\n\n" +
+                "Se invece vuoi creare una nuova versione di un prodotto esistente, " +
+                "premi Indietro e seleziona un prodotto nel Product selector."
+        );
+        alert.showAndWait();
     }
 }
