@@ -91,7 +91,7 @@ public class LayerEditorView extends HBox {
 
     private void updateNotesAreaSize() {
         int ingredientCount = layerDraft.ingredients().size();
-        int preferredRows = Math.max(2, ingredientCount + 1);
+        int preferredRows = ingredientCount * (5/2) + 2;
         notesArea.setPrefRowCount(preferredRows);
     }
 
