@@ -15,6 +15,22 @@ public class ItemRepositoryImpl implements ItemRepository {
         this.conn = conn;
     }
 
+
+    @Override
+    public Item findById(int id) {
+        String sql = "SELECT id, code FROM item WHERE id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return new Item(rs.getInt("id"), rs.getString("code"));
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public Item findByCode(String code) {
         String sql = "SELECT * FROM item WHERE code = ?";

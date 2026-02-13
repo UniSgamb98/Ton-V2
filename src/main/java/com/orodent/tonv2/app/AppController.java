@@ -68,7 +68,7 @@ public class AppController {
 
     public void showCreateComposition() {
         CreateCompositionView view = new CreateCompositionView();
-        new CreateCompositionController(view, this, app.powderRepo(), app.compositionRepo(), app.compositionLayerRepo(), app.compositionLayerIngredientRepo(), app.productRepo());
+        new CreateCompositionController(view, this, app.powderRepo(), app.compositionRepo(), app.compositionLayerRepo(), app.compositionLayerIngredientRepo(), app.productRepo(), app.itemRepo());
         stage.setScene(createSceneWithCSS(view));
     }
 

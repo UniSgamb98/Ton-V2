@@ -5,6 +5,7 @@ import com.orodent.tonv2.core.database.model.Item;
 import java.util.List;
 
 public interface ItemRepository {
+    Item findById(int id);
     Item findByCode(String code);
     Item insert(String code);
     List<Item> findAll();

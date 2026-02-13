@@ -20,15 +20,17 @@ public class CreateCompositionController {
     private final AppController app;
     private final PowderRepository powderRepo;
     private final CompositionRepository compositionRepo;
+    private final ItemRepository itemRepo;
     private final CompositionLayerRepository compositionLayerRepo;
     private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
     private final ProductRepository productRepo;
 
-    public CreateCompositionController(CreateCompositionView view, AppController app, PowderRepository powderRepo, CompositionRepository compositionRepo, CompositionLayerRepository compositionLayerRepo, CompositionLayerIngredientRepository compositionLayerIngredientRepo, ProductRepository productRepo) {
+    public CreateCompositionController(CreateCompositionView view, AppController app, PowderRepository powderRepo, CompositionRepository compositionRepo, CompositionLayerRepository compositionLayerRepo, CompositionLayerIngredientRepository compositionLayerIngredientRepo, ProductRepository productRepo, ItemRepository itemRepo) {
         this.view = view;
         this.app = app;
         this.powderRepo = powderRepo;
         this.compositionRepo = compositionRepo;
+        this.itemRepo = itemRepo;
         this.compositionLayerRepo = compositionLayerRepo;
         this.compositionLayerIngredientRepo = compositionLayerIngredientRepo;
         this.productRepo = productRepo;
@@ -69,19 +71,21 @@ public class CreateCompositionController {
             product = maybeNewProduct.get();
         }
 
-        // 2️⃣ Calcolo nuova versione per quel product
+        Item item = resolveItemForProduct(product);
+
+        // 2️⃣ Calcolo nuova versione per quell'item
         int newVersion = compositionRepo
-                .findMaxVersionByProduct(product.id())
+                .findMaxVersionByProduct(item.id())
                 .map(v -> v + 1)
                 .orElse(1);
 
         // 3️⃣ Disattivo eventuale composizione attiva precedente
-        compositionRepo.deactivateActiveByProduct(product.id());
+        compositionRepo.deactivateActiveByProduct(item.id());
 
         // 4️⃣ Creo e salvo la composizione
         Composition composition = new Composition(
                 0,
-                product.id(),
+                item.id(),
                 newVersion,
                 true,
                 LocalDateTime.now(),
@@ -126,6 +130,22 @@ public class CreateCompositionController {
         app.showLaboratory();
     }
 
+
+
+    private Item resolveItemForProduct(Product product) {
+        Item existing = itemRepo.findById(product.id());
+        if (existing != null) {
+            return existing;
+        }
+
+        String generatedCode = "PROD-" + product.id();
+        Item byCode = itemRepo.findByCode(generatedCode);
+        if (byCode != null) {
+            return byCode;
+        }
+
+        return itemRepo.insert(generatedCode);
+    }
 
     private boolean isNewProductOption(Product product) {
         return product != null && product.id() == NEW_PRODUCT_OPTION.id();
