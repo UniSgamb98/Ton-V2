@@ -13,7 +13,7 @@ import javafx.scene.layout.VBox;
 
 import java.util.List;
 
-public class LayerEditorView extends VBox {
+public class LayerEditorView extends HBox {
 
     private final LayerDraft layerDraft;
     private final List<Powder> availablePowders;
@@ -49,6 +49,7 @@ public class LayerEditorView extends VBox {
         notesArea.setWrapText(true);
         notesArea.setPrefRowCount(2);
 
+
         notesArea.textProperty().addListener((obs, old, val) ->
                 layerDraft.setNotes(val)
         );
@@ -61,14 +62,9 @@ public class LayerEditorView extends VBox {
 
         addIngredientBtn.setOnAction(e -> addIngredient());
 
-        getChildren().addAll(
-                header,
-                new Label("Ingredienti"),
-                ingredientsBox,
-                addIngredientBtn,
-                new Label("Note"),
-                notesArea
-        );
+        VBox leftBody = new VBox(10, header, ingredientsBox, addIngredientBtn);
+        VBox rightBody = new VBox(new Label("Note"), notesArea);
+        getChildren().addAll(leftBody, rightBody);
     }
 
     public void setLayerNumber(int number) {
