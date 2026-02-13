@@ -14,39 +14,39 @@ public class CompositionRepositoryImpl implements CompositionRepository {
     }
 
     @Override
-    public void deactivateActiveByProduct(int productId) {
+    public void deactivateActiveByProduct(int itemId) {
 
         String sql = """
         UPDATE composition
-        SET active = false
-        WHERE product_id = ?
-          AND active = true
+        SET is_active = 0
+        WHERE item_id = ?
+          AND is_active = 1
         """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, productId);
+            ps.setInt(1, itemId);
             ps.executeUpdate();
 
         } catch (SQLException e) {
             throw new RuntimeException(
-                    "Error deactivating active composition for product " + productId, e
+                    "Error deactivating active composition for item " + itemId, e
             );
         }
     }
 
     @Override
-    public Optional<Integer> findMaxVersionByProduct(int productId) {
+    public Optional<Integer> findMaxVersionByProduct(int itemId) {
 
         String sql = """
         SELECT MAX(version)
         FROM composition
-        WHERE product_id = ?
+        WHERE item_id = ?
         """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, productId);
+            ps.setInt(1, itemId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -59,7 +59,7 @@ public class CompositionRepositoryImpl implements CompositionRepository {
 
         } catch (SQLException e) {
             throw new RuntimeException(
-                    "Error finding max composition version for product " + productId, e
+                    "Error finding max composition version for item " + itemId, e
             );
         }
 
