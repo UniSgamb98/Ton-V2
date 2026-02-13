@@ -9,6 +9,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.List;
@@ -47,7 +48,7 @@ public class LayerEditorView extends HBox {
 
         notesArea.setPromptText("Note layer...");
         notesArea.setWrapText(true);
-        notesArea.setPrefRowCount(2);
+        updateNotesAreaSize();
 
 
         notesArea.textProperty().addListener((obs, old, val) ->
@@ -64,6 +65,7 @@ public class LayerEditorView extends HBox {
 
         VBox leftBody = new VBox(10, header, ingredientsBox, addIngredientBtn);
         VBox rightBody = new VBox(new Label("Note"), notesArea);
+        HBox.setHgrow(rightBody, Priority.ALWAYS);
         getChildren().addAll(leftBody, rightBody);
     }
 
@@ -80,13 +82,20 @@ public class LayerEditorView extends HBox {
         rowView.setOnRemove(() -> {
             layerDraft.ingredients().remove(ingredient);
             ingredientsBox.getChildren().remove(rowView);
+            updateNotesAreaSize();
         });
 
         ingredientsBox.getChildren().add(rowView);
+        updateNotesAreaSize();
+    }
+
+    private void updateNotesAreaSize() {
+        int ingredientCount = layerDraft.ingredients().size();
+        int preferredRows = Math.max(2, ingredientCount + 1);
+        notesArea.setPrefRowCount(preferredRows);
     }
 
     public void setOnRemove(Runnable action) {
         removeLayerBtn.setOnAction(e -> action.run());
     }
 }
-

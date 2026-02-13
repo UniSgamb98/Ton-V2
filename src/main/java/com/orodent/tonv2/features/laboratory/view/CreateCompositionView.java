@@ -78,6 +78,11 @@ public class CreateCompositionView extends BorderPane {
                 addLayerBtn
         );
         centerBox.setPadding(new Insets(10));
+        centerBox.setMaxWidth(900);
+
+        StackPane centeredCenterBox = new StackPane(centerBox);
+        centeredCenterBox.setPadding(new Insets(0, 10, 0, 10));
+        StackPane.setAlignment(centerBox, Pos.TOP_CENTER);
 
         /* ---- BOTTOM: Save ---- */
 
@@ -88,7 +93,7 @@ public class CreateCompositionView extends BorderPane {
         /* ---- BorderPane ---- */
 
         setTop(topBox);
-        setCenter(centerBox);
+        setCenter(centeredCenterBox);
         setBottom(bottomBox);
 
         /* ---- Actions ---- */
