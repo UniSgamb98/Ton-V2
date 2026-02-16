@@ -1,5 +1,6 @@
 package com.orodent.tonv2.features.laboratory.view;
 
+import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
@@ -14,11 +15,14 @@ import javafx.scene.layout.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CreateCompositionView extends BorderPane {
+public class CreateCompositionView extends VBox {
 
     /* =======================
        COMPONENTI UI
        ======================= */
+
+    private final AppHeader header = new AppHeader("Nuova composizione");
+    private final BorderPane content = new BorderPane();
 
     private final ComboBox<Product> productSelector = new ComboBox<>();
     private final Button loadLatestVersionBtn = new Button("↵");
@@ -42,7 +46,12 @@ public class CreateCompositionView extends BorderPane {
        ======================= */
 
     public CreateCompositionView() {
+        setSpacing(20);
+        setPadding(new Insets(20));
+
         buildLayout();
+
+        getChildren().addAll(header, content);
     }
 
     public void setAvailablePowders(List<Powder> powders) {
@@ -103,9 +112,9 @@ public class CreateCompositionView extends BorderPane {
 
         /* ---- BorderPane ---- */
 
-        setTop(topBox);
-        setCenter(centeredCenterBox);
-        setBottom(bottomBox);
+        content.setTop(topBox);
+        content.setCenter(centeredCenterBox);
+        content.setBottom(bottomBox);
 
         /* ---- Actions ---- */
 
@@ -205,5 +214,9 @@ public class CreateCompositionView extends BorderPane {
     public void setLoadLatestVersionVisible(boolean visible) {
         loadLatestVersionBox.setVisible(visible);
         loadLatestVersionBox.setManaged(visible);
+    }
+
+    public AppHeader getHeader() {
+        return header;
     }
 }
