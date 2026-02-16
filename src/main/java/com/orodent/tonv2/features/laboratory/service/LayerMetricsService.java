@@ -12,14 +12,12 @@ import java.util.function.Function;
 
 public class LayerMetricsService {
 
-    public LayerMetrics calculate(LayerDraft layerDraft, List<Powder> availablePowders, Double lowerLayerTranslucency) {
+    public LayerMetrics calculate(LayerDraft layerDraft, List<Powder> availablePowders) {
         Double weightedTranslucency = weightedAverage(layerDraft, availablePowders, Powder::translucency);
         Double weightedStrength = weightedAverage(layerDraft, availablePowders, Powder::strength);
-
         String yttriaSummary = buildYttriaSummary(layerDraft, availablePowders);
-        String translucencyDeltaSummary = buildTranslucencyDeltaSummary(layerDraft.layerNumber(), weightedTranslucency, lowerLayerTranslucency);
 
-        return new LayerMetrics(weightedTranslucency, weightedStrength, yttriaSummary, translucencyDeltaSummary);
+        return new LayerMetrics(weightedTranslucency, weightedStrength, yttriaSummary);
     }
 
     private Double weightedAverage(LayerDraft layerDraft, List<Powder> powders, Function<Powder, Double> valueExtractor) {
@@ -80,17 +78,6 @@ public class LayerMetricsService {
                 .orElse("Y non definita");
     }
 
-    private String buildTranslucencyDeltaSummary(int layerNumber, Double currentLayerTranslucency, Double lowerLayerTranslucency) {
-        int lowerLayerNumber = layerNumber + 1;
-
-        if (lowerLayerTranslucency == null || currentLayerTranslucency == null) {
-            return "ΔT vs Layer " + lowerLayerNumber + ": n/d";
-        }
-
-        double delta = currentLayerTranslucency - lowerLayerTranslucency;
-        return "ΔT vs Layer " + lowerLayerNumber + ": " + String.format(Locale.US, "%+.2f", delta);
-    }
-
     private Powder findPowderById(List<Powder> powders, int powderId) {
         for (Powder powder : powders) {
             if (powder.id() == powderId) {
@@ -110,8 +97,7 @@ public class LayerMetricsService {
     public record LayerMetrics(
             Double weightedTranslucency,
             Double weightedStrength,
-            String yttriaSummary,
-            String translucencyDeltaSummary
+            String yttriaSummary
     ) {
     }
 }

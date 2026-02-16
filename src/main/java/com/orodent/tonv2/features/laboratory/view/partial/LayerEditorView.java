@@ -32,7 +32,6 @@ public class LayerEditorView extends HBox {
 
     private Runnable onRemove;
     private Runnable onLayerChanged;
-    private Double lowerLayerTranslucency;
 
     public LayerEditorView(LayerDraft layerDraft, List<Powder> availablePowders) {
         this.layerDraft = layerDraft;
@@ -61,8 +60,6 @@ public class LayerEditorView extends HBox {
         HBox header = new HBox(8, removeLayerBtn, title, metricsLabel);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        /* ---- Note layer ---- */
-
         notesArea.setPromptText("Note layer...");
         notesArea.setWrapText(true);
         notesArea.setText(layerDraft.notes());
@@ -73,14 +70,10 @@ public class LayerEditorView extends HBox {
             notifyLayerChanged();
         });
 
-        /* ---- Ingredient list ---- */
-
         ingredientsBox.setSpacing(5);
         for (IngredientDraft ingredient : layerDraft.ingredients()) {
             addIngredientRow(ingredient);
         }
-
-        /* ---- Add ingredient ---- */
 
         addIngredientBtn.setOnAction(e -> addIngredient());
 
@@ -103,16 +96,6 @@ public class LayerEditorView extends HBox {
 
     public void setOnLayerChanged(Runnable onLayerChanged) {
         this.onLayerChanged = onLayerChanged;
-    }
-
-    public void setLowerLayerTranslucency(Double lowerLayerTranslucency) {
-        this.lowerLayerTranslucency = lowerLayerTranslucency;
-        refreshMetrics();
-    }
-
-    public Double getWeightedTranslucency() {
-        LayerMetricsService.LayerMetrics metrics = layerMetricsService.calculate(layerDraft, availablePowders, lowerLayerTranslucency);
-        return metrics.weightedTranslucency();
     }
 
     private void addIngredient() {
@@ -154,14 +137,13 @@ public class LayerEditorView extends HBox {
     }
 
     private void refreshMetrics() {
-        LayerMetricsService.LayerMetrics metrics = layerMetricsService.calculate(layerDraft, availablePowders, lowerLayerTranslucency);
+        LayerMetricsService.LayerMetrics metrics = layerMetricsService.calculate(layerDraft, availablePowders);
 
         String layerText = "| T: " + formatDecimal(metrics.weightedTranslucency(), 2);
         String strengthText = "| R: " + formatDecimal(metrics.weightedStrength(), 0) + " MPa";
         String yttriaText = "| " + metrics.yttriaSummary();
-        String deltaText = "| " + metrics.translucencyDeltaSummary();
 
-        metricsLabel.setText(layerText + " " + strengthText + " " + yttriaText + " " + deltaText);
+        metricsLabel.setText(layerText + " " + strengthText + " " + yttriaText);
     }
 
     private String formatDecimal(Double value, int decimals) {
