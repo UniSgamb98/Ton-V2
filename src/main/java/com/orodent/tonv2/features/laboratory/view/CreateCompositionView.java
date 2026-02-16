@@ -47,6 +47,7 @@ public class CreateCompositionView extends BorderPane {
 
     public void setAvailablePowders(List<Powder> powders) {
         this.availablePowders = powders;
+        refreshLayerMetrics();
     }
 
     /* =======================
@@ -120,15 +121,18 @@ public class CreateCompositionView extends BorderPane {
         LayerDraft layerDraft = new LayerDraft(layers.size() + 1);
         layers.add(layerDraft);
         createLayerView(layerDraft);
+        refreshLayerMetrics();
     }
 
     private void createLayerView(LayerDraft layerDraft) {
         LayerEditorView layerView = new LayerEditorView(layerDraft, availablePowders);
 
+        layerView.setOnLayerChanged(this::refreshLayerMetrics);
         layerView.setOnRemove(() -> {
             layers.remove(layerDraft);
             layersBox.getChildren().remove(layerView);
             renumberLayers();
+            refreshLayerMetrics();
         });
 
         layersBox.getChildren().add(layerView);
@@ -149,6 +153,25 @@ public class CreateCompositionView extends BorderPane {
             if (node instanceof LayerEditorView view) {
                 view.setLayerNumber(number);
             }
+        }
+    }
+
+    private void refreshLayerMetrics() {
+        for (int i = 0; i < layersBox.getChildren().size(); i++) {
+            Node node = layersBox.getChildren().get(i);
+            if (!(node instanceof LayerEditorView currentLayer)) {
+                continue;
+            }
+
+            Double lowerLayerTranslucency = null;
+            if (i + 1 < layersBox.getChildren().size()) {
+                Node lowerNode = layersBox.getChildren().get(i + 1);
+                if (lowerNode instanceof LayerEditorView lowerLayerView) {
+                    lowerLayerTranslucency = lowerLayerView.getWeightedTranslucency();
+                }
+            }
+
+            currentLayer.setLowerLayerTranslucency(lowerLayerTranslucency);
         }
     }
 
@@ -192,6 +215,7 @@ public class CreateCompositionView extends BorderPane {
         }
 
         renumberLayers();
+        refreshLayerMetrics();
     }
 
     public Button getSaveButton() {

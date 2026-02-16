@@ -17,6 +17,7 @@ public class IngredientRowView extends HBox {
     private final ComboBox<Powder> powderSelector = new ComboBox<>();
     private final TextField percentageField = new TextField();
     private final Button removeBtn = new Button("✕");
+    private Runnable onIngredientChanged;
 
     public IngredientRowView(IngredientDraft ingredient) {
         this.ingredient = ingredient;
@@ -38,6 +39,7 @@ public class IngredientRowView extends HBox {
         powderSelector.valueProperty().addListener((obs, old, val) -> {
             if (val != null) {
                 ingredient.setPowderId(val.id());
+                notifyIngredientChanged();
             }
         });
 
@@ -53,6 +55,7 @@ public class IngredientRowView extends HBox {
             } catch (NumberFormatException e) {
                 ingredient.setPercentage(0);
             }
+            notifyIngredientChanged();
         });
 
         /* ---- Remove ---- */
@@ -94,5 +97,15 @@ public class IngredientRowView extends HBox {
 
     public ComboBox<Powder> getPowderSelector() {
         return powderSelector;
+    }
+
+    public void setOnIngredientChanged(Runnable onIngredientChanged) {
+        this.onIngredientChanged = onIngredientChanged;
+    }
+
+    private void notifyIngredientChanged() {
+        if (onIngredientChanged != null) {
+            onIngredientChanged.run();
+        }
     }
 }
