@@ -95,6 +95,7 @@ CREATE TABLE composition_layer (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     composition_id INTEGER NOT NULL,
     layer_number INTEGER NOT NULL,
+    notes VARCHAR(500),
 
     PRIMARY KEY (id),
 
@@ -125,7 +126,35 @@ CREATE TABLE composition_layer_ingredient (
     CONSTRAINT fk_cli_powder
         FOREIGN KEY (powder_id) REFERENCES powder(id)
 );
+------------------------------------------------------------
+-- TABLE: production
+------------------------------------------------------------
+CREATE TABLE production (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    item_id INTEGER NOT NULL,
+    composition_id INTEGER NOT NULL,
+    blank_model_id INTEGER NOT NULL,
 
+    produced_qty INTEGER NOT NULL,
+    production_date DATE NOT NULL,
+
+    notes VARCHAR(500),
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_prod_item
+        FOREIGN KEY (item_id) REFERENCES item(id),
+
+    CONSTRAINT fk_prod_comp
+        FOREIGN KEY (composition_id) REFERENCES composition(id),
+
+    CONSTRAINT fk_prod_blank_model
+        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
+
+    CONSTRAINT fk_prod_comp_blank_model
+        FOREIGN KEY (composition_id, blank_model_id)
+        REFERENCES composition_blank_model(composition_id, blank_model_id)
+);
 ------------------------------------------------------------
 -- TABLE: firing
 ------------------------------------------------------------
@@ -159,6 +188,21 @@ CREATE TABLE lot (
         REFERENCES firing(id),
 
     CONSTRAINT uq_lot_code UNIQUE (code)
+);
+------------------------------------------------------------
+-- TABLE: firing_production
+------------------------------------------------------------
+CREATE TABLE firing_production (
+    firing_id INTEGER NOT NULL,
+    production_id INTEGER NOT NULL,
+
+    PRIMARY KEY (firing_id, production_id),
+
+    CONSTRAINT fk_fp_firing
+        FOREIGN KEY (firing_id) REFERENCES firing(id),
+
+    CONSTRAINT fk_fp_prod
+        FOREIGN KEY (production_id) REFERENCES production(id)
 );
 
 ------------------------------------------------------------
@@ -230,52 +274,6 @@ CREATE TABLE composition_blank_model (
 
     CONSTRAINT fk_cbm_blank_model
         FOREIGN KEY (blank_model_id) REFERENCES blank_model(id)
-);
-
-------------------------------------------------------------
--- TABLE: production
-------------------------------------------------------------
-CREATE TABLE production (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    item_id INTEGER NOT NULL,
-    composition_id INTEGER NOT NULL,
-    blank_model_id INTEGER NOT NULL,
-
-    produced_qty INTEGER NOT NULL,
-    production_date DATE NOT NULL,
-
-    notes VARCHAR(500),
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT fk_prod_item
-        FOREIGN KEY (item_id) REFERENCES item(id),
-
-    CONSTRAINT fk_prod_comp
-        FOREIGN KEY (composition_id) REFERENCES composition(id),
-
-    CONSTRAINT fk_prod_blank_model
-        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
-
-    CONSTRAINT fk_prod_comp_blank_model
-        FOREIGN KEY (composition_id, blank_model_id)
-        REFERENCES composition_blank_model(composition_id, blank_model_id)
-);
-
-------------------------------------------------------------
--- TABLE: firing_production
-------------------------------------------------------------
-CREATE TABLE firing_production (
-    firing_id INTEGER NOT NULL,
-    production_id INTEGER NOT NULL,
-
-    PRIMARY KEY (firing_id, production_id),
-
-    CONSTRAINT fk_fp_firing
-        FOREIGN KEY (firing_id) REFERENCES firing(id),
-
-    CONSTRAINT fk_fp_prod
-        FOREIGN KEY (production_id) REFERENCES production(id)
 );
 
 ------------------------------------------------------------
