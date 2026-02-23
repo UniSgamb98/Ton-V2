@@ -24,11 +24,14 @@ CREATE TABLE item (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     product_id INTEGER NOT NULL,
     code VARCHAR(100) NOT NULL UNIQUE,
+    height_mm DECIMAL(5,2) NOT NULL,
 
     PRIMARY KEY (id),
 
     CONSTRAINT fk_product
-            FOREIGN KEY (product_id) REFERENCES product(id)
+            FOREIGN KEY (product_id) REFERENCES product(id),
+
+    CONSTRAINT ck_item_height_positive CHECK (height_mm > 0)
 );
 
 ------------------------------------------------------------
@@ -257,6 +260,34 @@ CREATE TABLE blank_model (
     CONSTRAINT ck_blank_model_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0),
     CONSTRAINT ck_blank_model_pressure_positive CHECK (pressure_kg_cm2 > 0),
     CONSTRAINT ck_blank_model_grams_positive CHECK (grams_per_mm > 0)
+);
+
+------------------------------------------------------------
+-- TABLE: blank_model_height_overmaterial
+-- Profilo overmaterial per fasce di altezza del medesimo blank model.
+------------------------------------------------------------
+CREATE TABLE blank_model_height_overmaterial (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    blank_model_id INTEGER NOT NULL,
+
+    min_height_mm DECIMAL(5,2) NOT NULL,
+    max_height_mm DECIMAL(5,2) NOT NULL,
+
+    superior_overmaterial_mm DECIMAL(4,1) NOT NULL,
+    inferior_overmaterial_mm DECIMAL(4,1) NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_bmho_blank_model
+        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
+
+    CONSTRAINT uq_bmho_height_range
+        UNIQUE (blank_model_id, min_height_mm, max_height_mm),
+
+    CONSTRAINT ck_bmho_height_range_valid CHECK (max_height_mm > min_height_mm),
+    CONSTRAINT ck_bmho_min_height_positive CHECK (min_height_mm >= 0),
+    CONSTRAINT ck_bmho_superior_non_negative CHECK (superior_overmaterial_mm >= 0),
+    CONSTRAINT ck_bmho_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0)
 );
 
 
