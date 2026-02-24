@@ -84,9 +84,6 @@ CREATE TABLE composition (
     CONSTRAINT fk_comp_item
         FOREIGN KEY (item_id) REFERENCES item(id),
 
-    CONSTRAINT fk_product
-        FOREIGN KEY (product_id) REFERENCES product(id),
-
     CONSTRAINT uq_comp_item_version
         UNIQUE (item_id, version)
 );
@@ -129,6 +126,49 @@ CREATE TABLE composition_layer_ingredient (
     CONSTRAINT fk_cli_powder
         FOREIGN KEY (powder_id) REFERENCES powder(id)
 );
+
+------------------------------------------------------------
+-- TABLE: blank_model
+------------------------------------------------------------
+CREATE TABLE blank_model (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    code VARCHAR(100) NOT NULL,
+
+    diameter_mm DECIMAL(4,1) NOT NULL,
+
+    superior_overmaterial_mm DECIMAL(4,1) NOT NULL,
+    inferior_overmaterial_mm DECIMAL(4,1) NOT NULL,
+
+    pressure_kg_cm2 DECIMAL(8,2) NOT NULL,
+    grams_per_mm DECIMAL(8,3) NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uq_blank_model_code UNIQUE (code),
+
+    CONSTRAINT ck_blank_model_diameter_positive CHECK (diameter_mm > 0),
+    CONSTRAINT ck_blank_model_superior_non_negative CHECK (superior_overmaterial_mm >= 0),
+    CONSTRAINT ck_blank_model_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0),
+    CONSTRAINT ck_blank_model_pressure_positive CHECK (pressure_kg_cm2 > 0),
+    CONSTRAINT ck_blank_model_grams_positive CHECK (grams_per_mm > 0)
+);
+
+------------------------------------------------------------
+-- TABLE: composition_blank_model
+------------------------------------------------------------
+CREATE TABLE composition_blank_model (
+    composition_id INTEGER NOT NULL,
+    blank_model_id INTEGER NOT NULL,
+
+    PRIMARY KEY (composition_id, blank_model_id),
+
+    CONSTRAINT fk_cbm_composition
+        FOREIGN KEY (composition_id) REFERENCES composition(id),
+
+    CONSTRAINT fk_cbm_blank_model
+        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id)
+);
+
 ------------------------------------------------------------
 -- TABLE: production
 ------------------------------------------------------------
@@ -158,6 +198,7 @@ CREATE TABLE production (
         FOREIGN KEY (composition_id, blank_model_id)
         REFERENCES composition_blank_model(composition_id, blank_model_id)
 );
+
 ------------------------------------------------------------
 -- TABLE: firing
 ------------------------------------------------------------
@@ -240,32 +281,6 @@ CREATE TABLE press (
 );
 
 ------------------------------------------------------------
--- TABLE: blank_model
-------------------------------------------------------------
-CREATE TABLE blank_model (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    code VARCHAR(100) NOT NULL,
-
-    diameter_mm DECIMAL(4,1) NOT NULL,
-
-    superior_overmaterial_mm DECIMAL(4,1) NOT NULL,
-    inferior_overmaterial_mm DECIMAL(4,1) NOT NULL,
-
-    pressure_kg_cm2 DECIMAL(8,2) NOT NULL,
-    grams_per_mm DECIMAL(8,3) NOT NULL,
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT uq_blank_model_code UNIQUE (code),
-
-    CONSTRAINT ck_blank_model_diameter_positive CHECK (diameter_mm > 0),
-    CONSTRAINT ck_blank_model_superior_non_negative CHECK (superior_overmaterial_mm >= 0),
-    CONSTRAINT ck_blank_model_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0),
-    CONSTRAINT ck_blank_model_pressure_positive CHECK (pressure_kg_cm2 > 0),
-    CONSTRAINT ck_blank_model_grams_positive CHECK (grams_per_mm > 0)
-);
-
-------------------------------------------------------------
 -- TABLE: blank_model_height_overmaterial
 -- Profilo overmaterial per fasce di altezza del medesimo blank model.
 ------------------------------------------------------------
@@ -291,23 +306,6 @@ CREATE TABLE blank_model_height_overmaterial (
     CONSTRAINT ck_bmho_min_height_positive CHECK (min_height_mm >= 0),
     CONSTRAINT ck_bmho_superior_non_negative CHECK (superior_overmaterial_mm >= 0),
     CONSTRAINT ck_bmho_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0)
-);
-
-
-------------------------------------------------------------
--- TABLE: composition_blank_model
-------------------------------------------------------------
-CREATE TABLE composition_blank_model (
-    composition_id INTEGER NOT NULL,
-    blank_model_id INTEGER NOT NULL,
-
-    PRIMARY KEY (composition_id, blank_model_id),
-
-    CONSTRAINT fk_cbm_composition
-        FOREIGN KEY (composition_id) REFERENCES composition(id),
-
-    CONSTRAINT fk_cbm_blank_model
-        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id)
 );
 
 ------------------------------------------------------------
