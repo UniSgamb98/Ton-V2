@@ -1,12 +1,17 @@
 package com.orodent.tonv2.features.laboratory.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.laboratory.view.partial.BlankModelLayerDraft;
+import com.orodent.tonv2.features.laboratory.view.partial.BlankModelLayerSectionView;
+import com.orodent.tonv2.features.laboratory.view.partial.HeightRangeDraft;
+import com.orodent.tonv2.features.laboratory.view.partial.HeightRangeSectionView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class CreateDiskModelView extends VBox {
@@ -21,11 +26,9 @@ public class CreateDiskModelView extends VBox {
     private final TextField pressureField = new TextField();
     private final TextField gramsPerMmField = new TextField();
 
-    private final VBox rangesBox = new VBox(8);
-    private final Button addRangeBtn = new Button("Aggiungi fascia altezza");
+    private final BlankModelLayerSectionView layerSectionView = new BlankModelLayerSectionView();
+    private final HeightRangeSectionView rangeSectionView = new HeightRangeSectionView();
     private final Button saveBtn = new Button("Salva modello disco");
-
-    private final List<HeightRangeRow> rangeRows = new ArrayList<>();
 
     public CreateDiskModelView() {
         setSpacing(20);
@@ -75,10 +78,7 @@ public class CreateDiskModelView extends VBox {
         pressureField.setMaxWidth(Double.MAX_VALUE);
         gramsPerMmField.setMaxWidth(Double.MAX_VALUE);
 
-        Label rangesLabel = new Label("Overmaterial per fascia altezza (opzionale)");
-        addRangeBtn.setOnAction(e -> addRangeRow(null));
-
-        VBox centerBox = new VBox(12, baseForm, rangesLabel, rangesBox, addRangeBtn);
+        VBox centerBox = new VBox(12, baseForm, layerSectionView, rangeSectionView);
         centerBox.setPadding(new Insets(10));
         centerBox.setMaxWidth(950);
 
@@ -92,18 +92,6 @@ public class CreateDiskModelView extends VBox {
 
         content.setCenter(centered);
         content.setBottom(bottom);
-    }
-
-    private void addRangeRow(HeightRangeDraft preset) {
-        HeightRangeRow row = new HeightRangeRow(preset);
-        rangeRows.add(row);
-
-        row.removeButton.setOnAction(e -> {
-            rangeRows.remove(row);
-            rangesBox.getChildren().remove(row.container);
-        });
-
-        rangesBox.getChildren().add(row.container);
     }
 
     public AppHeader getHeader() {
@@ -122,54 +110,10 @@ public class CreateDiskModelView extends VBox {
     public String getGramsPerMm() { return gramsPerMmField.getText(); }
 
     public List<HeightRangeDraft> getRangeDrafts() {
-        List<HeightRangeDraft> drafts = new ArrayList<>();
-        for (HeightRangeRow row : rangeRows) {
-            drafts.add(new HeightRangeDraft(
-                    row.minHeightField.getText(),
-                    row.maxHeightField.getText(),
-                    row.superiorField.getText(),
-                    row.inferiorField.getText()
-            ));
-        }
-        return drafts;
+        return rangeSectionView.getDrafts();
     }
 
-    public record HeightRangeDraft(String minHeight, String maxHeight, String superiorOvermaterial, String inferiorOvermaterial) {}
-
-    private static class HeightRangeRow {
-        private final HBox container;
-        private final TextField minHeightField = new TextField();
-        private final TextField maxHeightField = new TextField();
-        private final TextField superiorField = new TextField();
-        private final TextField inferiorField = new TextField();
-        private final Button removeButton = new Button("Rimuovi");
-
-        private HeightRangeRow(HeightRangeDraft preset) {
-            minHeightField.setPromptText("Min mm");
-            maxHeightField.setPromptText("Max mm");
-            superiorField.setPromptText("Over sup.");
-            inferiorField.setPromptText("Over inf.");
-
-            if (preset != null) {
-                minHeightField.setText(preset.minHeight());
-                maxHeightField.setText(preset.maxHeight());
-                superiorField.setText(preset.superiorOvermaterial());
-                inferiorField.setText(preset.inferiorOvermaterial());
-            }
-
-            HBox.setHgrow(minHeightField, Priority.ALWAYS);
-            HBox.setHgrow(maxHeightField, Priority.ALWAYS);
-            HBox.setHgrow(superiorField, Priority.ALWAYS);
-            HBox.setHgrow(inferiorField, Priority.ALWAYS);
-
-            container = new HBox(8,
-                    new Label("Da"), minHeightField,
-                    new Label("a"), maxHeightField,
-                    new Label("Sup"), superiorField,
-                    new Label("Inf"), inferiorField,
-                    removeButton
-            );
-            container.setAlignment(Pos.CENTER_LEFT);
-        }
+    public List<BlankModelLayerDraft> getLayerDrafts() {
+        return layerSectionView.getDrafts();
     }
 }
