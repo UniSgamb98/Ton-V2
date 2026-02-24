@@ -3,6 +3,7 @@ package com.orodent.tonv2.core.database.model;
 public record BlankModel(
         int id,
         String code,
+        double diameterMm,
         double superiorOvermaterialMm,
         double inferiorOvermaterialMm,
         double pressureKgCm2,
@@ -13,4 +14,3 @@ public record BlankModel(
         return code;
     }
 }
-

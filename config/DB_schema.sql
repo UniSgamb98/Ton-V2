@@ -246,6 +246,8 @@ CREATE TABLE blank_model (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     code VARCHAR(100) NOT NULL,
 
+    diameter_mm DECIMAL(4,1) NOT NULL,
+
     superior_overmaterial_mm DECIMAL(4,1) NOT NULL,
     inferior_overmaterial_mm DECIMAL(4,1) NOT NULL,
 
@@ -256,6 +258,7 @@ CREATE TABLE blank_model (
 
     CONSTRAINT uq_blank_model_code UNIQUE (code),
 
+    CONSTRAINT ck_blank_model_diameter_positive CHECK (diameter_mm > 0),
     CONSTRAINT ck_blank_model_superior_non_negative CHECK (superior_overmaterial_mm >= 0),
     CONSTRAINT ck_blank_model_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0),
     CONSTRAINT ck_blank_model_pressure_positive CHECK (pressure_kg_cm2 > 0),

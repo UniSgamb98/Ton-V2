@@ -24,6 +24,7 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
         String sql = """
                 SELECT id,
                        code,
+                       diameter_mm,
                        superior_overmaterial_mm,
                        inferior_overmaterial_mm,
                        pressure_kg_cm2,
@@ -41,6 +42,7 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
                 blankModels.add(new BlankModel(
                         rs.getInt("id"),
                         rs.getString("code"),
+                        rs.getDouble("diameter_mm"),
                         rs.getDouble("superior_overmaterial_mm"),
                         rs.getDouble("inferior_overmaterial_mm"),
                         rs.getDouble("pressure_kg_cm2"),
@@ -55,4 +57,3 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
         return blankModels;
     }
 }
-
