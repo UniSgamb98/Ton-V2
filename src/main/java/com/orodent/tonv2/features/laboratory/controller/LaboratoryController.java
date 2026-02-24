@@ -10,6 +10,7 @@ public class LaboratoryController {
         this.view = view;
 
         view.getCreateCompositionButton().setOnAction(e -> app.showCreateComposition());
+        view.getCreateDiskModelButton().setOnAction(e -> app.showCreateDiskModel());
     }
 
     public LaboratoryView getView() {

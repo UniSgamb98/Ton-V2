@@ -4,8 +4,10 @@ import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.controller.CreateCompositionController;
+import com.orodent.tonv2.features.laboratory.controller.CreateDiskModelController;
 import com.orodent.tonv2.features.laboratory.controller.LaboratoryController;
 import com.orodent.tonv2.features.laboratory.view.CreateCompositionView;
+import com.orodent.tonv2.features.laboratory.view.CreateDiskModelView;
 import com.orodent.tonv2.features.laboratory.view.LaboratoryView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -93,6 +95,15 @@ public class AppController {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Laboratorio");
+    }
+
+    public void showCreateDiskModel() {
+        CreateDiskModelView view = new CreateDiskModelView();
+        configureHeader(view.getHeader());
+        new CreateDiskModelController(view, this, app.blankModelRepo(), app.blankModelHeightOvermaterialRepo());
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Nuovo modello disco");
     }
 
     /*

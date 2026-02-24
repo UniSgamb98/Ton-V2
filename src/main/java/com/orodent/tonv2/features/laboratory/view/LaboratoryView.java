@@ -10,25 +10,25 @@ import javafx.scene.layout.VBox;
 public class LaboratoryView extends VBox {
     private final AppHeader header;
     private final Button createCompositionButton;
-    private final Button placeHolder;
+    private final Button createDiskModelButton;
 
     public LaboratoryView() {
         header = new AppHeader("Laboratorio");
 
         createCompositionButton = new Button("Nuova Composizione");
-        placeHolder = new Button("PlaceHolder");
+        createDiskModelButton = new Button("Nuovo modello disco");
 
         setSpacing(20);
         setPadding(new Insets(20));
 
-        HBox content = new HBox(20, createCompositionButton, placeHolder);
+        HBox content = new HBox(20, createCompositionButton, createDiskModelButton);
 
         getChildren().addAll(header, content);
     }
 
     public Button getCreateCompositionButton() { return createCompositionButton; }
-    public Button getPlaceHolder() {
-        return placeHolder;
+    public Button getCreateDiskModelButton() {
+        return createDiskModelButton;
     }
     public AppHeader getHeader() {
         return header;
