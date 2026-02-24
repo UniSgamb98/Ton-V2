@@ -1,11 +1,12 @@
 package com.orodent.tonv2.features.laboratory.service;
 
+import com.orodent.tonv2.core.database.Database;
+import com.orodent.tonv2.core.database.implementation.BlankModelHeightOvermaterialRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelLayerRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelRepositoryImpl;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.BlankModelHeightOvermaterial;
 import com.orodent.tonv2.core.database.model.BlankModelLayer;
-import com.orodent.tonv2.core.database.repository.BlankModelHeightOvermaterialRepository;
-import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
-import com.orodent.tonv2.core.database.repository.BlankModelRepository;
 import com.orodent.tonv2.features.laboratory.view.partial.BlankModelLayerDraft;
 import com.orodent.tonv2.features.laboratory.view.partial.HeightRangeDraft;
 
@@ -14,16 +15,12 @@ import java.util.List;
 
 public class CreateDiskModelService {
 
-    private final BlankModelRepository blankModelRepo;
-    private final BlankModelHeightOvermaterialRepository overmaterialRepo;
-    private final BlankModelLayerRepository layerRepo;
+    private static final double LAYER_TOTAL_PERCENTAGE = 100.0;
 
-    public CreateDiskModelService(BlankModelRepository blankModelRepo,
-                                  BlankModelHeightOvermaterialRepository overmaterialRepo,
-                                  BlankModelLayerRepository layerRepo) {
-        this.blankModelRepo = blankModelRepo;
-        this.overmaterialRepo = overmaterialRepo;
-        this.layerRepo = layerRepo;
+    private final Database database;
+
+    public CreateDiskModelService(Database database) {
+        this.database = database;
     }
 
     public SaveResult save(SaveRequest request) {
@@ -38,22 +35,30 @@ public class CreateDiskModelService {
             List<BlankModelHeightOvermaterial> ranges = buildHeightRanges(request.rangeDrafts());
             List<BlankModelLayer> layers = buildLayers(request.layerDrafts());
 
-            BlankModel model = blankModelRepo.insert(code, diameter, superior, inferior, pressure, gramsPerMm);
+            database.runInTransaction(connection -> {
+                BlankModelRepositoryImpl blankModelRepo = new BlankModelRepositoryImpl(connection);
+                BlankModelHeightOvermaterialRepositoryImpl overmaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(connection);
+                BlankModelLayerRepositoryImpl layerRepo = new BlankModelLayerRepositoryImpl(connection);
 
-            for (BlankModelHeightOvermaterial range : ranges) {
-                overmaterialRepo.insert(new BlankModelHeightOvermaterial(
-                        0,
-                        model.id(),
-                        range.minHeightMm(),
-                        range.maxHeightMm(),
-                        range.superiorOvermaterialMm(),
-                        range.inferiorOvermaterialMm()
-                ));
-            }
+                BlankModel model = blankModelRepo.insert(code, diameter, superior, inferior, pressure, gramsPerMm);
 
-            for (BlankModelLayer layer : layers) {
-                layerRepo.insert(new BlankModelLayer(0, model.id(), layer.layerNumber(), layer.occupiedSpacePercent()));
-            }
+                for (BlankModelHeightOvermaterial range : ranges) {
+                    overmaterialRepo.insert(new BlankModelHeightOvermaterial(
+                            0,
+                            model.id(),
+                            range.minHeightMm(),
+                            range.maxHeightMm(),
+                            range.superiorOvermaterialMm(),
+                            range.inferiorOvermaterialMm()
+                    ));
+                }
+
+                for (BlankModelLayer layer : layers) {
+                    layerRepo.insert(new BlankModelLayer(0, model.id(), layer.layerNumber(), layer.occupiedSpacePercent()));
+                }
+
+                return null;
+            });
 
             return SaveResult.success("Il nuovo modello è stato registrato correttamente.");
         } catch (ValidationException ex) {
@@ -88,7 +93,6 @@ public class CreateDiskModelService {
 
     private List<BlankModelLayer> buildLayers(List<BlankModelLayerDraft> drafts) {
         List<BlankModelLayer> layers = new ArrayList<>();
-        double total = 0;
 
         for (BlankModelLayerDraft draft : drafts) {
             if (draft.occupiedSpacePercent() == null || draft.occupiedSpacePercent().isBlank()) {
@@ -96,12 +100,23 @@ public class CreateDiskModelService {
             }
 
             double occupiedSpace = parsePositive(draft.occupiedSpacePercent(), "Spazio occupato strato " + draft.layerNumber());
-            total += occupiedSpace;
             layers.add(new BlankModelLayer(0, 0, draft.layerNumber(), occupiedSpace));
         }
 
-        if (total > 100) {
-            throw new ValidationException("Percentuali strati non valide", "La somma dello spazio occupato degli strati non può superare 100%.");
+        if (layers.isEmpty()) {
+            layers.add(new BlankModelLayer(0, 0, 1, LAYER_TOTAL_PERCENTAGE));
+            return layers;
+        }
+
+        double total = layers.stream()
+                .mapToDouble(BlankModelLayer::occupiedSpacePercent)
+                .sum();
+
+        if (Math.abs(total - LAYER_TOTAL_PERCENTAGE) > 0.0001) {
+            throw new ValidationException(
+                    "Percentuali strati non valide",
+                    "La somma dello spazio occupato degli strati deve essere esattamente 100%."
+            );
         }
 
         return layers;

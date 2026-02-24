@@ -23,7 +23,7 @@ public class BlankModelLayerRepositoryImpl implements BlankModelLayerRepository 
                 INSERT INTO blank_model_layer (
                     blank_model_id,
                     layer_number,
-                    occupied_space_percent
+                    disk_percentage
                 ) VALUES (?, ?, ?)
                 """;
 

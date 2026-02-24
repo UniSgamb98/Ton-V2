@@ -94,4 +94,6 @@ public class AppContainer {
     public BlankModelLayerRepository blankModelLayerRepo() { return blankModelLayerRepo; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
+
+    public Database database() { return database; }
 }

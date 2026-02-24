@@ -101,11 +101,7 @@ public class AppController {
     public void showCreateDiskModel() {
         CreateDiskModelView view = new CreateDiskModelView();
         configureHeader(view.getHeader());
-        CreateDiskModelService service = new CreateDiskModelService(
-                app.blankModelRepo(),
-                app.blankModelHeightOvermaterialRepo(),
-                app.blankModelLayerRepo()
-        );
+        CreateDiskModelService service = new CreateDiskModelService(app.database());
         new CreateDiskModelController(view, this, service);
 
         stage.setScene(createSceneWithCSS(view));
