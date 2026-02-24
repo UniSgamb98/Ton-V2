@@ -69,7 +69,17 @@ public class AppController {
     public void showCreateComposition() {
         CreateCompositionView view = new CreateCompositionView();
         configureHeader(view.getHeader());
-        new CreateCompositionController(view, this, app.powderRepo(), app.compositionRepo(), app.compositionLayerRepo(), app.compositionLayerIngredientRepo(), app.productRepo(), app.itemRepo());
+        new CreateCompositionController(
+                view,
+                this,
+                app.powderRepo(),
+                app.compositionRepo(),
+                app.compositionLayerRepo(),
+                app.compositionLayerIngredientRepo(),
+                app.productRepo(),
+                app.itemRepo(),
+                app.blankModelRepo()
+        );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuova composizione");

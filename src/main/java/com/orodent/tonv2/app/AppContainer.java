@@ -25,6 +25,7 @@ public class AppContainer {
     private final ProductionRepository productionRepo;
     private final FiringRepository firingRepo;
     private final ProductRepository productRepo;
+    private final BlankModelRepository blankModelRepo;
 
     // --- Database ---
     protected final Database database;
@@ -55,6 +56,7 @@ public class AppContainer {
         this.firingRepo = new FiringRepositoryImpl(database.getConnection());
         this.productionRepo = new ProductionRepositoryImpl(database.getConnection());
         this.productRepo = new ProductRepositoryImpl(database.getConnection());
+        this.blankModelRepo = new BlankModelRepositoryImpl(database.getConnection());
         System.out.println("Caricati le repository.");
 
         // PARSER
@@ -83,6 +85,7 @@ public class AppContainer {
     public FiringRepository firingRepo() { return firingRepo; }
     public ProductionRepository productionRepo() { return productionRepo; }
     public ProductRepository productRepo() { return productRepo; }
+    public BlankModelRepository blankModelRepo() { return blankModelRepo; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
 }

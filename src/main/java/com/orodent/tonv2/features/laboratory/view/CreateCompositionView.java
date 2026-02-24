@@ -1,6 +1,7 @@
 package com.orodent.tonv2.features.laboratory.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
@@ -25,6 +26,7 @@ public class CreateCompositionView extends VBox {
     private final BorderPane content = new BorderPane();
 
     private final ComboBox<Product> productSelector = new ComboBox<>();
+    private final ComboBox<BlankModel> blankModelSelector = new ComboBox<>();
     private final Button loadLatestVersionBtn = new Button("↵");
     private final Label loadLatestVersionLabel = new Label("carica ultima versione");
     private final HBox loadLatestVersionBox = new HBox(6, loadLatestVersionBtn, loadLatestVersionLabel);
@@ -67,6 +69,7 @@ public class CreateCompositionView extends VBox {
         /* ---- TOP: Product + Notes ---- */
 
         productSelector.setPromptText("Seleziona prodotto");
+        blankModelSelector.setPromptText("Seleziona modello blank");
 
         loadLatestVersionBtn.setFocusTraversable(false);
         loadLatestVersionBtn.setStyle("-fx-font-size: 11px; -fx-padding: 2 8 2 8;");
@@ -78,10 +81,28 @@ public class CreateCompositionView extends VBox {
         notesArea.setWrapText(true);
         notesArea.setPrefRowCount(3);
 
-        VBox topBox = new VBox(10,
+        VBox productBox = new VBox(6,
                 new Label("Prodotto"),
                 productSelector,
-                loadLatestVersionBox,
+                loadLatestVersionBox
+        );
+
+        VBox blankModelBox = new VBox(6,
+                new Label("Modello blank"),
+                blankModelSelector
+        );
+
+        HBox selectorsBox = new HBox(16, productBox, blankModelBox);
+        selectorsBox.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(productBox, Priority.ALWAYS);
+        HBox.setHgrow(blankModelBox, Priority.ALWAYS);
+        productBox.setMaxWidth(Double.MAX_VALUE);
+        blankModelBox.setMaxWidth(Double.MAX_VALUE);
+        productSelector.setMaxWidth(Double.MAX_VALUE);
+        blankModelSelector.setMaxWidth(Double.MAX_VALUE);
+
+        VBox topBox = new VBox(10,
+                selectorsBox,
                 new Label("Note"),
                 notesArea
         );
@@ -167,6 +188,10 @@ public class CreateCompositionView extends VBox {
 
     public ComboBox<Product> getProductSelector() {
         return productSelector;
+    }
+
+    public ComboBox<BlankModel> getBlankModelSelector() {
+        return blankModelSelector;
     }
 
     public String getNotes() {

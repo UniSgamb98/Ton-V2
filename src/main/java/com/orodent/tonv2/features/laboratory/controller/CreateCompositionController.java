@@ -26,8 +26,9 @@ public class CreateCompositionController {
     private final CompositionLayerRepository compositionLayerRepo;
     private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
     private final ProductRepository productRepo;
+    private final BlankModelRepository blankModelRepo;
 
-    public CreateCompositionController(CreateCompositionView view, AppController app, PowderRepository powderRepo, CompositionRepository compositionRepo, CompositionLayerRepository compositionLayerRepo, CompositionLayerIngredientRepository compositionLayerIngredientRepo, ProductRepository productRepo, ItemRepository itemRepo) {
+    public CreateCompositionController(CreateCompositionView view, AppController app, PowderRepository powderRepo, CompositionRepository compositionRepo, CompositionLayerRepository compositionLayerRepo, CompositionLayerIngredientRepository compositionLayerIngredientRepo, ProductRepository productRepo, ItemRepository itemRepo, BlankModelRepository blankModelRepo) {
         this.view = view;
         this.app = app;
         this.powderRepo = powderRepo;
@@ -36,8 +37,10 @@ public class CreateCompositionController {
         this.compositionLayerRepo = compositionLayerRepo;
         this.compositionLayerIngredientRepo = compositionLayerIngredientRepo;
         this.productRepo = productRepo;
+        this.blankModelRepo = blankModelRepo;
 
         loadProducts();
+        loadBlankModels();
         loadPowders();
         setupActions();
     }
@@ -51,6 +54,10 @@ public class CreateCompositionController {
     }
     private void loadPowders() {
         view.setAvailablePowders(powderRepo.findAll());
+    }
+
+    private void loadBlankModels() {
+        view.getBlankModelSelector().getItems().setAll(blankModelRepo.findAll());
     }
 
     private void setupActions() {
