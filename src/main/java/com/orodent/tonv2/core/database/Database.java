@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+
 public class Database {
     private final String DBNAME = "TonDatabase";
     private final String DB_USER = "APP";
@@ -61,6 +62,35 @@ public class Database {
     private Connection getEmbeddedConnection() throws SQLException {
         String url = "jdbc:derby:" + DBNAME + ";create=true;user=" + DB_USER + ";password=" + DB_PSW;// I:\CliZr\Tommaso\
         return DriverManager.getConnection(url);
+    }
+
+    public <T> T runInTransaction(FunctionWithSQLException<Connection, T> action) {
+        Connection conn = getConnection();
+        try {
+            conn.setAutoCommit(false);
+            T result = action.apply(conn);
+            conn.commit();
+            return result;
+        } catch (Exception e) {
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackEx) {
+                e.addSuppressed(rollbackEx);
+            }
+            throw new RuntimeException("Errore transazione DB", e);
+        } finally {
+            try {
+                conn.setAutoCommit(true);
+                conn.close();
+            } catch (SQLException closeEx) {
+                System.out.println("Errore chiusura connessione DB.");
+            }
+        }
+    }
+
+    @FunctionalInterface
+    public interface FunctionWithSQLException<T, R> {
+        R apply(T value) throws Exception;
     }
 
     public void stop(){
