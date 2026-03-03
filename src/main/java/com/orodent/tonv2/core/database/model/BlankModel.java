@@ -4,10 +4,11 @@ public record BlankModel(
         int id,
         String code,
         double diameterMm,
-        double superiorOvermaterialMm,
-        double inferiorOvermaterialMm,
+        double superiorOvermaterialDefaultMm,
+        double inferiorOvermaterialDefaultMm,
         double pressureKgCm2,
-        double gramsPerMm
+        double gramsPerMm,
+        int numLayers
 ) {
     @Override
     public String toString() {

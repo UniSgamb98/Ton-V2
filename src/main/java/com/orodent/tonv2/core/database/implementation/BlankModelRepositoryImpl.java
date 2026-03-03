@@ -26,10 +26,11 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
                 SELECT id,
                        code,
                        diameter_mm,
-                       superior_overmaterial_mm,
-                       inferior_overmaterial_mm,
+                       superior_overmaterial_default_mm,
+                       inferior_overmaterial_default_mm,
                        pressure_kg_cm2,
-                       grams_per_mm
+                       grams_per_mm,
+                       num_layers
                 FROM blank_model
                 ORDER BY code
                 """;
@@ -44,10 +45,11 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
                         rs.getInt("id"),
                         rs.getString("code"),
                         rs.getDouble("diameter_mm"),
-                        rs.getDouble("superior_overmaterial_mm"),
-                        rs.getDouble("inferior_overmaterial_mm"),
+                        rs.getDouble("superior_overmaterial_default_mm"),
+                        rs.getDouble("inferior_overmaterial_default_mm"),
                         rs.getDouble("pressure_kg_cm2"),
-                        rs.getDouble("grams_per_mm")
+                        rs.getDouble("grams_per_mm"),
+                        rs.getInt("num_layers")
                 ));
             }
 
@@ -59,30 +61,32 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
     }
 
     @Override
-    public BlankModel insert(String code, double diameterMm, double superiorOvermaterialMm, double inferiorOvermaterialMm, double pressureKgCm2, double gramsPerMm) {
+    public BlankModel insert(String code, double diameterMm, double superiorOvermaterialDefaultMm, double inferiorOvermaterialDefaultMm, double pressureKgCm2, double gramsPerMm, int numLayers) {
         String sql = """
                 INSERT INTO blank_model (
                     code,
                     diameter_mm,
-                    superior_overmaterial_mm,
-                    inferior_overmaterial_mm,
+                    superior_overmaterial_default_mm,
+                    inferior_overmaterial_default_mm,
                     pressure_kg_cm2,
-                    grams_per_mm
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    grams_per_mm,
+                    num_layers
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, code);
             ps.setDouble(2, diameterMm);
-            ps.setDouble(3, superiorOvermaterialMm);
-            ps.setDouble(4, inferiorOvermaterialMm);
+            ps.setDouble(3, superiorOvermaterialDefaultMm);
+            ps.setDouble(4, inferiorOvermaterialDefaultMm);
             ps.setDouble(5, pressureKgCm2);
             ps.setDouble(6, gramsPerMm);
+            ps.setInt(7, numLayers);
             ps.executeUpdate();
 
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
-                    return new BlankModel(rs.getInt(1), code, diameterMm, superiorOvermaterialMm, inferiorOvermaterialMm, pressureKgCm2, gramsPerMm);
+                    return new BlankModel(rs.getInt(1), code, diameterMm, superiorOvermaterialDefaultMm, inferiorOvermaterialDefaultMm, pressureKgCm2, gramsPerMm, numLayers);
                 }
             }
 

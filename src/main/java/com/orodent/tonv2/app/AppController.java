@@ -76,10 +76,8 @@ public class AppController {
                 this,
                 app.powderRepo(),
                 app.compositionRepo(),
-                app.compositionLayerRepo(),
                 app.compositionLayerIngredientRepo(),
                 app.productRepo(),
-                app.itemRepo(),
                 app.blankModelRepo()
         );
 

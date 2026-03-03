@@ -20,6 +20,7 @@ public class CreateDiskModelView extends VBox {
     private final TextField inferiorOvermaterialField = new TextField();
     private final TextField pressureField = new TextField();
     private final TextField gramsPerMmField = new TextField();
+    private final TextField numLayersField = new TextField();
 
     private final VBox rangesBox = new VBox(8);
     private final Button addRangeBtn = new Button("Aggiungi fascia altezza");
@@ -45,6 +46,7 @@ public class CreateDiskModelView extends VBox {
         inferiorOvermaterialField.setPromptText("Es. 0.7");
         pressureField.setPromptText("Es. 2300");
         gramsPerMmField.setPromptText("Es. 0.550");
+        numLayersField.setPromptText("Es. 4");
 
         baseForm.add(new Label("Codice"), 0, 0);
         baseForm.add(codeField, 1, 0);
@@ -61,6 +63,9 @@ public class CreateDiskModelView extends VBox {
         baseForm.add(new Label("Grammi per mm"), 2, 2);
         baseForm.add(gramsPerMmField, 3, 2);
 
+        baseForm.add(new Label("Numero strati"), 0, 3);
+        baseForm.add(numLayersField, 1, 3);
+
         ColumnConstraints labelCol = new ColumnConstraints();
         labelCol.setMinWidth(140);
         ColumnConstraints fieldCol = new ColumnConstraints();
@@ -74,6 +79,7 @@ public class CreateDiskModelView extends VBox {
         inferiorOvermaterialField.setMaxWidth(Double.MAX_VALUE);
         pressureField.setMaxWidth(Double.MAX_VALUE);
         gramsPerMmField.setMaxWidth(Double.MAX_VALUE);
+        numLayersField.setMaxWidth(Double.MAX_VALUE);
 
         Label rangesLabel = new Label("Overmaterial per fascia altezza (opzionale)");
         addRangeBtn.setOnAction(e -> addRangeRow(null));
@@ -120,6 +126,7 @@ public class CreateDiskModelView extends VBox {
     public String getInferiorOvermaterial() { return inferiorOvermaterialField.getText(); }
     public String getPressure() { return pressureField.getText(); }
     public String getGramsPerMm() { return gramsPerMmField.getText(); }
+    public String getNumLayers() { return numLayersField.getText(); }
 
     public List<HeightRangeDraft> getRangeDrafts() {
         List<HeightRangeDraft> drafts = new ArrayList<>();

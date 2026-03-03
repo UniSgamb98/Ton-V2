@@ -4,9 +4,9 @@ import java.time.LocalDateTime;
 
 public record Composition(
         int id,
-        int itemId,
+        int productId,
         int version,
-        boolean active,
+        int numLayers,
         LocalDateTime createdAt,
         String notes
 ) {}

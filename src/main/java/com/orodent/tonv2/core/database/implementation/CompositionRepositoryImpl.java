@@ -14,39 +14,17 @@ public class CompositionRepositoryImpl implements CompositionRepository {
     }
 
     @Override
-    public void deactivateActiveByProduct(int itemId) {
-
-        String sql = """
-        UPDATE composition
-        SET is_active = 0
-        WHERE item_id = ?
-          AND is_active = 1
-        """;
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, itemId);
-            ps.executeUpdate();
-
-        } catch (SQLException e) {
-            throw new RuntimeException(
-                    "Error deactivating active composition for item " + itemId, e
-            );
-        }
-    }
-
-    @Override
-    public Optional<Integer> findMaxVersionByProduct(int itemId) {
+    public Optional<Integer> findMaxVersionByProduct(int productId) {
 
         String sql = """
         SELECT MAX(version)
         FROM composition
-        WHERE item_id = ?
+        WHERE product_id = ?
         """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, itemId);
+            ps.setInt(1, productId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -59,7 +37,7 @@ public class CompositionRepositoryImpl implements CompositionRepository {
 
         } catch (SQLException e) {
             throw new RuntimeException(
-                    "Error finding max composition version for item " + itemId, e
+                    "Error finding max composition version for product " + productId, e
             );
         }
 
@@ -68,28 +46,28 @@ public class CompositionRepositoryImpl implements CompositionRepository {
 
 
     @Override
-    public Optional<Composition> findLatestByProduct(int itemId) {
+    public Optional<Composition> findLatestByProduct(int productId) {
 
         String sql = """
-        SELECT id, item_id, version, is_active, created_at, notes
+        SELECT id, product_id, version, num_layers, created_at, notes
         FROM composition
-        WHERE item_id = ?
+        WHERE product_id = ?
         ORDER BY version DESC
         FETCH FIRST 1 ROW ONLY
         """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, itemId);
+            ps.setInt(1, productId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Timestamp createdAt = rs.getTimestamp("created_at");
                     return Optional.of(new Composition(
                             rs.getInt("id"),
-                            rs.getInt("item_id"),
+                            rs.getInt("product_id"),
                             rs.getInt("version"),
-                            rs.getInt("is_active") == 1,
+                            rs.getInt("num_layers"),
                             createdAt != null ? createdAt.toLocalDateTime() : null,
                             rs.getString("notes")
                     ));
@@ -98,7 +76,7 @@ public class CompositionRepositoryImpl implements CompositionRepository {
 
         } catch (SQLException e) {
             throw new RuntimeException(
-                    "Error finding latest composition for item " + itemId, e
+                    "Error finding latest composition for product " + productId, e
             );
         }
 
@@ -106,12 +84,50 @@ public class CompositionRepositoryImpl implements CompositionRepository {
     }
 
     @Override
+    public Optional<Integer> findActiveCompositionId(int productId) {
+        String sql = "SELECT composition_id FROM product_active_composition WHERE product_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, productId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(rs.getInt("composition_id"));
+                }
+            }
+            return Optional.empty();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error reading active composition for product " + productId, e);
+        }
+    }
+
+    @Override
+    public void setActiveComposition(int productId, int compositionId) {
+        String updateSql = "UPDATE product_active_composition SET composition_id = ? WHERE product_id = ?";
+        String insertSql = "INSERT INTO product_active_composition (product_id, composition_id) VALUES (?, ?)";
+
+        try (PreparedStatement updatePs = conn.prepareStatement(updateSql)) {
+            updatePs.setInt(1, compositionId);
+            updatePs.setInt(2, productId);
+            int updated = updatePs.executeUpdate();
+
+            if (updated == 0) {
+                try (PreparedStatement insertPs = conn.prepareStatement(insertSql)) {
+                    insertPs.setInt(1, productId);
+                    insertPs.setInt(2, compositionId);
+                    insertPs.executeUpdate();
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error setting active composition", e);
+        }
+    }
+
+    @Override
     public int insert(Composition composition) {
         String sql = """
         INSERT INTO composition (
-            item_id,
+            product_id,
             version,
-            is_active,
+            num_layers,
             created_at,
             notes
         ) VALUES (?, ?, ?, ?, ?)
@@ -120,9 +136,9 @@ public class CompositionRepositoryImpl implements CompositionRepository {
         try (PreparedStatement ps = conn.prepareStatement(
                 sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            ps.setInt(1, composition.itemId());
+            ps.setInt(1, composition.productId());
             ps.setInt(2, composition.version());
-            ps.setInt(3, composition.active() ? 1 : 0);
+            ps.setInt(3, composition.numLayers());
             ps.setTimestamp(4, Timestamp.valueOf(composition.createdAt()));
             ps.setString(5, composition.notes());
 

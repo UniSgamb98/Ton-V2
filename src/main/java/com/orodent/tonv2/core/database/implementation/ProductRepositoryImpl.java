@@ -21,9 +21,9 @@ public class ProductRepositoryImpl implements ProductRepository {
     public List<Product> findAll() {
 
         String sql = """
-        SELECT id, type, color
+        SELECT id, code, description
         FROM product
-        ORDER BY type, color
+        ORDER BY code
         """;
 
         List<Product> products = new ArrayList<>();
@@ -34,8 +34,8 @@ public class ProductRepositoryImpl implements ProductRepository {
             while (rs.next()) {
                 products.add(new Product(
                         rs.getInt("id"),
-                        rs.getString("type"),
-                        rs.getString("color")
+                        rs.getString("code"),
+                        rs.getString("description")
                 ));
             }
 
@@ -48,20 +48,20 @@ public class ProductRepositoryImpl implements ProductRepository {
 
 
     @Override
-    public Product insert(String type) {
+    public Product insert(String code, String description) {
         String sql = """
-        INSERT INTO product (type, color)
+        INSERT INTO product (code, description)
         VALUES (?, ?)
         """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, type);
-            ps.setString(2, "");
+            ps.setString(1, code);
+            ps.setString(2, description);
             ps.executeUpdate();
 
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
-                    return new Product(rs.getInt(1), type, "");
+                    return new Product(rs.getInt(1), code, description);
                 }
             }
 
