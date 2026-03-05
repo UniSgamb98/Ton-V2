@@ -1,37 +1,97 @@
 ------------------------------------------------------------
--- TABLE: depot
-------------------------------------------------------------
-CREATE TABLE depot (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    name VARCHAR(100) NOT NULL UNIQUE,
-    PRIMARY KEY (id)
-);
-
-------------------------------------------------------------
--- TABLE: product
+-- TABLE: product  (Famiglia: es. ZR A2)
 ------------------------------------------------------------
 CREATE TABLE product (
-    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    type VARCHAR(50) NOT NULL,
-    color VARCHAR(30) NOT NULL,
-    UNIQUE (type, color)
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    code VARCHAR(50) NOT NULL,
+    description VARCHAR(200),
+
+    PRIMARY KEY (id),
+    CONSTRAINT uq_product_code UNIQUE (code)
 );
 
 ------------------------------------------------------------
--- TABLE: item
+-- TABLE: blank_model
+------------------------------------------------------------
+CREATE TABLE blank_model (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    code VARCHAR(100) NOT NULL,
+
+    diameter_mm DECIMAL(4,1) NOT NULL,
+
+    superior_overmaterial_default_mm DECIMAL(4,1) NOT NULL,
+    inferior_overmaterial_default_mm DECIMAL(4,1) NOT NULL,
+
+    pressure_kg_cm2 DECIMAL(8,2) NOT NULL,
+    grams_per_mm DECIMAL(8,3) NOT NULL,
+
+    num_layers INTEGER NOT NULL,
+
+    PRIMARY KEY (id),
+    CONSTRAINT uq_blank_model_code UNIQUE (code),
+
+    CONSTRAINT ck_bm_diameter CHECK (diameter_mm > 0),
+    CONSTRAINT ck_bm_layers CHECK (num_layers > 0)
+);
+
+------------------------------------------------------------
+-- TABLE: blank_model_layer
+------------------------------------------------------------
+CREATE TABLE blank_model_layer (
+    blank_model_id INTEGER NOT NULL,
+    layer_number INTEGER NOT NULL,
+    disk_percentage DOUBLE NOT NULL,
+
+    PRIMARY KEY (blank_model_id, layer_number),
+
+    CONSTRAINT fk_bml_model
+        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
+
+    CONSTRAINT ck_bml_layer CHECK (layer_number > 0),
+    CONSTRAINT ck_bml_percentage CHECK (disk_percentage > 0 AND disk_percentage <= 100)
+);
+
+------------------------------------------------------------
+-- TABLE: blank_model_height_overmaterial
+------------------------------------------------------------
+CREATE TABLE blank_model_height_overmaterial (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    blank_model_id INTEGER NOT NULL,
+
+    min_height_mm DECIMAL(5,2) NOT NULL,
+    max_height_mm DECIMAL(5,2) NOT NULL,
+
+    superior_overmaterial_mm DECIMAL(4,1) NOT NULL,
+    inferior_overmaterial_mm DECIMAL(4,1) NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_bmho_model
+        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
+
+    CONSTRAINT ck_bmho_range CHECK (max_height_mm > min_height_mm)
+);
+
+------------------------------------------------------------
+-- TABLE: item (variante per altezza)
 ------------------------------------------------------------
 CREATE TABLE item (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     product_id INTEGER NOT NULL,
-    code VARCHAR(100) NOT NULL UNIQUE,
+    blank_model_id INTEGER NOT NULL,
+
     height_mm DECIMAL(5,2) NOT NULL,
 
     PRIMARY KEY (id),
 
-    CONSTRAINT fk_product
-            FOREIGN KEY (product_id) REFERENCES product(id),
+    CONSTRAINT fk_item_product
+        FOREIGN KEY (product_id) REFERENCES product(id),
 
-    CONSTRAINT ck_item_height_positive CHECK (height_mm > 0)
+    CONSTRAINT fk_item_model
+        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
+
+    CONSTRAINT uq_item UNIQUE (product_id, height_mm),
+    CONSTRAINT ck_item_height CHECK (height_mm > 0)
 );
 
 ------------------------------------------------------------
@@ -52,105 +112,72 @@ CREATE TABLE powder (
 );
 
 ------------------------------------------------------------
--- TABLE: powder_oxide
-------------------------------------------------------------
-CREATE TABLE powder_oxide (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    powder_id INTEGER NOT NULL,
-    oxide_name VARCHAR(100) NOT NULL,
-    percentage DOUBLE NOT NULL,
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT fk_oxide_powder
-        FOREIGN KEY (powder_id) REFERENCES powder(id)
-);
-
-------------------------------------------------------------
--- TABLE: composition
+-- TABLE: composition (versionata per product)
 ------------------------------------------------------------
 CREATE TABLE composition (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
-    item_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
 
     version INTEGER NOT NULL,
-    is_active SMALLINT DEFAULT 1,
+    num_layers INTEGER NOT NULL,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     notes VARCHAR(500),
 
     PRIMARY KEY (id),
 
-    CONSTRAINT fk_comp_item
-        FOREIGN KEY (item_id) REFERENCES item(id),
+    CONSTRAINT fk_comp_product
+        FOREIGN KEY (product_id) REFERENCES product(id),
 
-    CONSTRAINT uq_comp_item_version
-        UNIQUE (item_id, version)
+    CONSTRAINT uq_comp_product_version
+        UNIQUE (product_id, version),
+
+    CONSTRAINT uq_comp_product_id
+        UNIQUE (product_id, id),
+
+    CONSTRAINT ck_comp_version CHECK (version > 0),
+    CONSTRAINT ck_comp_layers CHECK (num_layers > 0)
 );
 
 ------------------------------------------------------------
--- TABLE: composition_layer
+-- TABLE: product_active_composition
 ------------------------------------------------------------
-CREATE TABLE composition_layer (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
+CREATE TABLE product_active_composition (
+    product_id INTEGER NOT NULL,
     composition_id INTEGER NOT NULL,
-    layer_number INTEGER NOT NULL,
-    notes VARCHAR(500),
 
-    PRIMARY KEY (id),
+    PRIMARY KEY (product_id),
 
-    CONSTRAINT fk_layer_comp
-        FOREIGN KEY (composition_id)
-        REFERENCES composition(id),
+    CONSTRAINT fk_pac_product
+        FOREIGN KEY (product_id) REFERENCES product(id),
 
-    CONSTRAINT uq_layer_order
-        UNIQUE (composition_id, layer_number)
+    CONSTRAINT fk_pac_composition
+        FOREIGN KEY (product_id, composition_id)
+        REFERENCES composition(product_id, id),
+
+    CONSTRAINT uq_pac_comp UNIQUE (composition_id)
 );
-
 
 ------------------------------------------------------------
 -- TABLE: composition_layer_ingredient
 ------------------------------------------------------------
 CREATE TABLE composition_layer_ingredient (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    layer_id INTEGER NOT NULL,
+    composition_id INTEGER NOT NULL,
+    layer_number INTEGER NOT NULL,
     powder_id INTEGER NOT NULL,
 
     percentage DOUBLE NOT NULL,
 
-    PRIMARY KEY (id),
+    PRIMARY KEY (composition_id, layer_number, powder_id),
 
-    CONSTRAINT fk_cli_layer
-        FOREIGN KEY (layer_id) REFERENCES composition_layer(id),
+    CONSTRAINT fk_cli_comp
+        FOREIGN KEY (composition_id) REFERENCES composition(id),
 
     CONSTRAINT fk_cli_powder
-        FOREIGN KEY (powder_id) REFERENCES powder(id)
-);
+        FOREIGN KEY (powder_id) REFERENCES powder(id),
 
-------------------------------------------------------------
--- TABLE: blank_model
-------------------------------------------------------------
-CREATE TABLE blank_model (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    code VARCHAR(100) NOT NULL,
-
-    diameter_mm DECIMAL(4,1) NOT NULL,
-
-    superior_overmaterial_mm DECIMAL(4,1) NOT NULL,
-    inferior_overmaterial_mm DECIMAL(4,1) NOT NULL,
-
-    pressure_kg_cm2 DECIMAL(8,2) NOT NULL,
-    grams_per_mm DECIMAL(8,3) NOT NULL,
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT uq_blank_model_code UNIQUE (code),
-
-    CONSTRAINT ck_blank_model_diameter_positive CHECK (diameter_mm > 0),
-    CONSTRAINT ck_blank_model_superior_non_negative CHECK (superior_overmaterial_mm >= 0),
-    CONSTRAINT ck_blank_model_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0),
-    CONSTRAINT ck_blank_model_pressure_positive CHECK (pressure_kg_cm2 > 0),
-    CONSTRAINT ck_blank_model_grams_positive CHECK (grams_per_mm > 0)
+    CONSTRAINT ck_cli_layer CHECK (layer_number > 0),
+    CONSTRAINT ck_cli_percentage CHECK (percentage > 0 AND percentage <= 100)
 );
 
 ------------------------------------------------------------
@@ -162,169 +189,98 @@ CREATE TABLE composition_blank_model (
 
     PRIMARY KEY (composition_id, blank_model_id),
 
-    CONSTRAINT fk_cbm_composition
+    CONSTRAINT fk_cbm_comp
         FOREIGN KEY (composition_id) REFERENCES composition(id),
 
-    CONSTRAINT fk_cbm_blank_model
+    CONSTRAINT fk_cbm_model
         FOREIGN KEY (blank_model_id) REFERENCES blank_model(id)
 );
 
 ------------------------------------------------------------
--- TABLE: production
+-- TABLE: production_order (testata)
 ------------------------------------------------------------
-CREATE TABLE production (
+CREATE TABLE production_order (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
-    item_id INTEGER NOT NULL,
+
+    product_id INTEGER NOT NULL,
     composition_id INTEGER NOT NULL,
     blank_model_id INTEGER NOT NULL,
 
-    produced_qty INTEGER NOT NULL,
     production_date DATE NOT NULL,
 
     notes VARCHAR(500),
 
     PRIMARY KEY (id),
 
-    CONSTRAINT fk_prod_item
-        FOREIGN KEY (item_id) REFERENCES item(id),
+    CONSTRAINT fk_po_product
+        FOREIGN KEY (product_id) REFERENCES product(id),
 
-    CONSTRAINT fk_prod_comp
+    CONSTRAINT fk_po_comp
         FOREIGN KEY (composition_id) REFERENCES composition(id),
 
-    CONSTRAINT fk_prod_blank_model
+    CONSTRAINT fk_po_model
         FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
 
-    CONSTRAINT fk_prod_comp_blank_model
+    CONSTRAINT fk_po_comp_model
         FOREIGN KEY (composition_id, blank_model_id)
         REFERENCES composition_blank_model(composition_id, blank_model_id)
 );
 
 ------------------------------------------------------------
--- TABLE: firing
+-- TABLE: production_order_line (righe per altezza)
+------------------------------------------------------------
+CREATE TABLE production_order_line (
+    production_order_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+
+    quantity INTEGER NOT NULL,
+
+    PRIMARY KEY (production_order_id, item_id),
+
+    CONSTRAINT fk_pol_order
+        FOREIGN KEY (production_order_id)
+        REFERENCES production_order(id),
+
+    CONSTRAINT fk_pol_item
+        FOREIGN KEY (item_id)
+        REFERENCES item(id),
+
+    CONSTRAINT ck_pol_qty CHECK (quantity > 0)
+);
+
+------------------------------------------------------------
+-- TABLE: firing (semplificato)
 ------------------------------------------------------------
 CREATE TABLE firing (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
 
     firing_date DATE NOT NULL,
-    furnace VARCHAR(50),
+    furnace VARCHAR(50) NOT NULL,
 
     max_temperature INTEGER,
     duration_minutes INTEGER,
 
     notes VARCHAR(500),
 
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+
+    CONSTRAINT uq_firing UNIQUE (firing_date, furnace)
 );
 
 ------------------------------------------------------------
--- TABLE: lot
+-- TABLE: production_order_firing
 ------------------------------------------------------------
-CREATE TABLE lot (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    code VARCHAR(50) NOT NULL,
-
+CREATE TABLE production_order_firing (
+    production_order_id INTEGER NOT NULL,
     firing_id INTEGER NOT NULL,
 
-    PRIMARY KEY (id),
+    PRIMARY KEY (production_order_id, firing_id),
 
-    CONSTRAINT fk_lot_firing
+    CONSTRAINT fk_pof_order
+        FOREIGN KEY (production_order_id)
+        REFERENCES production_order(id),
+
+    CONSTRAINT fk_pof_firing
         FOREIGN KEY (firing_id)
-        REFERENCES firing(id),
-
-    CONSTRAINT uq_lot_code UNIQUE (code)
-);
-------------------------------------------------------------
--- TABLE: firing_production
-------------------------------------------------------------
-CREATE TABLE firing_production (
-    firing_id INTEGER NOT NULL,
-    production_id INTEGER NOT NULL,
-
-    PRIMARY KEY (firing_id, production_id),
-
-    CONSTRAINT fk_fp_firing
-        FOREIGN KEY (firing_id) REFERENCES firing(id),
-
-    CONSTRAINT fk_fp_prod
-        FOREIGN KEY (production_id) REFERENCES production(id)
-);
-
-------------------------------------------------------------
--- TABLE: stock
-------------------------------------------------------------
-CREATE TABLE stock (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    lot_id INTEGER NOT NULL,
-    depot_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL,
-    PRIMARY KEY (id),
-    CONSTRAINT fk_stock_lot
-        FOREIGN KEY (lot_id)
-        REFERENCES lot(id),
-    CONSTRAINT fk_stock_depot
-        FOREIGN KEY (depot_id)
-        REFERENCES depot(id)
-);
-
-------------------------------------------------------------
--- TABLE: press
-------------------------------------------------------------
-CREATE TABLE press (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    bore DECIMAL(4,1) NOT NULL,
-    punch DECIMAL(4,1) NOT NULL,
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT ck_press_bore_positive CHECK (bore > 0),
-    CONSTRAINT ck_press_punch_positive CHECK (punch > 0)
-);
-
-------------------------------------------------------------
--- TABLE: blank_model_height_overmaterial
--- Profilo overmaterial per fasce di altezza del medesimo blank model.
-------------------------------------------------------------
-CREATE TABLE blank_model_height_overmaterial (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    blank_model_id INTEGER NOT NULL,
-
-    min_height_mm DECIMAL(5,2) NOT NULL,
-    max_height_mm DECIMAL(5,2) NOT NULL,
-
-    superior_overmaterial_mm DECIMAL(4,1) NOT NULL,
-    inferior_overmaterial_mm DECIMAL(4,1) NOT NULL,
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT fk_bmho_blank_model
-        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
-
-    CONSTRAINT uq_bmho_height_range
-        UNIQUE (blank_model_id, min_height_mm, max_height_mm),
-
-    CONSTRAINT ck_bmho_height_range_valid CHECK (max_height_mm > min_height_mm),
-    CONSTRAINT ck_bmho_min_height_positive CHECK (min_height_mm >= 0),
-    CONSTRAINT ck_bmho_superior_non_negative CHECK (superior_overmaterial_mm >= 0),
-    CONSTRAINT ck_bmho_inferior_non_negative CHECK (inferior_overmaterial_mm >= 0)
-);
-
-------------------------------------------------------------
--- TABLE: blank_model_layer
-------------------------------------------------------------
-CREATE TABLE blank_model_layer (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    blank_model_id INTEGER NOT NULL,
-    layer_number INTEGER NOT NULL,
-    disk_percentage DOUBLE NOT NULL,
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT fk_blank_layer_blank_model
-        FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
-
-    CONSTRAINT uq_blank_model_layer_order
-        UNIQUE (blank_model_id, layer_number),
-
-    CONSTRAINT ck_blank_layer_number_positive CHECK (layer_number > 0),
-    CONSTRAINT ck_blank_layer_percentage_range CHECK (disk_percentage > 0 AND disk_percentage <= 100)
+        REFERENCES firing(id)
 );
