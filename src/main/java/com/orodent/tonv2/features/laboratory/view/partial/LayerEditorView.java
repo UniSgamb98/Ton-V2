@@ -94,6 +94,11 @@ public class LayerEditorView extends HBox {
         this.onRemove = action;
     }
 
+    public void setLayerRemovalEnabled(boolean enabled) {
+        removeLayerBtn.setVisible(enabled);
+        removeLayerBtn.setManaged(enabled);
+    }
+
     public void setOnLayerChanged(Runnable onLayerChanged) {
         this.onLayerChanged = onLayerChanged;
     }

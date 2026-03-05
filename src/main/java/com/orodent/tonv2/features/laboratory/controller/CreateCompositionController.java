@@ -66,6 +66,11 @@ public class CreateCompositionController {
         view.getProductSelector().valueProperty().addListener((obs, oldValue, newValue) ->
                 view.setLoadLatestVersionVisible(newValue != null && !isNewProductOption(newValue))
         );
+        view.getBlankModelSelector().valueProperty().addListener((obs, oldModel, newModel) -> {
+            if (newModel != null) {
+                view.setLayerCount(newModel.numLayers());
+            }
+        });
         view.getLoadLatestVersionButton().setOnAction(e -> loadLatestVersion());
         view.setLoadLatestVersionVisible(false);
 
