@@ -3,7 +3,9 @@ package com.orodent.tonv2.features.laboratory.controller;
 import com.orodent.tonv2.app.AppController;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.BlankModelHeightOvermaterial;
+import com.orodent.tonv2.core.database.model.BlankModelLayer;
 import com.orodent.tonv2.core.database.repository.BlankModelHeightOvermaterialRepository;
+import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
 import com.orodent.tonv2.core.database.repository.BlankModelRepository;
 import com.orodent.tonv2.features.laboratory.view.CreateDiskModelView;
 import javafx.scene.control.Alert;
@@ -16,15 +18,18 @@ public class CreateDiskModelController {
     private final CreateDiskModelView view;
     private final AppController app;
     private final BlankModelRepository blankModelRepo;
+    private final BlankModelLayerRepository blankModelLayerRepo;
     private final BlankModelHeightOvermaterialRepository overmaterialRepo;
 
     public CreateDiskModelController(CreateDiskModelView view,
                                      AppController app,
                                      BlankModelRepository blankModelRepo,
+                                     BlankModelLayerRepository blankModelLayerRepo,
                                      BlankModelHeightOvermaterialRepository overmaterialRepo) {
         this.view = view;
         this.app = app;
         this.blankModelRepo = blankModelRepo;
+        this.blankModelLayerRepo = blankModelLayerRepo;
         this.overmaterialRepo = overmaterialRepo;
 
         setupActions();
@@ -43,8 +48,30 @@ public class CreateDiskModelController {
         Double inferior = parseNonNegative(view.getInferiorOvermaterial(), "Overmaterial inferiore default");
         Double pressure = parsePositive(view.getPressure(), "Pressione");
         Double gramsPerMm = parsePositive(view.getGramsPerMm(), "Grammi per mm");
+        Integer numLayers = parsePositiveInt(view.getNumLayers(), "Numero strati");
 
-        if (diameter == null || superior == null || inferior == null || pressure == null || gramsPerMm == null) {
+        if (diameter == null || superior == null || inferior == null || pressure == null || gramsPerMm == null || numLayers == null) {
+            return;
+        }
+
+        List<BlankModelLayer> layers = new ArrayList<>();
+        double sum = 0;
+        for (CreateDiskModelView.LayerPercentageDraft draft : view.getLayerPercentageDrafts()) {
+            Double pct = parsePositive(draft.percentage(), "Percentuale layer " + draft.layerNumber());
+            if (pct == null) {
+                return;
+            }
+            layers.add(new BlankModelLayer(0, draft.layerNumber(), pct));
+            sum += pct;
+        }
+
+        if (layers.size() != numLayers) {
+            showError("Layer mancanti", "Inserisci la percentuale per tutti i layer del modello.");
+            return;
+        }
+
+        if (Math.abs(sum - 100.0) > 0.0001) {
+            showError("Somma layer non valida", "La somma delle percentuali layer deve essere esattamente 100%.");
             return;
         }
 
@@ -70,7 +97,11 @@ public class CreateDiskModelController {
         }
 
         try {
-            BlankModel model = blankModelRepo.insert(code, diameter, superior, inferior, pressure, gramsPerMm);
+            BlankModel model = blankModelRepo.insert(code, diameter, superior, inferior, pressure, gramsPerMm, numLayers);
+
+            for (BlankModelLayer layer : layers) {
+                blankModelLayerRepo.insert(new BlankModelLayer(model.id(), layer.layerNumber(), layer.diskPercentage()));
+            }
 
             for (BlankModelHeightOvermaterial range : ranges) {
                 overmaterialRepo.insert(new BlankModelHeightOvermaterial(
@@ -127,6 +158,25 @@ public class CreateDiskModelController {
             return null;
         }
         return value;
+    }
+
+
+    private Integer parsePositiveInt(String raw, String fieldName) {
+        if (raw == null || raw.isBlank()) {
+            showError("Campo obbligatorio mancante", fieldName + " è obbligatorio.");
+            return null;
+        }
+        try {
+            int value = Integer.parseInt(raw.trim());
+            if (value <= 0) {
+                showError("Valore non valido", fieldName + " deve essere maggiore di 0.");
+                return null;
+            }
+            return value;
+        } catch (NumberFormatException ex) {
+            showError("Formato numerico non valido", fieldName + " deve essere un intero valido.");
+            return null;
+        }
     }
 
     private Double parseDouble(String raw, String fieldName) {

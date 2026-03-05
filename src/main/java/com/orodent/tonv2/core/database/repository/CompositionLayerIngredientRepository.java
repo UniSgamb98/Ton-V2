@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface CompositionLayerIngredientRepository {
     void insert(CompositionLayerIngredient cli);
-    List<CompositionLayerIngredient> findByLayerId(int layerId);
+    List<CompositionLayerIngredient> findByCompositionId(int compositionId);
 }

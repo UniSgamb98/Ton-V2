@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface BlankModelRepository {
     List<BlankModel> findAll();
-    BlankModel insert(String code, double diameterMm, double superiorOvermaterialMm, double inferiorOvermaterialMm, double pressureKgCm2, double gramsPerMm);
+    BlankModel insert(String code, double diameterMm, double superiorOvermaterialDefaultMm, double inferiorOvermaterialDefaultMm, double pressureKgCm2, double gramsPerMm, int numLayers);
 }

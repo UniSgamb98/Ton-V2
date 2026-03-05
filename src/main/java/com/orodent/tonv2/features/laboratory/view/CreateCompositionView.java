@@ -18,10 +18,6 @@ import java.util.List;
 
 public class CreateCompositionView extends VBox {
 
-    /* =======================
-       COMPONENTI UI
-       ======================= */
-
     private final AppHeader header = new AppHeader("Nuova composizione");
     private final BorderPane content = new BorderPane();
 
@@ -33,19 +29,10 @@ public class CreateCompositionView extends VBox {
     private final TextArea notesArea = new TextArea();
     private final VBox layersBox = new VBox(10);
 
-    private final Button addLayerBtn = new Button("Aggiungi layer");
     private final Button saveBtn = new Button("Salva composizione");
-
-    /* =======================
-       STATO UI (DRAFT)
-       ======================= */
 
     private final List<LayerDraft> layers = new ArrayList<>();
     private List<Powder> availablePowders = new ArrayList<>();
-
-    /* =======================
-       COSTRUTTORE
-       ======================= */
 
     public CreateCompositionView() {
         setSpacing(20);
@@ -60,14 +47,7 @@ public class CreateCompositionView extends VBox {
         this.availablePowders = powders;
     }
 
-    /* =======================
-       COSTRUZIONE UI
-       ======================= */
-
     private void buildLayout() {
-
-        /* ---- TOP: Product + Notes ---- */
-
         productSelector.setPromptText("Seleziona prodotto");
         blankModelSelector.setPromptText("Seleziona modello blank");
 
@@ -108,15 +88,12 @@ public class CreateCompositionView extends VBox {
         );
         topBox.setPadding(new Insets(10));
 
-        /* ---- CENTER: Layers ---- */
-
         ScrollPane scroll = new ScrollPane(layersBox);
         scroll.setFitToWidth(true);
 
         VBox centerBox = new VBox(10,
                 new Label("Strati"),
-                scroll,
-                addLayerBtn
+                scroll
         );
         centerBox.setPadding(new Insets(10));
         centerBox.setMaxWidth(900);
@@ -125,66 +102,46 @@ public class CreateCompositionView extends VBox {
         centeredCenterBox.setPadding(new Insets(0, 10, 0, 10));
         StackPane.setAlignment(centerBox, Pos.TOP_CENTER);
 
-        /* ---- BOTTOM: Save ---- */
-
         HBox bottomBox = new HBox(saveBtn);
         bottomBox.setPadding(new Insets(10));
         bottomBox.setAlignment(Pos.CENTER_RIGHT);
 
-        /* ---- BorderPane ---- */
-
         content.setTop(topBox);
         content.setCenter(centeredCenterBox);
         content.setBottom(bottomBox);
-
-        /* ---- Actions ---- */
-
-        addLayerBtn.setOnAction(e -> addLayer());
-    }
-
-    /* =======================
-       LOGICA UI (solo draft)
-       ======================= */
-
-    private void addLayer() {
-        LayerDraft layerDraft = new LayerDraft(layers.size() + 1);
-        layers.add(layerDraft);
-        createLayerView(layerDraft);
     }
 
     private void createLayerView(LayerDraft layerDraft) {
         LayerEditorView layerView = new LayerEditorView(layerDraft, availablePowders);
-
-        layerView.setOnRemove(() -> {
-            layers.remove(layerDraft);
-            layersBox.getChildren().remove(layerView);
-            renumberLayers();
-        });
-
+        // layer count fissato dal modello blank: non abilitiamo rimozione layer
+        layerView.setLayerRemovalEnabled(false);
+        layerView.setOnRemove(() -> {});
         layersBox.getChildren().add(layerView);
     }
 
+    public void setLayerCount(int layerCount) {
+        layers.clear();
+        layersBox.getChildren().clear();
+
+        for (int i = 1; i <= layerCount; i++) {
+            LayerDraft layerDraft = new LayerDraft(i);
+            layers.add(layerDraft);
+            createLayerView(layerDraft);
+        }
+    }
+
     public void renumberLayers() {
-
         for (int i = 0; i < layers.size(); i++) {
-
             int number = i + 1;
-
-            // aggiorna il draft
             LayerDraft draft = layers.get(i);
             draft.setLayerNumber(number);
 
-            // aggiorna la view (stesso ordine nel VBox)
             Node node = layersBox.getChildren().get(i);
             if (node instanceof LayerEditorView view) {
                 view.setLayerNumber(number);
             }
         }
     }
-
-    /* =======================
-       GETTER USATI DAL CONTROLLER
-       ======================= */
 
     public ComboBox<Product> getProductSelector() {
         return productSelector;

@@ -21,17 +21,19 @@ public class CompositionLayerIngredientRepositoryImpl implements CompositionLaye
     public void insert(CompositionLayerIngredient cli) {
         String sql = """
         INSERT INTO composition_layer_ingredient (
-            layer_id,
+            composition_id,
+            layer_number,
             powder_id,
             percentage
-        ) VALUES (?, ?, ?)
+        ) VALUES (?, ?, ?, ?)
         """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, cli.layerId());
-            ps.setInt(2, cli.powderId());
-            ps.setDouble(3, cli.percentage());
+            ps.setInt(1, cli.compositionId());
+            ps.setInt(2, cli.layerNumber());
+            ps.setInt(3, cli.powderId());
+            ps.setDouble(4, cli.percentage());
 
             ps.executeUpdate();
 
@@ -41,24 +43,24 @@ public class CompositionLayerIngredientRepositoryImpl implements CompositionLaye
     }
 
     @Override
-    public List<CompositionLayerIngredient> findByLayerId(int layerId) {
+    public List<CompositionLayerIngredient> findByCompositionId(int compositionId) {
         String sql = """
-        SELECT id, layer_id, powder_id, percentage
+        SELECT composition_id, layer_number, powder_id, percentage
         FROM composition_layer_ingredient
-        WHERE layer_id = ?
-        ORDER BY id ASC
+        WHERE composition_id = ?
+        ORDER BY layer_number ASC, powder_id ASC
         """;
 
         List<CompositionLayerIngredient> ingredients = new ArrayList<>();
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, layerId);
+            ps.setInt(1, compositionId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     ingredients.add(new CompositionLayerIngredient(
-                            rs.getInt("id"),
-                            rs.getInt("layer_id"),
+                            rs.getInt("composition_id"),
+                            rs.getInt("layer_number"),
                             rs.getInt("powder_id"),
                             rs.getDouble("percentage")
                     ));
@@ -66,7 +68,7 @@ public class CompositionLayerIngredientRepositoryImpl implements CompositionLaye
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Error finding composition layer ingredients for layer " + layerId, e);
+            throw new RuntimeException("Error finding composition layer ingredients for composition " + compositionId, e);
         }
 
         return ingredients;
