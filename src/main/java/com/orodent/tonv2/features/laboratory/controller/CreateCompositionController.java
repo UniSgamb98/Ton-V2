@@ -124,6 +124,14 @@ public class CreateCompositionController {
             showWarning("Layer mancanti", "Aggiungi almeno uno strato alla composizione.");
             return;
         }
+        if (numLayers != blankModel.numLayers()) {
+            showWarning(
+                    "Numero layer non coerente",
+                    "La composizione ha " + numLayers + " layer, ma il modello blank selezionato richiede "
+                            + blankModel.numLayers() + " layer."
+            );
+            return;
+        }
 
         int newVersion = compositionRepo
                 .findMaxVersionByProduct(product.id())
