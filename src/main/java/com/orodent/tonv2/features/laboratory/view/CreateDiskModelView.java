@@ -92,28 +92,27 @@ public class CreateDiskModelView extends VBox {
         Label layersLabel = new Label("Struttura layer modello (somma = 100%)");
         layersSummaryLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #374151;");
 
+        VBox layersSection = new VBox(8, layersLabel, layersPercentagesBox, layersSummaryLabel);
+        HBox layersWithPreview = new HBox(18, layersSection, previewView);
+        layersWithPreview.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(layersSection, Priority.ALWAYS);
+
         Label rangesLabel = new Label("Overmaterial per fascia altezza (opzionale)");
         addRangeBtn.setOnAction(e -> addRangeRow(null));
 
         VBox leftBox = new VBox(12,
                 baseForm,
-                layersLabel,
-                layersPercentagesBox,
-                layersSummaryLabel,
+                layersWithPreview,
                 new Separator(),
                 rangesLabel,
                 rangesBox,
                 addRangeBtn
         );
         leftBox.setPadding(new Insets(10));
-        leftBox.setMaxWidth(740);
+        leftBox.setMaxWidth(950);
         VBox.setVgrow(layersPercentagesBox, Priority.NEVER);
 
-        VBox rightBox = new VBox(previewView);
-        rightBox.setPadding(new Insets(10));
-        rightBox.setAlignment(Pos.TOP_CENTER);
-
-        HBox centerContent = new HBox(18, leftBox, rightBox);
+        HBox centerContent = new HBox(18, leftBox);
         centerContent.setAlignment(Pos.TOP_CENTER);
         HBox.setHgrow(leftBox, Priority.ALWAYS);
 

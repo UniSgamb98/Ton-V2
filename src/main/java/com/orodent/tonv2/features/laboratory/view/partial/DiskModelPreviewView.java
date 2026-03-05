@@ -34,7 +34,7 @@ public class DiskModelPreviewView extends VBox {
 
         for (int i = 0; i < layerPercentages.size(); i++) {
             double pct = layerPercentages.get(i);
-            double h = Math.max(14, pct * 1.4);
+            double h = Math.max(12, Math.min(60, pct * 0.9));
             addSegment("Layer " + (i + 1) + "  " + fmt(pct) + "%", h, pickColor(i));
         }
 
