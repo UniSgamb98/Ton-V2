@@ -90,6 +90,14 @@ public class CreateCompositionController {
         }
 
         Composition composition = latestComposition.get();
+
+        compositionRepo.findBlankModelIdByCompositionId(composition.id()).ifPresent(blankModelId -> {
+            view.getBlankModelSelector().getItems().stream()
+                    .filter(model -> model.id() == blankModelId)
+                    .findFirst()
+                    .ifPresent(view.getBlankModelSelector()::setValue);
+        });
+
         List<LayerDraft> layerDrafts = new ArrayList<>();
         Map<Integer, LayerDraft> byLayer = new TreeMap<>();
 

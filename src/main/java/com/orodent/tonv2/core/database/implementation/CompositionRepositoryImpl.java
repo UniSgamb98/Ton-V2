@@ -102,6 +102,22 @@ public class CompositionRepositoryImpl implements CompositionRepository {
     }
 
     @Override
+    public Optional<Integer> findBlankModelIdByCompositionId(int compositionId) {
+        String sql = "SELECT blank_model_id FROM composition_blank_model WHERE composition_id = ? FETCH FIRST 1 ROW ONLY";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, compositionId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(rs.getInt("blank_model_id"));
+                }
+            }
+            return Optional.empty();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error reading blank model for composition " + compositionId, e);
+        }
+    }
+
+    @Override
     public void setActiveComposition(int productId, int compositionId) {
         String updateSql = "UPDATE product_active_composition SET composition_id = ? WHERE product_id = ?";
         String insertSql = "INSERT INTO product_active_composition (product_id, composition_id) VALUES (?, ?)";

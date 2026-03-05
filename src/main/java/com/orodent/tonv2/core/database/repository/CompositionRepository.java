@@ -10,6 +10,7 @@ public interface CompositionRepository {
     Optional<Integer> findMaxVersionByProduct(int productId);
     Optional<Composition> findLatestByProduct(int productId);
     Optional<Integer> findActiveCompositionId(int productId);
+    Optional<Integer> findBlankModelIdByCompositionId(int compositionId);
     void setActiveComposition(int productId, int compositionId);
     int insert(Composition composition);
     int createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients);
