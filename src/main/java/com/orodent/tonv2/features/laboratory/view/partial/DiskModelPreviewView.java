@@ -49,7 +49,7 @@ public class DiskModelPreviewView extends VBox {
         box.setStyle("-fx-background-color: " + toHex(color) + "; -fx-border-color: #374151;");
 
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 11px;");
+        label.setStyle("-fx-font-size: 11px; -fx-text-fill: #000000;");
         box.getChildren().add(label);
 
         stack.getChildren().add(box);
