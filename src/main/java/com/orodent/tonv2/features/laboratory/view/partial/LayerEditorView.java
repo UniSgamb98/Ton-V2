@@ -8,9 +8,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.List;
@@ -23,7 +21,6 @@ public class LayerEditorView extends HBox {
     private final LayerMetricsService layerMetricsService = new LayerMetricsService();
 
     private final VBox ingredientsBox = new VBox(5);
-    private final TextArea notesArea = new TextArea();
     private Label title;
     private final Label metricsLabel = new Label();
 
@@ -40,7 +37,6 @@ public class LayerEditorView extends HBox {
     }
 
     private void buildUI() {
-
         setSpacing(10);
         setPadding(new Insets(10));
         getStyleClass().add("layer-editor");
@@ -60,16 +56,6 @@ public class LayerEditorView extends HBox {
         HBox header = new HBox(8, removeLayerBtn, title, metricsLabel);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        notesArea.setPromptText("Note layer...");
-        notesArea.setWrapText(true);
-        notesArea.setText(layerDraft.notes());
-        updateNotesAreaSize();
-
-        notesArea.textProperty().addListener((obs, old, val) -> {
-            layerDraft.setNotes(val);
-            notifyLayerChanged();
-        });
-
         ingredientsBox.setSpacing(5);
         for (IngredientDraft ingredient : layerDraft.ingredients()) {
             addIngredientRow(ingredient);
@@ -77,10 +63,8 @@ public class LayerEditorView extends HBox {
 
         addIngredientBtn.setOnAction(e -> addIngredient());
 
-        VBox leftBody = new VBox(10, header, ingredientsBox, addIngredientBtn);
-        VBox rightBody = new VBox(new Label("Note"), notesArea);
-        HBox.setHgrow(rightBody, Priority.ALWAYS);
-        getChildren().addAll(leftBody, rightBody);
+        VBox body = new VBox(10, header, ingredientsBox, addIngredientBtn);
+        getChildren().add(body);
 
         refreshMetrics();
     }
@@ -120,18 +104,10 @@ public class LayerEditorView extends HBox {
         rowView.setOnRemove(() -> {
             layerDraft.ingredients().remove(ingredient);
             ingredientsBox.getChildren().remove(rowView);
-            updateNotesAreaSize();
             notifyLayerChanged();
         });
 
         ingredientsBox.getChildren().add(rowView);
-        updateNotesAreaSize();
-    }
-
-    private void updateNotesAreaSize() {
-        int ingredientCount = layerDraft.ingredients().size();
-        int preferredRows = ingredientCount * (5 / 2) + 2;
-        notesArea.setPrefRowCount(preferredRows);
     }
 
     private void notifyLayerChanged() {
