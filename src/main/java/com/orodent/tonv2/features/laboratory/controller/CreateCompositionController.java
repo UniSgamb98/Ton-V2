@@ -153,12 +153,11 @@ public class CreateCompositionController {
         );
 
         try {
-            int compositionId = compositionRepo.insert(composition);
-
+            List<CompositionLayerIngredient> ingredients = new ArrayList<>();
             for (LayerDraft layerDraft : view.getLayers()) {
                 for (IngredientDraft ing : layerDraft.ingredients()) {
-                    compositionLayerIngredientRepo.insert(new CompositionLayerIngredient(
-                            compositionId,
+                    ingredients.add(new CompositionLayerIngredient(
+                            0,
                             layerDraft.layerNumber(),
                             ing.powderId(),
                             ing.percentage()
@@ -166,8 +165,7 @@ public class CreateCompositionController {
                 }
             }
 
-            // Attiva la composizione (trigger valida layer al 100%)
-            compositionRepo.setActiveComposition(product.id(), compositionId);
+            compositionRepo.createVersionWithModelAndActivate(composition, blankModel.id(), ingredients);
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setHeaderText("Composizione Salvata");

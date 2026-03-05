@@ -1,7 +1,9 @@
 package com.orodent.tonv2.core.database.repository;
 
 import com.orodent.tonv2.core.database.model.Composition;
+import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface CompositionRepository {
@@ -10,4 +12,5 @@ public interface CompositionRepository {
     Optional<Integer> findActiveCompositionId(int productId);
     void setActiveComposition(int productId, int compositionId);
     int insert(Composition composition);
+    int createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients);
 }
