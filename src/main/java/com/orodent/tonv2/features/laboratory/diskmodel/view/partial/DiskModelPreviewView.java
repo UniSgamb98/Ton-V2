@@ -1,4 +1,4 @@
-package com.orodent.tonv2.features.laboratory.view.partial;
+package com.orodent.tonv2.features.laboratory.diskmodel.view.partial;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

@@ -1,9 +1,9 @@
-package com.orodent.tonv2.features.laboratory.view.partial;
+package com.orodent.tonv2.features.laboratory.composition.view.partial;
 
 import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
-import com.orodent.tonv2.features.laboratory.service.LayerMetricsService;
+import com.orodent.tonv2.features.laboratory.composition.service.LayerMetricsService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;

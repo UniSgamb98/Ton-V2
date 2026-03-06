@@ -3,12 +3,12 @@ package com.orodent.tonv2.app;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
-import com.orodent.tonv2.features.laboratory.controller.CreateCompositionController;
-import com.orodent.tonv2.features.laboratory.controller.CreateDiskModelController;
-import com.orodent.tonv2.features.laboratory.controller.LaboratoryController;
-import com.orodent.tonv2.features.laboratory.view.CreateCompositionView;
-import com.orodent.tonv2.features.laboratory.view.CreateDiskModelView;
-import com.orodent.tonv2.features.laboratory.view.LaboratoryView;
+import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
+import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
+import com.orodent.tonv2.features.laboratory.home.controller.LaboratoryController;
+import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
+import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
+import com.orodent.tonv2.features.laboratory.home.view.LaboratoryView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 

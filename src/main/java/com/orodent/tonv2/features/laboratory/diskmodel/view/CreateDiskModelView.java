@@ -1,7 +1,7 @@
-package com.orodent.tonv2.features.laboratory.view;
+package com.orodent.tonv2.features.laboratory.diskmodel.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
-import com.orodent.tonv2.features.laboratory.view.partial.DiskModelPreviewView;
+import com.orodent.tonv2.features.laboratory.diskmodel.view.partial.DiskModelPreviewView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;

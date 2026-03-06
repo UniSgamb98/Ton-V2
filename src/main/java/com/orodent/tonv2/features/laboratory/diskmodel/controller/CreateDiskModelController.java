@@ -1,4 +1,4 @@
-package com.orodent.tonv2.features.laboratory.controller;
+package com.orodent.tonv2.features.laboratory.diskmodel.controller;
 
 import com.orodent.tonv2.app.AppController;
 import com.orodent.tonv2.core.database.model.BlankModel;
@@ -7,7 +7,7 @@ import com.orodent.tonv2.core.database.model.BlankModelLayer;
 import com.orodent.tonv2.core.database.repository.BlankModelHeightOvermaterialRepository;
 import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
 import com.orodent.tonv2.core.database.repository.BlankModelRepository;
-import com.orodent.tonv2.features.laboratory.view.CreateDiskModelView;
+import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import javafx.scene.control.Alert;
 
 import java.util.ArrayList;
