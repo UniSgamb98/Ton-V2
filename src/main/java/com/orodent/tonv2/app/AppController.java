@@ -6,6 +6,12 @@ import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
 import com.orodent.tonv2.features.laboratory.home.controller.LaboratoryController;
+import com.orodent.tonv2.features.laboratory.itemsetup.controller.ItemSetupController;
+import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
+import com.orodent.tonv2.features.laboratory.itemsetup.view.ItemSetupView;
+import com.orodent.tonv2.features.laboratory.production.controller.BatchProductionController;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
+import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import com.orodent.tonv2.features.laboratory.home.view.LaboratoryView;
@@ -93,6 +99,41 @@ public class AppController {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Laboratorio");
+    }
+
+
+    public void showBatchProduction() {
+        showBatchProduction(java.util.List.of());
+    }
+
+    public void showBatchProduction(java.util.List<com.orodent.tonv2.core.database.model.Item> preselectedItems) {
+        BatchProductionView view = new BatchProductionView();
+        configureHeader(view.getHeader());
+        new BatchProductionController(
+                view,
+                app.itemRepo(),
+                app.compositionRepo(),
+                new BatchProductionService(),
+                preselectedItems
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Produzione batch");
+    }
+
+    public void showItemSetup() {
+        ItemSetupView view = new ItemSetupView();
+        configureHeader(view.getHeader());
+        new ItemSetupController(
+                view,
+                app.productRepo(),
+                app.itemRepo(),
+                app.compositionRepo(),
+                new ItemSetupService()
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Setup Item");
     }
 
     public void showCreateDiskModel() {
