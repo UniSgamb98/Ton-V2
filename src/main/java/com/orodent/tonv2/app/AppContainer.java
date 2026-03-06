@@ -26,6 +26,7 @@ public class AppContainer {
     private final FiringRepository firingRepo;
     private final ProductRepository productRepo;
     private final BlankModelRepository blankModelRepo;
+    private final BlankModelLayerRepository blankModelLayerRepo;
     private final BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo;
 
     // --- Database ---
@@ -58,6 +59,7 @@ public class AppContainer {
         this.productionRepo = new ProductionRepositoryImpl(database.getConnection());
         this.productRepo = new ProductRepositoryImpl(database.getConnection());
         this.blankModelRepo = new BlankModelRepositoryImpl(database.getConnection());
+        this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(database.getConnection());
         this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(database.getConnection());
         System.out.println("Caricati le repository.");
 
@@ -88,6 +90,7 @@ public class AppContainer {
     public ProductionRepository productionRepo() { return productionRepo; }
     public ProductRepository productRepo() { return productRepo; }
     public BlankModelRepository blankModelRepo() { return blankModelRepo; }
+    public BlankModelLayerRepository blankModelLayerRepo() { return blankModelLayerRepo; }
     public BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo() { return blankModelHeightOvermaterialRepo; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }

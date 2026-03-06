@@ -98,7 +98,7 @@ public class AppController {
     public void showCreateDiskModel() {
         CreateDiskModelView view = new CreateDiskModelView();
         configureHeader(view.getHeader());
-        new CreateDiskModelController(view, this, app.blankModelRepo(), app.blankModelHeightOvermaterialRepo());
+        new CreateDiskModelController(view, this, app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo());
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuovo modello disco");
