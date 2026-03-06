@@ -251,6 +251,18 @@ CREATE TABLE production_order_line (
 );
 
 ------------------------------------------------------------
+-- TABLE: furnace
+------------------------------------------------------------
+CREATE TABLE furnace (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    number VARCHAR(50) NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uq_furnace_number UNIQUE (number)
+);
+
+------------------------------------------------------------
 -- TABLE: firing (semplificato)
 ------------------------------------------------------------
 CREATE TABLE firing (

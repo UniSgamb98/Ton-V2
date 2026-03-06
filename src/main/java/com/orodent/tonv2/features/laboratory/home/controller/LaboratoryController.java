@@ -11,8 +11,9 @@ public class LaboratoryController {
 
         view.getCreateCompositionButton().setOnAction(e -> app.showCreateComposition());
         view.getCreateDiskModelButton().setOnAction(e -> app.showCreateDiskModel());
+        view.getCreateArticleButton().setOnAction(e -> app.showItemSetup());
         view.getProduceButton().setOnAction(e -> app.showBatchProduction());
-        view.getPlaceholderButton().setOnAction(e -> app.showItemSetup());
+        view.getPresinterButton().setOnAction(e -> app.showPresintering());
     }
 
     public LaboratoryView getView() {

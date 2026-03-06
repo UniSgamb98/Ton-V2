@@ -12,6 +12,9 @@ import com.orodent.tonv2.features.laboratory.itemsetup.view.ItemSetupView;
 import com.orodent.tonv2.features.laboratory.production.controller.BatchProductionController;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
+import com.orodent.tonv2.features.laboratory.presintering.controller.PresinteringController;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
+import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import com.orodent.tonv2.features.laboratory.home.view.LaboratoryView;
@@ -134,6 +137,19 @@ public class AppController {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Setup Item");
+    }
+
+    public void showPresintering() {
+        PresinteringView view = new PresinteringView();
+        configureHeader(view.getHeader());
+        new PresinteringController(
+                view,
+                app.productionRepo(),
+                new PresinteringService()
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Presinterizza");
     }
 
     public void showCreateDiskModel() {
