@@ -29,7 +29,7 @@ public class MagazzinoCsvParser implements CsvParser {
     @Override
     public void parse(Path path) {
         throw new UnsupportedOperationException(
-                "Parser magazzino da riallineare al nuovo schema (item senza code e flusso production_order)."
+                "Parser magazzino da riallineare al nuovo schema (item con code e flusso production_order)."
         );
     }
 }

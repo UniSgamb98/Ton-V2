@@ -19,10 +19,15 @@ public class ItemSetupService {
         return latest.get().id();
     }
 
-    public Item createItemForActiveComposition(int productId,
+    public Item createItemForActiveComposition(String itemCode,
+                                               int productId,
                                                double heightMm,
                                                ItemRepository itemRepo,
                                                CompositionRepository compositionRepo) {
+        if (itemCode == null || itemCode.isBlank()) {
+            throw new IllegalArgumentException("Codice item obbligatorio.");
+        }
+
         if (heightMm <= 0) {
             throw new IllegalArgumentException("L'altezza deve essere maggiore di zero.");
         }
@@ -42,6 +47,6 @@ public class ItemSetupService {
             return existing;
         }
 
-        return itemRepo.insert(productId, blankModelId.get(), heightMm);
+        return itemRepo.insert(itemCode.trim(), productId, blankModelId.get(), heightMm);
     }
 }

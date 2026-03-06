@@ -71,9 +71,10 @@ public class ItemSetupController {
     private void createItem() {
         try {
             Product product = requireProduct();
+            String itemCode = parseItemCode(view.getItemCodeField().getText());
             double heightMm = parseHeight(view.getHeightField().getText());
 
-            Item item = service.createItemForActiveComposition(product.id(), heightMm, itemRepo, compositionRepo);
+            Item item = service.createItemForActiveComposition(itemCode, product.id(), heightMm, itemRepo, compositionRepo);
             view.setFeedback("Item pronto: " + item.code() + " (id " + item.id() + ")", false);
         } catch (IllegalArgumentException ex) {
             view.setFeedback(ex.getMessage(), true);
@@ -88,6 +89,14 @@ public class ItemSetupController {
             throw new IllegalArgumentException("Seleziona un prodotto.");
         }
         return product;
+    }
+
+    private String parseItemCode(String raw) {
+        String code = raw == null ? "" : raw.trim();
+        if (code.isEmpty()) {
+            throw new IllegalArgumentException("Codice item obbligatorio.");
+        }
+        return code;
     }
 
     private double parseHeight(String raw) {

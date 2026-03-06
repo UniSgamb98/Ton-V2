@@ -18,6 +18,7 @@ public class ItemSetupView extends VBox {
     private final Label activeCompositionLabel = new Label("Composizione attiva: -");
     private final Button activateLatestCompositionButton = new Button("Imposta ultima composizione come attiva");
 
+    private final TextField itemCodeField = new TextField();
     private final TextField heightField = new TextField();
     private final Button createItemButton = new Button("Crea item");
 
@@ -30,9 +31,10 @@ public class ItemSetupView extends VBox {
         productSelector.setPromptText("Seleziona prodotto");
         productSelector.setMaxWidth(Double.MAX_VALUE);
 
+        itemCodeField.setPromptText("Codice item (es. ZRA2-H18)");
         heightField.setPromptText("Altezza mm (es. 12.5)");
 
-        HBox createRow = new HBox(10, heightField, createItemButton);
+        HBox createRow = new HBox(10, itemCodeField, heightField, createItemButton);
         createRow.setAlignment(Pos.CENTER_LEFT);
 
         getChildren().addAll(
@@ -57,6 +59,10 @@ public class ItemSetupView extends VBox {
 
     public Button getActivateLatestCompositionButton() {
         return activateLatestCompositionButton;
+    }
+
+    public TextField getItemCodeField() {
+        return itemCodeField;
     }
 
     public TextField getHeightField() {

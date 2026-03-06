@@ -77,6 +77,7 @@ CREATE TABLE blank_model_height_overmaterial (
 ------------------------------------------------------------
 CREATE TABLE item (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
+    code VARCHAR(80) NOT NULL,
     product_id INTEGER NOT NULL,
     blank_model_id INTEGER NOT NULL,
 
@@ -90,6 +91,7 @@ CREATE TABLE item (
     CONSTRAINT fk_item_model
         FOREIGN KEY (blank_model_id) REFERENCES blank_model(id),
 
+    CONSTRAINT uq_item_code UNIQUE (code),
     CONSTRAINT uq_item UNIQUE (product_id, height_mm),
     CONSTRAINT ck_item_height CHECK (height_mm > 0)
 );

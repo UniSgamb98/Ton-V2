@@ -7,7 +7,7 @@ import java.util.List;
 public interface ItemRepository {
     Item findById(int id);
     Item findByProductAndHeight(int productId, double heightMm);
-    Item insert(int productId, int blankModelId, double heightMm);
+    Item insert(String code, int productId, int blankModelId, double heightMm);
     List<Item> findAll();
     List<Item> findByProduct(int productId);
     List<Item> findByDepot(String depotName);
