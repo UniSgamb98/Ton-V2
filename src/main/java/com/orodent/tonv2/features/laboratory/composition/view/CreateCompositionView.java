@@ -1,4 +1,4 @@
-package com.orodent.tonv2.features.laboratory.view;
+package com.orodent.tonv2.features.laboratory.composition.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.model.BlankModel;
@@ -6,7 +6,7 @@ import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
-import com.orodent.tonv2.features.laboratory.view.partial.LayerEditorView;
+import com.orodent.tonv2.features.laboratory.composition.view.partial.LayerEditorView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;

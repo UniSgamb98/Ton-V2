@@ -1,4 +1,4 @@
-package com.orodent.tonv2.features.laboratory.view.partial;
+package com.orodent.tonv2.features.laboratory.composition.view.partial;
 
 import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;

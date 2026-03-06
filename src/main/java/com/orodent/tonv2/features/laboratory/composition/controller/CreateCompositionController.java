@@ -1,4 +1,4 @@
-package com.orodent.tonv2.features.laboratory.controller;
+package com.orodent.tonv2.features.laboratory.composition.controller;
 
 import com.orodent.tonv2.app.AppController;
 import com.orodent.tonv2.core.database.model.BlankModel;
@@ -8,7 +8,7 @@ import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.*;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
-import com.orodent.tonv2.features.laboratory.view.CreateCompositionView;
+import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
 import javafx.scene.control.*;
 
 import java.sql.SQLException;
