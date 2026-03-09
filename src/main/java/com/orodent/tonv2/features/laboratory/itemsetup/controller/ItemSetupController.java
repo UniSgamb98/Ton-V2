@@ -50,7 +50,7 @@ public class ItemSetupController {
 
         compositionRepo.findActiveCompositionId(product.id())
                 .ifPresentOrElse(
-                        id -> view.setActiveCompositionText("Composizione attiva: " + id),
+                        id -> view.setActiveCompositionText("Composizione attiva: #" + id),
                         () -> view.setActiveCompositionText("Composizione attiva: nessuna")
                 );
     }
