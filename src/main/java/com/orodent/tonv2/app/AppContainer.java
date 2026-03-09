@@ -25,6 +25,7 @@ public class AppContainer {
     private final ProductionRepository productionRepo;
     private final FiringRepository firingRepo;
     private final ProductRepository productRepo;
+    private final LineRepository lineRepo;
     private final BlankModelRepository blankModelRepo;
     private final BlankModelLayerRepository blankModelLayerRepo;
     private final BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo;
@@ -58,6 +59,7 @@ public class AppContainer {
         this.firingRepo = new FiringRepositoryImpl(database.getConnection());
         this.productionRepo = new ProductionRepositoryImpl(database.getConnection());
         this.productRepo = new ProductRepositoryImpl(database.getConnection());
+        this.lineRepo = new LineRepositoryImpl(database.getConnection());
         this.blankModelRepo = new BlankModelRepositoryImpl(database.getConnection());
         this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(database.getConnection());
         this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(database.getConnection());
@@ -89,6 +91,7 @@ public class AppContainer {
     public FiringRepository firingRepo() { return firingRepo; }
     public ProductionRepository productionRepo() { return productionRepo; }
     public ProductRepository productRepo() { return productRepo; }
+    public LineRepository lineRepo() { return lineRepo; }
     public BlankModelRepository blankModelRepo() { return blankModelRepo; }
     public BlankModelLayerRepository blankModelLayerRepo() { return blankModelLayerRepo; }
     public BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo() { return blankModelHeightOvermaterialRepo; }

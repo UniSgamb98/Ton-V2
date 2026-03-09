@@ -115,7 +115,9 @@ public class AppController {
         new BatchProductionController(
                 view,
                 app.itemRepo(),
+                app.lineRepo(),
                 app.compositionRepo(),
+                app.productionRepo(),
                 new BatchProductionService(),
                 preselectedItems
         );

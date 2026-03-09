@@ -2,13 +2,17 @@ package com.orodent.tonv2.features.laboratory.production.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.model.Item;
+import com.orodent.tonv2.core.database.model.Line;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
@@ -17,7 +21,9 @@ import java.util.List;
 public class BatchProductionView extends VBox {
 
     private final AppHeader header = new AppHeader("Produzione batch");
+    private final ComboBox<Line> lineSelector = new ComboBox<>();
     private final VBox rowsBox = new VBox(8);
+    private final TextArea notesArea = new TextArea();
     private final Button addRowButton = new Button("Aggiungi riga");
     private final Button produceButton = new Button("Produci batch");
     private final Label feedbackLabel = new Label();
@@ -28,12 +34,32 @@ public class BatchProductionView extends VBox {
         setSpacing(16);
         setPadding(new Insets(20));
 
+        lineSelector.setPromptText("Seleziona linea di produzione");
+        lineSelector.setMaxWidth(Double.MAX_VALUE);
+
+        notesArea.setPromptText("Note ordine (opzionale)");
+        notesArea.setPrefRowCount(3);
+
         feedbackLabel.setStyle("-fx-text-fill: #374151;");
 
         HBox actions = new HBox(10, addRowButton, produceButton);
         actions.setAlignment(Pos.CENTER_LEFT);
 
-        getChildren().addAll(header, rowsBox, actions, feedbackLabel);
+        getChildren().addAll(
+                header,
+                new Label("Linea"),
+                lineSelector,
+                new Separator(),
+                rowsBox,
+                new Label("Note"),
+                notesArea,
+                actions,
+                feedbackLabel
+        );
+    }
+
+    public void setLines(List<Line> lines) {
+        lineSelector.getItems().setAll(lines);
     }
 
     public BatchRow addRow(List<Item> items, Item preselectedItem) {
@@ -49,12 +75,26 @@ public class BatchProductionView extends VBox {
         return row;
     }
 
+    public void replaceRows(List<Item> items) {
+        rows.clear();
+        rowsBox.getChildren().clear();
+        addRow(items, null);
+    }
+
     public List<BatchRow> getRows() {
         return rows;
     }
 
     public AppHeader getHeader() {
         return header;
+    }
+
+    public ComboBox<Line> getLineSelector() {
+        return lineSelector;
+    }
+
+    public TextArea getNotesArea() {
+        return notesArea;
     }
 
     public Button getAddRowButton() {
@@ -92,7 +132,7 @@ public class BatchProductionView extends VBox {
             removeButton = new Button("✕");
 
             container = new HBox(10, itemSelector, quantityField, removeButton);
-            HBox.setHgrow(itemSelector, javafx.scene.layout.Priority.ALWAYS);
+            HBox.setHgrow(itemSelector, Priority.ALWAYS);
             container.setAlignment(Pos.CENTER_LEFT);
         }
 

@@ -11,6 +11,22 @@ CREATE TABLE product (
 );
 
 ------------------------------------------------------------
+-- TABLE: line (linea produzione / famiglia)
+------------------------------------------------------------
+CREATE TABLE line (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(100) NOT NULL,
+    product_id INTEGER NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_line_product
+        FOREIGN KEY (product_id) REFERENCES product(id),
+
+    CONSTRAINT uq_line_name_product UNIQUE (name, product_id)
+);
+
+------------------------------------------------------------
 -- TABLE: blank_model
 ------------------------------------------------------------
 CREATE TABLE blank_model (
