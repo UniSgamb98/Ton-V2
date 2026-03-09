@@ -70,6 +70,27 @@ public class AppController {
         stage.setTitle("TON - Home");
     }
 
+    public void showDocuments() {
+        DocumentsView view = new DocumentsView();
+        configureHeader(view.getHeader());
+        new DocumentsController(view, this);
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Documenti");
+    }
+
+    public void showDocumentsCreate() {
+        showDocuments();
+    }
+
+    public void showDocumentsArchive() {
+        showDocuments();
+    }
+
+    public void showDocumentsSearch() {
+        showDocuments();
+    }
+
     public void showInventory() {
         InventoryView view = new InventoryView();
         configureHeader(view.getHeader());
