@@ -3,6 +3,9 @@ package com.orodent.tonv2.app;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
 import com.orodent.tonv2.features.documents.home.view.DocumentsView;
+import com.orodent.tonv2.features.documents.template.controller.DocumentsTemplateBuilderController;
+import com.orodent.tonv2.features.documents.template.service.DocumentTemplateService;
+import com.orodent.tonv2.features.documents.template.view.DocumentsTemplateBuilderView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
@@ -68,7 +71,7 @@ public class AppController {
     }
 
     public void showDocumentsCreate() {
-        showDocuments();
+        showDocumentsTemplateBuilder();
     }
 
     public void showDocumentsArchive() {
@@ -105,6 +108,16 @@ public class AppController {
         stage.setTitle("TON - Nuova composizione");
     }
 
+
+
+    public void showDocumentsTemplateBuilder() {
+        DocumentsTemplateBuilderView view = new DocumentsTemplateBuilderView();
+        configureHeader(view.getHeader());
+        new DocumentsTemplateBuilderController(view, new DocumentTemplateService());
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Builder Template Documenti");
+    }
 
     public void showDocuments() {
         DocumentsView view = new DocumentsView();
