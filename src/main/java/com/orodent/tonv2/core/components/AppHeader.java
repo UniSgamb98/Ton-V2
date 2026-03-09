@@ -16,6 +16,7 @@ public class AppHeader extends HBox {
     private final Button homeButton;
     private final Button laboratoryButton;
     private final Button inventoryButton;
+    private final Button documentsButton;
 
     public AppHeader(String title) {
         Label titleLabel = new Label(title);
@@ -24,10 +25,12 @@ public class AppHeader extends HBox {
         homeButton = new Button("🏠 Home");
         laboratoryButton = new Button("Laboratorio");
         inventoryButton = new Button("Inventario");
+        documentsButton = new Button("Documentazione");
 
         homeButton.getStyleClass().add("header-button");
         laboratoryButton.getStyleClass().add("header-button");
         inventoryButton.getStyleClass().add("header-button");
+        documentsButton.getStyleClass().add("header-button");
 
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(10);
@@ -37,12 +40,15 @@ public class AppHeader extends HBox {
         HBox spacer = new HBox();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
 
-        this.getChildren().addAll(titleLabel, spacer, inventoryButton, laboratoryButton, homeButton);
+        this.getChildren().addAll(titleLabel, spacer, documentsButton, inventoryButton, laboratoryButton, homeButton);
     }
 
     public Button getHomeButton() { return homeButton; }
     public Button getLaboratoryButton() { return laboratoryButton; }
     public Button getInventoryButton() {
         return inventoryButton;
+    }
+    public Button getDocumentsButton() {
+        return documentsButton;
     }
 }

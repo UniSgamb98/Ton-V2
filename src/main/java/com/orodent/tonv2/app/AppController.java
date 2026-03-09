@@ -1,6 +1,8 @@
 package com.orodent.tonv2.app;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
+import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
@@ -154,6 +156,15 @@ public class AppController {
         stage.setTitle("TON - Presinterizza");
     }
 
+    public void showDocuments() {
+        DocumentsView view = new DocumentsView();
+        configureHeader(view.getHeader());
+        new DocumentsController(view);
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Documentazione");
+    }
+
     public void showCreateDiskModel() {
         CreateDiskModelView view = new CreateDiskModelView();
         configureHeader(view.getHeader());
@@ -176,6 +187,7 @@ public class AppController {
         header.getHomeButton().setOnAction(e -> showHome());
         header.getInventoryButton().setOnAction( e -> showInventory());
         header.getLaboratoryButton().setOnAction(e -> showLaboratory());
+        header.getDocumentsButton().setOnAction(e -> showDocuments());
     }
 
     public void shutdown() {
