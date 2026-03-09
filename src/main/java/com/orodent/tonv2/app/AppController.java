@@ -1,6 +1,8 @@
 package com.orodent.tonv2.app;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
+import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
@@ -66,6 +68,27 @@ public class AppController {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Home");
+    }
+
+    public void showDocuments() {
+        DocumentsView view = new DocumentsView();
+        configureHeader(view.getHeader());
+        new DocumentsController(view, this);
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Documenti");
+    }
+
+    public void showDocumentsCreate() {
+        showDocuments();
+    }
+
+    public void showDocumentsArchive() {
+        showDocuments();
+    }
+
+    public void showDocumentsSearch() {
+        showDocuments();
     }
 
     public void showInventory() {
