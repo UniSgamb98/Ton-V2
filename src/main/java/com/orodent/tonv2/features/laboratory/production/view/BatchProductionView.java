@@ -25,7 +25,7 @@ public class BatchProductionView extends VBox {
     private final VBox rowsBox = new VBox(8);
     private final TextArea notesArea = new TextArea();
     private final Button addRowButton = new Button("Aggiungi riga");
-    private final Button produceButton = new Button("Produci batch");
+    private final Button produceButton = new Button("Produzione batch");
     private final Label feedbackLabel = new Label();
 
     private final List<BatchRow> rows = new ArrayList<>();

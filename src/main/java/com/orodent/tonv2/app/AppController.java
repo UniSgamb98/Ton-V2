@@ -5,6 +5,8 @@ import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
 import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
+import com.orodent.tonv2.features.documents.controller.DocumentsController;
+import com.orodent.tonv2.features.documents.view.DocumentsView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
 import com.orodent.tonv2.features.laboratory.home.controller.LaboratoryController;
@@ -115,6 +117,16 @@ public class AppController {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuova composizione");
+    }
+
+
+    public void showDocuments() {
+        DocumentsView view = new DocumentsView();
+        configureHeader(view.getHeader());
+        new DocumentsController(view, this);
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Documentazione");
     }
 
 
