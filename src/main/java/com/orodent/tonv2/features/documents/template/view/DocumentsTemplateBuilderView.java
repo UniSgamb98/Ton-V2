@@ -18,6 +18,8 @@ public class DocumentsTemplateBuilderView extends VBox {
     private final TextArea warningsArea;
     private final Button renderButton;
 
+    private static final String MONOSPACE_STYLE = "-fx-font-family: 'Consolas', 'Courier New', monospace;";
+
     public DocumentsTemplateBuilderView() {
         header = new AppHeader("Documenti - Builder Template");
         setSpacing(12);
@@ -26,25 +28,35 @@ public class DocumentsTemplateBuilderView extends VBox {
         templateArea = new TextArea();
         templateArea.setPromptText("Inserisci template (doc-markup-v1)");
         templateArea.setPrefRowCount(14);
+        templateArea.setWrapText(false);
+        templateArea.setStyle(MONOSPACE_STYLE);
 
         parametersArea = new TextArea();
         parametersArea.setPromptText("Inserisci parametri JSON");
         parametersArea.setPrefRowCount(14);
+        parametersArea.setWrapText(false);
+        parametersArea.setStyle(MONOSPACE_STYLE);
 
         resolvedMarkupArea = new TextArea();
         resolvedMarkupArea.setEditable(false);
         resolvedMarkupArea.setPromptText("Markup risolto");
         resolvedMarkupArea.setPrefRowCount(10);
+        resolvedMarkupArea.setWrapText(false);
+        resolvedMarkupArea.setStyle(MONOSPACE_STYLE);
 
         htmlPreviewArea = new TextArea();
         htmlPreviewArea.setEditable(false);
         htmlPreviewArea.setPromptText("HTML generato");
         htmlPreviewArea.setPrefRowCount(10);
+        htmlPreviewArea.setWrapText(false);
+        htmlPreviewArea.setStyle(MONOSPACE_STYLE);
 
         warningsArea = new TextArea();
         warningsArea.setEditable(false);
         warningsArea.setPromptText("Warning validazione/rendering");
         warningsArea.setPrefRowCount(4);
+        warningsArea.setWrapText(false);
+        warningsArea.setStyle(MONOSPACE_STYLE);
 
         renderButton = new Button("Renderizza anteprima");
 
