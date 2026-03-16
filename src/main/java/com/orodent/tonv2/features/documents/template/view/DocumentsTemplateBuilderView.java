@@ -17,6 +17,7 @@ public class DocumentsTemplateBuilderView extends VBox {
     private final TextArea htmlPreviewArea;
     private final TextArea warningsArea;
     private final Button renderButton;
+    private final Button openPreviewButton;
 
     private static final String MONOSPACE_STYLE = "-fx-font-family: 'Consolas', 'Courier New', monospace;";
 
@@ -59,6 +60,9 @@ public class DocumentsTemplateBuilderView extends VBox {
         warningsArea.setStyle(MONOSPACE_STYLE);
 
         renderButton = new Button("Renderizza anteprima");
+        openPreviewButton = new Button("Apri anteprima documento");
+
+        HBox actions = new HBox(8, renderButton, openPreviewButton);
 
         HBox editors = new HBox(12,
                 createColumn("Template", templateArea),
@@ -69,7 +73,7 @@ public class DocumentsTemplateBuilderView extends VBox {
                 createColumn("HTML Output", htmlPreviewArea)
         );
 
-        getChildren().addAll(header, renderButton, editors, previews, new Label("Warnings"), warningsArea);
+        getChildren().addAll(header, actions, editors, previews, new Label("Warnings"), warningsArea);
     }
 
     private VBox createColumn(String title, TextArea area) {
@@ -107,5 +111,9 @@ public class DocumentsTemplateBuilderView extends VBox {
 
     public Button getRenderButton() {
         return renderButton;
+    }
+
+    public Button getOpenPreviewButton() {
+        return openPreviewButton;
     }
 }

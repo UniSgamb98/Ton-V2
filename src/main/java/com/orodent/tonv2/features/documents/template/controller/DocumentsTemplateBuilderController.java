@@ -5,6 +5,11 @@ import com.orodent.tonv2.features.documents.template.service.DocumentTemplateSer
 import com.orodent.tonv2.features.documents.template.service.TemplateRenderResult;
 import com.orodent.tonv2.features.documents.template.view.DocumentsTemplateBuilderView;
 
+import java.awt.Desktop;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 public class DocumentsTemplateBuilderController {
@@ -17,6 +22,7 @@ public class DocumentsTemplateBuilderController {
 
         initializeDefaults();
         view.getRenderButton().setOnAction(e -> onRender());
+        view.getOpenPreviewButton().setOnAction(e -> onOpenPreview());
     }
 
     private void initializeDefaults() {
@@ -36,6 +42,40 @@ public class DocumentsTemplateBuilderController {
         } catch (JsonSyntaxException ex) {
             view.getWarningsArea().setText("JSON non valido: " + ex.getMessage());
         }
+    }
+
+    private void onOpenPreview() {
+        onRender();
+
+        String html = view.getHtmlPreviewArea().getText();
+        if (html == null || html.isBlank()) {
+            appendWarning("Impossibile aprire anteprima: HTML vuoto.");
+            return;
+        }
+
+        if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            appendWarning("Anteprima non disponibile: apertura browser non supportata in questo ambiente.");
+            return;
+        }
+
+        try {
+            Path tempFile = Files.createTempFile("ton-document-preview-", ".html");
+            Files.writeString(tempFile, html, StandardCharsets.UTF_8);
+            Desktop.getDesktop().browse(tempFile.toUri());
+            appendWarning("Anteprima aperta: " + tempFile);
+        } catch (IOException ex) {
+            appendWarning("Errore apertura anteprima: " + ex.getMessage());
+        }
+    }
+
+    private void appendWarning(String message) {
+        String current = view.getWarningsArea().getText();
+        if (current == null || current.isBlank()) {
+            view.getWarningsArea().setText(message);
+            return;
+        }
+
+        view.getWarningsArea().setText(current + "\n" + message);
     }
 
     public DocumentsTemplateBuilderView getView() {
