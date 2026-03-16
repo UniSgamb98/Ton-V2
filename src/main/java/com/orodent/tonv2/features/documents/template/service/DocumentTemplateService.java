@@ -52,6 +52,7 @@ public class DocumentTemplateService {
             String collectionPath = matcher.group(1);
             String blockBody = matcher.group(2);
             Object value = resolvePath(parameters, collectionPath);
+            String normalizedBlockBody = normalizeEachBlockBody(blockBody);
 
             String replacement = "";
             if (value instanceof List<?> list) {
@@ -69,7 +70,10 @@ public class DocumentTemplateService {
                     } else {
                         scope.put("value", element);
                     }
-                    repeated.append(replacePlaceholders(blockBody, scope, warnings));
+                    repeated.append(replacePlaceholders(normalizedBlockBody, scope, warnings));
+                    if (!repeated.isEmpty() && repeated.charAt(repeated.length() - 1) != '\n') {
+                        repeated.append('\n');
+                    }
                 }
                 replacement = repeated.toString();
             } else {
@@ -81,6 +85,27 @@ public class DocumentTemplateService {
 
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    private String normalizeEachBlockBody(String blockBody) {
+        if (blockBody == null || blockBody.isEmpty()) {
+            return "";
+        }
+
+        String normalized = blockBody;
+        if (normalized.startsWith("\r\n")) {
+            normalized = normalized.substring(2);
+        } else if (normalized.startsWith("\n") || normalized.startsWith("\r")) {
+            normalized = normalized.substring(1);
+        }
+
+        if (normalized.endsWith("\r\n")) {
+            normalized = normalized.substring(0, normalized.length() - 2);
+        } else if (normalized.endsWith("\n") || normalized.endsWith("\r")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+
+        return normalized;
     }
 
     private String replacePlaceholders(String body, Map<String, Object> scope, List<String> warnings) {
