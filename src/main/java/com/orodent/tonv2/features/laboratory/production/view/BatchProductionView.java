@@ -3,6 +3,7 @@ package com.orodent.tonv2.features.laboratory.production.view;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
+import com.orodent.tonv2.features.documents.template.service.TemplateStorageService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -24,6 +25,7 @@ public class BatchProductionView extends VBox {
     private final ComboBox<Line> lineSelector = new ComboBox<>();
     private final VBox rowsBox = new VBox(8);
     private final TextArea notesArea = new TextArea();
+    private final ComboBox<TemplateStorageService.SavedTemplateRef> templateSelector = new ComboBox<>();
     private final Button addRowButton = new Button("Aggiungi riga");
     private final Button produceButton = new Button("Produzione batch");
     private final Label feedbackLabel = new Label();
@@ -40,6 +42,9 @@ public class BatchProductionView extends VBox {
         notesArea.setPromptText("Note ordine (opzionale)");
         notesArea.setPrefRowCount(3);
 
+        templateSelector.setPromptText("Seleziona template documento");
+        templateSelector.setMaxWidth(Double.MAX_VALUE);
+
         feedbackLabel.setStyle("-fx-text-fill: #374151;");
 
         HBox actions = new HBox(10, addRowButton, produceButton);
@@ -53,6 +58,8 @@ public class BatchProductionView extends VBox {
                 rowsBox,
                 new Label("Note"),
                 notesArea,
+                new Label("Template documento"),
+                templateSelector,
                 actions,
                 feedbackLabel
         );
@@ -60,6 +67,10 @@ public class BatchProductionView extends VBox {
 
     public void setLines(List<Line> lines) {
         lineSelector.getItems().setAll(lines);
+    }
+
+    public void setTemplates(List<TemplateStorageService.SavedTemplateRef> templates) {
+        templateSelector.getItems().setAll(templates);
     }
 
     public BatchRow addRow(List<Item> items, Item preselectedItem) {
@@ -95,6 +106,10 @@ public class BatchProductionView extends VBox {
 
     public TextArea getNotesArea() {
         return notesArea;
+    }
+
+    public ComboBox<TemplateStorageService.SavedTemplateRef> getTemplateSelector() {
+        return templateSelector;
     }
 
     public Button getAddRowButton() {

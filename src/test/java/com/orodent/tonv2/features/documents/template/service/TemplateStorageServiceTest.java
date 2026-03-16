@@ -18,8 +18,7 @@ class TemplateStorageServiceTest {
         Path saved = storageService.saveTemplate(
                 "Scheda Test",
                 "**Titolo**",
-                "{\"item\":{\"code\":\"A1\"}}",
-                "<html><body>ok</body></html>"
+                "{\"item\":{\"code\":\"A1\"}}"
         );
 
         assertTrue(Files.exists(saved));

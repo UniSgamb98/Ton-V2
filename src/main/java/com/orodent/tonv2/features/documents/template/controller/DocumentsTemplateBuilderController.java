@@ -83,8 +83,7 @@ public class DocumentsTemplateBuilderController {
             Path saved = storageService.saveTemplate(
                     view.getTemplateNameField().getText(),
                     view.getTemplateArea().getText(),
-                    view.getParametersArea().getText(),
-                    view.getHtmlPreviewArea().getText()
+                    view.getParametersArea().getText()
             );
             appendWarning("Template salvato in: " + saved.toAbsolutePath());
         } catch (IOException ex) {

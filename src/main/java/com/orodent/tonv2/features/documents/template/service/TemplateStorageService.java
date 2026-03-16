@@ -2,6 +2,7 @@ package com.orodent.tonv2.features.documents.template.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -10,7 +11,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class TemplateStorageService {
@@ -24,7 +28,7 @@ public class TemplateStorageService {
         this.gson = new GsonBuilder().setPrettyPrinting().create();
     }
 
-    public Path saveTemplate(String templateName, String templateBody, String parametersJson, String htmlOutput) throws IOException {
+    public Path saveTemplate(String templateName, String templateBody, String parametersJson) throws IOException {
         Files.createDirectories(storageDir);
 
         String safeName = sanitizeName(templateName);
@@ -36,7 +40,6 @@ public class TemplateStorageService {
         payload.put("savedAt", LocalDateTime.now().toString());
         payload.put("templateBody", templateBody == null ? "" : templateBody);
         payload.put("parametersJson", parametersJson == null ? "" : parametersJson);
-        payload.put("htmlOutput", htmlOutput == null ? "" : htmlOutput);
 
         Files.writeString(
                 output,
@@ -48,6 +51,49 @@ public class TemplateStorageService {
         return output;
     }
 
+    public List<SavedTemplateRef> listTemplates() {
+        try {
+            if (!Files.exists(storageDir)) {
+                return List.of();
+            }
+
+            List<SavedTemplateRef> refs = new ArrayList<>();
+            Files.list(storageDir)
+                    .filter(p -> p.getFileName().toString().endsWith(".json"))
+                    .sorted(Comparator.comparing(Path::toString).reversed())
+                    .forEach(path -> {
+                        String displayName = path.getFileName().toString();
+                        try {
+                            JsonObject obj = gson.fromJson(Files.readString(path), JsonObject.class);
+                            if (obj != null && obj.has("templateName")) {
+                                String n = obj.get("templateName").getAsString();
+                                if (n != null && !n.isBlank()) {
+                                    displayName = n;
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+                        refs.add(new SavedTemplateRef(path, displayName));
+                    });
+
+            return refs;
+        } catch (IOException e) {
+            return List.of();
+        }
+    }
+
+    public StoredTemplate loadTemplate(Path file) throws IOException {
+        JsonObject obj = gson.fromJson(Files.readString(file), JsonObject.class);
+        if (obj == null) {
+            throw new IOException("Template non valido: " + file);
+        }
+
+        String templateName = obj.has("templateName") ? obj.get("templateName").getAsString() : file.getFileName().toString();
+        String templateBody = obj.has("templateBody") ? obj.get("templateBody").getAsString() : "";
+        String parametersJson = obj.has("parametersJson") ? obj.get("parametersJson").getAsString() : "{}";
+        return new StoredTemplate(file, templateName, templateBody, parametersJson);
+    }
+
     private String sanitizeName(String rawName) {
         String base = (rawName == null || rawName.isBlank()) ? "template" : rawName.trim().toLowerCase();
         String sanitized = base
@@ -55,5 +101,15 @@ public class TemplateStorageService {
                 .replaceAll("-+", "-")
                 .replaceAll("^-|-$", "");
         return sanitized.isBlank() ? "template" : sanitized;
+    }
+
+    public record SavedTemplateRef(Path path, String displayName) {
+        @Override
+        public String toString() {
+            return displayName;
+        }
+    }
+
+    public record StoredTemplate(Path path, String templateName, String templateBody, String parametersJson) {
     }
 }
