@@ -105,13 +105,14 @@ public class DocumentTemplateService {
     public String markupToHtml(String markup) {
         String[] lines = markup.split("\\R", -1);
         StringBuilder html = new StringBuilder();
-        html.append("<html><body style='font-family:Segoe UI,Roboto,sans-serif;'>");
+        html.append("<html>\n");
+        html.append("  <body style='font-family:Segoe UI,Roboto,sans-serif;'>\n");
 
         int i = 0;
         while (i < lines.length) {
             String line = lines[i];
             if (line.trim().equals("---")) {
-                html.append("<hr />");
+                html.append("    <hr />\n");
                 i++;
                 continue;
             }
@@ -127,12 +128,16 @@ public class DocumentTemplateService {
             }
 
             if (!line.isBlank()) {
-                html.append("<p>").append(applyInlineFormatting(escapeHtml(line))).append("</p>");
+                html
+                        .append("    <p>")
+                        .append(applyInlineFormatting(escapeHtml(line)))
+                        .append("</p>\n");
             }
             i++;
         }
 
-        html.append("</body></html>");
+        html.append("  </body>\n");
+        html.append("</html>");
         return html.toString();
     }
 
@@ -142,14 +147,20 @@ public class DocumentTemplateService {
         }
 
         StringBuilder html = new StringBuilder();
-        html.append("<table border='1' cellspacing='0' cellpadding='6' style='border-collapse:collapse;width:100%;'>");
+        html.append("    <table border='1' cellspacing='0' cellpadding='6' style='border-collapse:collapse;width:100%;'>\n");
 
         List<String> header = parseTableRow(lines.get(0));
-        html.append("<thead><tr>");
+        html.append("      <thead>\n");
+        html.append("        <tr>\n");
         for (String cell : header) {
-            html.append("<th>").append(applyInlineFormatting(escapeHtml(cell))).append("</th>");
+            html
+                    .append("          <th>")
+                    .append(applyInlineFormatting(escapeHtml(cell)))
+                    .append("</th>\n");
         }
-        html.append("</tr></thead><tbody>");
+        html.append("        </tr>\n");
+        html.append("      </thead>\n");
+        html.append("      <tbody>\n");
 
         int startRow = 1;
         if (lines.size() > 1 && isSeparatorRow(lines.get(1))) {
@@ -160,14 +171,18 @@ public class DocumentTemplateService {
             if (isSeparatorRow(lines.get(i))) {
                 continue;
             }
-            html.append("<tr>");
+            html.append("        <tr>\n");
             for (String cell : parseTableRow(lines.get(i))) {
-                html.append("<td>").append(applyInlineFormatting(escapeHtml(cell))).append("</td>");
+                html
+                        .append("          <td>")
+                        .append(applyInlineFormatting(escapeHtml(cell)))
+                        .append("</td>\n");
             }
-            html.append("</tr>");
+            html.append("        </tr>\n");
         }
 
-        html.append("</tbody></table>");
+        html.append("      </tbody>\n");
+        html.append("    </table>\n");
         return html.toString();
     }
 
