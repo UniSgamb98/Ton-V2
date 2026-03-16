@@ -3,6 +3,7 @@ package com.orodent.tonv2.features.documents.template.controller;
 import com.google.gson.JsonSyntaxException;
 import com.orodent.tonv2.features.documents.template.service.DocumentTemplateService;
 import com.orodent.tonv2.features.documents.template.service.TemplateRenderResult;
+import com.orodent.tonv2.features.documents.template.service.TemplateStorageService;
 import com.orodent.tonv2.features.documents.template.view.DocumentsTemplateBuilderView;
 
 import java.awt.Desktop;
@@ -15,14 +16,21 @@ import java.util.Map;
 public class DocumentsTemplateBuilderController {
     private final DocumentsTemplateBuilderView view;
     private final DocumentTemplateService service;
+    private final TemplateStorageService storageService;
 
-    public DocumentsTemplateBuilderController(DocumentsTemplateBuilderView view, DocumentTemplateService service) {
+    public DocumentsTemplateBuilderController(
+            DocumentsTemplateBuilderView view,
+            DocumentTemplateService service,
+            TemplateStorageService storageService
+    ) {
         this.view = view;
         this.service = service;
+        this.storageService = storageService;
 
         initializeDefaults();
         view.getRenderButton().setOnAction(e -> onRender());
         view.getOpenPreviewButton().setOnAction(e -> onOpenPreview());
+        view.getSaveTemplateButton().setOnAction(e -> onSaveTemplate());
     }
 
     private void initializeDefaults() {
@@ -65,6 +73,22 @@ public class DocumentsTemplateBuilderController {
             appendWarning("Anteprima aperta: " + tempFile);
         } catch (IOException ex) {
             appendWarning("Errore apertura anteprima: " + ex.getMessage());
+        }
+    }
+
+    private void onSaveTemplate() {
+        onRender();
+
+        try {
+            Path saved = storageService.saveTemplate(
+                    view.getTemplateNameField().getText(),
+                    view.getTemplateArea().getText(),
+                    view.getParametersArea().getText(),
+                    view.getHtmlPreviewArea().getText()
+            );
+            appendWarning("Template salvato in: " + saved.toAbsolutePath());
+        } catch (IOException ex) {
+            appendWarning("Errore salvataggio template: " + ex.getMessage());
         }
     }
 

@@ -4,6 +4,7 @@ import com.orodent.tonv2.core.components.AppHeader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -11,6 +12,7 @@ import javafx.scene.layout.VBox;
 
 public class DocumentsTemplateBuilderView extends VBox {
     private final AppHeader header;
+    private final TextField templateNameField;
     private final TextArea templateArea;
     private final TextArea parametersArea;
     private final TextArea resolvedMarkupArea;
@@ -18,6 +20,7 @@ public class DocumentsTemplateBuilderView extends VBox {
     private final TextArea warningsArea;
     private final Button renderButton;
     private final Button openPreviewButton;
+    private final Button saveTemplateButton;
 
     private static final String MONOSPACE_STYLE = "-fx-font-family: 'Consolas', 'Courier New', monospace;";
 
@@ -25,6 +28,9 @@ public class DocumentsTemplateBuilderView extends VBox {
         header = new AppHeader("Documenti - Builder Template");
         setSpacing(12);
         setPadding(new Insets(20));
+
+        templateNameField = new TextField("Template laboratorio");
+        templateNameField.setPromptText("Nome template");
 
         templateArea = new TextArea();
         templateArea.setPromptText("Inserisci template (doc-markup-v1)");
@@ -61,8 +67,9 @@ public class DocumentsTemplateBuilderView extends VBox {
 
         renderButton = new Button("Renderizza anteprima");
         openPreviewButton = new Button("Apri anteprima documento");
+        saveTemplateButton = new Button("Salva template");
 
-        HBox actions = new HBox(8, renderButton, openPreviewButton);
+        HBox actions = new HBox(8, renderButton, openPreviewButton, saveTemplateButton);
 
         HBox editors = new HBox(12,
                 createColumn("Template", templateArea),
@@ -73,7 +80,7 @@ public class DocumentsTemplateBuilderView extends VBox {
                 createColumn("HTML Output", htmlPreviewArea)
         );
 
-        getChildren().addAll(header, actions, editors, previews, new Label("Warnings"), warningsArea);
+        getChildren().addAll(header, new Label("Nome Template"), templateNameField, actions, editors, previews, new Label("Warnings"), warningsArea);
     }
 
     private VBox createColumn(String title, TextArea area) {
@@ -87,6 +94,10 @@ public class DocumentsTemplateBuilderView extends VBox {
 
     public AppHeader getHeader() {
         return header;
+    }
+
+    public TextField getTemplateNameField() {
+        return templateNameField;
     }
 
     public TextArea getTemplateArea() {
@@ -115,5 +126,9 @@ public class DocumentsTemplateBuilderView extends VBox {
 
     public Button getOpenPreviewButton() {
         return openPreviewButton;
+    }
+
+    public Button getSaveTemplateButton() {
+        return saveTemplateButton;
     }
 }

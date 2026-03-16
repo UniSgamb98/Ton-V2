@@ -6,6 +6,7 @@ import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.documents.template.controller.DocumentsTemplateBuilderController;
 import com.orodent.tonv2.features.documents.template.service.DocumentTemplateService;
 import com.orodent.tonv2.features.documents.template.view.DocumentsTemplateBuilderView;
+import com.orodent.tonv2.features.documents.template.service.TemplateStorageService;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
@@ -113,7 +114,11 @@ public class AppController {
     public void showDocumentsTemplateBuilder() {
         DocumentsTemplateBuilderView view = new DocumentsTemplateBuilderView();
         configureHeader(view.getHeader());
-        new DocumentsTemplateBuilderController(view, new DocumentTemplateService());
+        new DocumentsTemplateBuilderController(
+                view,
+                new DocumentTemplateService(),
+                new TemplateStorageService(java.nio.file.Path.of("saved-templates"))
+        );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Builder Template Documenti");
