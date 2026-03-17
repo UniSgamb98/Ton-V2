@@ -95,13 +95,13 @@ public class DocumentsTemplateBuilderController {
         onRender();
 
         try {
-            Path saved = storageService.saveTemplate(
+            TemplateStorageService.SavedTemplateRef saved = storageService.saveTemplate(
                     view.getTemplateNameField().getText(),
                     view.getTemplateArea().getText(),
                     view.getParametersArea().getText()
             );
-            appendWarning("Template salvato in: " + saved.toAbsolutePath());
-        } catch (IOException ex) {
+            appendWarning("Template salvato su DB. ID: " + saved.id());
+        } catch (RuntimeException ex) {
             appendWarning("Errore salvataggio template: " + ex.getMessage());
         }
     }

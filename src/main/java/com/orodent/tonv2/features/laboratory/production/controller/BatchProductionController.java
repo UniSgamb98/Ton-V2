@@ -12,7 +12,6 @@ import com.orodent.tonv2.core.documents.template.TemplateStorageService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 
-import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +35,7 @@ public class BatchProductionController {
                                      CompositionRepository compositionRepo,
                                      ProductionRepository productionRepo,
                                      BatchProductionService service,
+                                     TemplateStorageService templateStorageService,
                                      List<Item> preselectedItems) {
         this.view = view;
         this.itemRepo = itemRepo;
@@ -43,11 +43,11 @@ public class BatchProductionController {
         this.compositionRepo = compositionRepo;
         this.productionRepo = productionRepo;
         this.service = service;
-        this.templateStorageService = new TemplateStorageService(Path.of("saved-templates"));
+        this.templateStorageService = templateStorageService;
         this.documentGenerationService = new DocumentGenerationService(
                 new DocumentTemplateService(),
                 templateStorageService,
-                Path.of("generated-documents")
+                java.nio.file.Path.of("generated-documents")
         );
 
         setupActions(preselectedItems);

@@ -117,7 +117,7 @@ public class AppController {
         new DocumentsTemplateBuilderController(
                 view,
                 new DocumentTemplateService(),
-                new TemplateStorageService(java.nio.file.Path.of("saved-templates"))
+                new TemplateStorageService(app.database.getConnection())
         );
 
         stage.setScene(createSceneWithCSS(view));
@@ -158,6 +158,7 @@ public class AppController {
                 app.compositionRepo(),
                 app.productionRepo(),
                 new BatchProductionService(),
+                new TemplateStorageService(app.database.getConnection()),
                 preselectedItems
         );
 

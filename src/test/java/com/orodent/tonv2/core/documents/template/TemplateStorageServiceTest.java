@@ -2,28 +2,31 @@ package com.orodent.tonv2.core.documents.template;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TemplateStorageServiceTest {
 
     @Test
-    void shouldSaveTemplateAsJsonFile() throws IOException {
-        Path tempDir = Files.createTempDirectory("ton-templates-test-");
-        TemplateStorageService storageService = new TemplateStorageService(tempDir);
+    void shouldSaveTemplateInDatabase() throws Exception {
+        String dbName = "TonTemplateTestDb_" + System.nanoTime();
+        try (Connection conn = DriverManager.getConnection("jdbc:derby:" + dbName + ";create=true")) {
+            TemplateStorageService storageService = new TemplateStorageService(conn);
 
-        Path saved = storageService.saveTemplate(
-                "Scheda Test",
-                "**Titolo**",
-                "{\"item\":{\"code\":\"A1\"}}"
-        );
+            TemplateStorageService.SavedTemplateRef saved = storageService.saveTemplate(
+                    "Scheda Test",
+                    "**Titolo**",
+                    "{\"item\":{\"code\":\"A1\"}}"
+            );
 
-        assertTrue(Files.exists(saved));
-        String content = Files.readString(saved);
-        assertTrue(content.contains("\"templateName\": \"Scheda Test\""));
-        assertTrue(content.contains("\"templateBody\": \"**Titolo**\""));
+            assertTrue(saved.id() > 0);
+            assertFalse(storageService.listTemplates().isEmpty());
+            TemplateStorageService.StoredTemplate loaded = storageService.loadTemplate(saved.id());
+            assertTrue(loaded.templateName().contains("Scheda Test"));
+            assertTrue(loaded.templateBody().contains("Titolo"));
+        }
     }
 }

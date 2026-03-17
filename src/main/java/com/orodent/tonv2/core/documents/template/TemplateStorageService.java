@@ -1,115 +1,131 @@
 package com.orodent.tonv2.core.documents.template;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 public class TemplateStorageService {
-    private static final DateTimeFormatter TS = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    private final Connection conn;
 
-    private final Path storageDir;
-    private final Gson gson;
-
-    public TemplateStorageService(Path storageDir) {
-        this.storageDir = storageDir;
-        this.gson = new GsonBuilder().setPrettyPrinting().create();
+    public TemplateStorageService(Connection conn) {
+        this.conn = conn;
+        ensureSchema();
     }
 
-    public Path saveTemplate(String templateName, String templateBody, String parametersJson) throws IOException {
-        Files.createDirectories(storageDir);
+    public SavedTemplateRef saveTemplate(String templateName, String templateBody, String parametersJson) {
+        String sql = """
+                INSERT INTO document_template (template_name, template_body, parameters_json)
+                VALUES (?, ?, ?)
+                """;
 
-        String safeName = sanitizeName(templateName);
-        String timestamp = LocalDateTime.now().format(TS);
-        Path output = storageDir.resolve(safeName + "-" + timestamp + ".json");
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, templateName == null ? "" : templateName.trim());
+            ps.setString(2, templateBody == null ? "" : templateBody);
+            ps.setString(3, parametersJson == null ? "" : parametersJson);
+            ps.executeUpdate();
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("templateName", templateName == null ? "" : templateName.trim());
-        payload.put("savedAt", LocalDateTime.now().toString());
-        payload.put("templateBody", templateBody == null ? "" : templateBody);
-        payload.put("parametersJson", parametersJson == null ? "" : parametersJson);
-
-        Files.writeString(
-                output,
-                gson.toJson(payload),
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE_NEW
-        );
-
-        return output;
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (keys.next()) {
+                    long id = keys.getLong(1);
+                    return new SavedTemplateRef(id, normalizeDisplayName(templateName));
+                }
+            }
+            throw new SQLException("Nessun ID restituito per document_template");
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore salvataggio template su DB", e);
+        }
     }
 
     public List<SavedTemplateRef> listTemplates() {
-        try {
-            if (!Files.exists(storageDir)) {
-                return List.of();
+        String sql = """
+                SELECT id, template_name
+                FROM document_template
+                ORDER BY created_at DESC, id DESC
+                """;
+
+        List<SavedTemplateRef> refs = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                long id = rs.getLong("id");
+                String name = rs.getString("template_name");
+                refs.add(new SavedTemplateRef(id, normalizeDisplayName(name)));
             }
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore caricamento template da DB", e);
+        }
 
-            List<SavedTemplateRef> refs = new ArrayList<>();
-            Files.list(storageDir)
-                    .filter(p -> p.getFileName().toString().endsWith(".json"))
-                    .sorted(Comparator.comparing(Path::toString).reversed())
-                    .forEach(path -> {
-                        String displayName = path.getFileName().toString();
-                        try {
-                            JsonObject obj = gson.fromJson(Files.readString(path), JsonObject.class);
-                            if (obj != null && obj.has("templateName")) {
-                                String n = obj.get("templateName").getAsString();
-                                if (n != null && !n.isBlank()) {
-                                    displayName = n;
-                                }
-                            }
-                        } catch (Exception ignored) {
-                        }
-                        refs.add(new SavedTemplateRef(path, displayName));
-                    });
+        return refs;
+    }
 
-            return refs;
-        } catch (IOException e) {
-            return List.of();
+    public StoredTemplate loadTemplate(long id) {
+        String sql = """
+                SELECT id, template_name, template_body, parameters_json, created_at
+                FROM document_template
+                WHERE id = ?
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new RuntimeException("Template non trovato: id=" + id);
+                }
+
+                return new StoredTemplate(
+                        rs.getLong("id"),
+                        normalizeDisplayName(rs.getString("template_name")),
+                        rs.getString("template_body"),
+                        rs.getString("parameters_json"),
+                        rs.getTimestamp("created_at")
+                );
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore caricamento template id=" + id, e);
         }
     }
 
-    public StoredTemplate loadTemplate(Path file) throws IOException {
-        JsonObject obj = gson.fromJson(Files.readString(file), JsonObject.class);
-        if (obj == null) {
-            throw new IOException("Template non valido: " + file);
+    private void ensureSchema() {
+        String ddl = """
+                CREATE TABLE document_template (
+                    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    template_name VARCHAR(255) NOT NULL,
+                    template_body CLOB NOT NULL,
+                    parameters_json CLOB NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """;
+
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate(ddl);
+        } catch (SQLException e) {
+            if (!tableAlreadyExists(e)) {
+                throw new RuntimeException("Errore creazione tabella document_template", e);
+            }
         }
-
-        String templateName = obj.has("templateName") ? obj.get("templateName").getAsString() : file.getFileName().toString();
-        String templateBody = obj.has("templateBody") ? obj.get("templateBody").getAsString() : "";
-        String parametersJson = obj.has("parametersJson") ? obj.get("parametersJson").getAsString() : "{}";
-        return new StoredTemplate(file, templateName, templateBody, parametersJson);
     }
 
-    private String sanitizeName(String rawName) {
-        String base = (rawName == null || rawName.isBlank()) ? "template" : rawName.trim().toLowerCase();
-        String sanitized = base
-                .replaceAll("[^a-z0-9-_]+", "-")
-                .replaceAll("-+", "-")
-                .replaceAll("^-|-$", "");
-        return sanitized.isBlank() ? "template" : sanitized;
+    private boolean tableAlreadyExists(SQLException e) {
+        return "X0Y32".equalsIgnoreCase(e.getSQLState());
     }
 
-    public record SavedTemplateRef(Path path, String displayName) {
+    private String normalizeDisplayName(String raw) {
+        return (raw == null || raw.isBlank()) ? "template" : raw.trim();
+    }
+
+    public record SavedTemplateRef(long id, String displayName) {
         @Override
         public String toString() {
             return displayName;
         }
     }
 
-    public record StoredTemplate(Path path, String templateName, String templateBody, String parametersJson) {
+    public record StoredTemplate(long id, String templateName, String templateBody, String parametersJson, Timestamp createdAt) {
     }
 }

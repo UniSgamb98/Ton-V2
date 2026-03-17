@@ -31,7 +31,7 @@ public class DocumentGenerationService {
                                            String notes,
                                            List<BatchItemParam> batchItems,
                                            int productionOrderId) throws IOException {
-        TemplateStorageService.StoredTemplate template = templateStorageService.loadTemplate(templateRef.path());
+        TemplateStorageService.StoredTemplate template = templateStorageService.loadTemplate(templateRef.id());
 
         Map<String, Object> params = new HashMap<>(templateService.parseParameters(template.parametersJson()));
         List<Map<String, Object>> items = new ArrayList<>();
