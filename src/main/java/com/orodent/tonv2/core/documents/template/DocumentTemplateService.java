@@ -16,6 +16,7 @@ public class DocumentTemplateService {
     private static final Pattern EACH_BLOCK_PATTERN = Pattern.compile("(?s)\\{\\{#each\\s+([\\w.]+)\\s*}}(.*?)\\{\\{/each}}", Pattern.MULTILINE);
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.]+)\\s*}}", Pattern.MULTILINE);
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
+    private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
 
     private final Gson gson;
 
@@ -128,7 +129,7 @@ public class DocumentTemplateService {
     }
 
     public String markupToHtml(String markup) {
-        String[] lines = markup.split("\\R", -1);
+        List<String> lines = List.of(markup.split("\\R", -1));
         StringBuilder html = new StringBuilder();
         html.append("<html>\n");
         html.append("  <head>\n");
@@ -136,59 +137,113 @@ public class DocumentTemplateService {
         html.append("  </head>\n");
         html.append("  <body style='font-family:Segoe UI,Roboto,sans-serif;'>\n");
 
-        int i = 0;
-        while (i < lines.length) {
-            String line = lines[i];
-            if (line.trim().equals("---")) {
-                html.append("    <hr />\n");
-                i++;
-                continue;
-            }
-
-            if (isTableLine(line)) {
-                List<String> tableLines = new ArrayList<>();
-                while (i < lines.length && isTableLine(lines[i])) {
-                    tableLines.add(lines[i]);
-                    i++;
-                }
-                html.append(renderTable(tableLines));
-                continue;
-            }
-
-            if (!line.isBlank()) {
-                html
-                        .append("    <p>")
-                        .append(applyInlineFormatting(escapeHtml(line)))
-                        .append("</p>\n");
-            }
-            i++;
-        }
+        html.append(renderMarkupLines(lines, "    "));
 
         html.append("  </body>\n");
         html.append("</html>");
         return html.toString();
     }
 
-    private String renderTable(List<String> lines) {
+    private String renderMarkupLines(List<String> lines, String baseIndent) {
+        StringBuilder html = new StringBuilder();
+        int i = 0;
+
+        while (i < lines.size()) {
+            String line = lines.get(i);
+            Matcher columnsStart = COLUMNS_START_PATTERN.matcher(line.trim());
+            if (columnsStart.matches()) {
+                int requestedColumns = Integer.parseInt(columnsStart.group(1));
+
+                int end = i + 1;
+                while (end < lines.size() && !lines.get(end).trim().equals("{{/columns}}")) {
+                    end++;
+                }
+
+                List<String> contentBlock = lines.subList(i + 1, end);
+                html.append(renderColumnsBlock(contentBlock, Math.max(1, requestedColumns), baseIndent));
+                i = (end < lines.size()) ? end + 1 : end;
+                continue;
+            }
+
+            if (line.trim().equals("---")) {
+                html.append(baseIndent).append("<hr />\n");
+                i++;
+                continue;
+            }
+
+            if (isTableLine(line)) {
+                List<String> tableLines = new ArrayList<>();
+                while (i < lines.size() && isTableLine(lines.get(i))) {
+                    tableLines.add(lines.get(i));
+                    i++;
+                }
+                html.append(renderTable(tableLines, baseIndent));
+                continue;
+            }
+
+            if (!line.isBlank()) {
+                html.append(baseIndent)
+                        .append("<p>")
+                        .append(applyInlineFormatting(escapeHtml(line)))
+                        .append("</p>\n");
+            }
+            i++;
+        }
+
+        return html.toString();
+    }
+
+    private String renderColumnsBlock(List<String> blockLines, int requestedColumns, String baseIndent) {
+        List<List<String>> columns = new ArrayList<>();
+        List<String> current = new ArrayList<>();
+
+        for (String line : blockLines) {
+            if (line.trim().equals("{{#column}}")) {
+                columns.add(current);
+                current = new ArrayList<>();
+            } else {
+                current.add(line);
+            }
+        }
+        columns.add(current);
+
+        StringBuilder html = new StringBuilder();
+        int gridColumns = Math.max(requestedColumns, columns.size());
+        html.append(baseIndent)
+                .append("<div style='display:grid;grid-template-columns:repeat(")
+                .append(gridColumns)
+                .append(", 1fr);gap:16px;'>\n");
+
+        for (List<String> column : columns) {
+            html.append(baseIndent).append("  <div>\n");
+            html.append(renderMarkupLines(column, baseIndent + "    "));
+            html.append(baseIndent).append("  </div>\n");
+        }
+
+        html.append(baseIndent).append("</div>\n");
+        return html.toString();
+    }
+
+    private String renderTable(List<String> lines, String baseIndent) {
         if (lines.isEmpty()) {
             return "";
         }
 
         StringBuilder html = new StringBuilder();
-        html.append("    <table border='1' cellspacing='0' cellpadding='6' style='border-collapse:collapse;width:100%;'>\n");
+        html.append(baseIndent).append("<table border='1' cellspacing='0' cellpadding='6' style='border-collapse:collapse;width:100%;'>\n");
 
         List<String> header = parseTableRow(lines.get(0));
-        html.append("      <thead>\n");
-        html.append("        <tr>\n");
+        html.append(baseIndent).append("  <thead>\n");
+        html.append(baseIndent).append("    <tr>\n");
         for (String cell : header) {
             html
-                    .append("          <th>")
+                    .append(baseIndent).append("      <th>")
                     .append(applyInlineFormatting(escapeHtml(cell)))
                     .append("</th>\n");
         }
-        html.append("        </tr>\n");
-        html.append("      </thead>\n");
-        html.append("      <tbody>\n");
+        html.append(baseIndent).append("    </tr>\n");
+        html.append(baseIndent).append("  </thead>\n");
+        html.append(baseIndent).append("  <tbody>\n");
 
         int startRow = 1;
         if (lines.size() > 1 && isSeparatorRow(lines.get(1))) {
@@ -199,18 +254,18 @@ public class DocumentTemplateService {
             if (isSeparatorRow(lines.get(i))) {
                 continue;
             }
-            html.append("        <tr>\n");
+            html.append(baseIndent).append("    <tr>\n");
             for (String cell : parseTableRow(lines.get(i))) {
                 html
-                        .append("          <td>")
+                        .append(baseIndent).append("      <td>")
                         .append(applyInlineFormatting(escapeHtml(cell)))
                         .append("</td>\n");
             }
-            html.append("        </tr>\n");
+            html.append(baseIndent).append("    </tr>\n");
         }
 
-        html.append("      </tbody>\n");
-        html.append("    </table>\n");
+        html.append(baseIndent).append("  </tbody>\n");
+        html.append(baseIndent).append("</table>\n");
         return html.toString();
     }
 

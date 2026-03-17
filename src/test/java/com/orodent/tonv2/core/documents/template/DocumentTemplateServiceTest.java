@@ -67,4 +67,20 @@ class DocumentTemplateServiceTest {
         assertTrue(result.html().contains("<td>1</td>"));
         assertTrue(result.html().contains("<td>2</td>"));
     }
+
+    @Test
+    void shouldRenderColumnsMarkupBlock() {
+        DocumentTemplateService service = new DocumentTemplateService();
+        String template = "{{#columns 2}}\n" +
+                "Colonna A\n" +
+                "{{#column}}\n" +
+                "Colonna B\n" +
+                "{{/columns}}";
+
+        TemplateRenderResult result = service.render(template, Map.of());
+
+        assertTrue(result.html().contains("display:grid"));
+        assertTrue(result.html().contains("Colonna A"));
+        assertTrue(result.html().contains("Colonna B"));
+    }
 }
