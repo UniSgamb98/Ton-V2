@@ -131,6 +131,9 @@ public class DocumentTemplateService {
         String[] lines = markup.split("\\R", -1);
         StringBuilder html = new StringBuilder();
         html.append("<html>\n");
+        html.append("  <head>\n");
+        html.append("    <meta charset='UTF-8' />\n");
+        html.append("  </head>\n");
         html.append("  <body style='font-family:Segoe UI,Roboto,sans-serif;'>\n");
 
         int i = 0;
@@ -306,20 +309,31 @@ public class DocumentTemplateService {
                 "{{/each}}\n";
     }
 
-    public String defaultParametersJson() {
+    public List<String> availableParameterSources() {
+        return List.of("Produzione batch", "Generico");
+    }
+
+    public String parametersJsonForSource(String source) {
+        if ("Produzione batch".equals(source)) {
+            return """
+                    {
+                      "line": {"name": "Linea A"},
+                      "notes": "Note di esempio",
+                      "items": [
+                        {"code": "ITEM-001", "quantity": 12},
+                        {"code": "ITEM-002", "quantity": 5}
+                      ]
+                    }
+                    """;
+        }
         return """
                 {
-                  "item": {"code": "ART-341"},
-                  "lot": {"code": "LOT-2026-03"},
-                  "query": {
-                    "layers": [
-                      {"name": "Base", "thickness": 0.3},
-                      {"name": "Dentina", "thickness": 0.5},
-                      {"name": "Smalto", "thickness": 0.2}
-                    ]
-                  }
                 }
                 """;
+    }
+
+    public String defaultParametersJson() {
+        return parametersJsonForSource("Generico");
     }
 
     private String escapeHtml(String raw) {

@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.util.Map;
 
 public class DocumentsTemplateBuilderController {
+    private static final String DEFAULT_PARAMETER_SOURCE = "Produzione batch";
+
     private final DocumentsTemplateBuilderView view;
     private final DocumentTemplateService service;
     private final TemplateStorageService storageService;
@@ -31,12 +33,25 @@ public class DocumentsTemplateBuilderController {
         view.getRenderButton().setOnAction(e -> onRender());
         view.getOpenPreviewButton().setOnAction(e -> onOpenPreview());
         view.getSaveTemplateButton().setOnAction(e -> onSaveTemplate());
+        view.getParameterSourceSelector().setOnAction(e -> onParameterSourceChanged());
     }
 
     private void initializeDefaults() {
         view.getTemplateArea().setText(service.defaultTemplate());
-        view.getParametersArea().setText(service.defaultParametersJson());
+        view.getParameterSourceSelector().getItems().setAll(service.availableParameterSources());
+        if (view.getParameterSourceSelector().getItems().contains(DEFAULT_PARAMETER_SOURCE)) {
+            view.getParameterSourceSelector().setValue(DEFAULT_PARAMETER_SOURCE);
+        } else if (!view.getParameterSourceSelector().getItems().isEmpty()) {
+            view.getParameterSourceSelector().setValue(view.getParameterSourceSelector().getItems().get(0));
+        }
+
+        onParameterSourceChanged();
         onRender();
+    }
+
+    private void onParameterSourceChanged() {
+        String source = view.getParameterSourceSelector().getValue();
+        view.getParametersArea().setText(service.parametersJsonForSource(source));
     }
 
     private void onRender() {

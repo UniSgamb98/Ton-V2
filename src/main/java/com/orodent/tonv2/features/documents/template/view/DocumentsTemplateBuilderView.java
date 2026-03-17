@@ -3,9 +3,10 @@ package com.orodent.tonv2.features.documents.template.view;
 import com.orodent.tonv2.core.components.AppHeader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -13,6 +14,7 @@ import javafx.scene.layout.VBox;
 public class DocumentsTemplateBuilderView extends VBox {
     private final AppHeader header;
     private final TextField templateNameField;
+    private final ComboBox<String> parameterSourceSelector;
     private final TextArea templateArea;
     private final TextArea parametersArea;
     private final TextArea resolvedMarkupArea;
@@ -31,6 +33,10 @@ public class DocumentsTemplateBuilderView extends VBox {
 
         templateNameField = new TextField("Template laboratorio");
         templateNameField.setPromptText("Nome template");
+
+        parameterSourceSelector = new ComboBox<>();
+        parameterSourceSelector.setPromptText("Seleziona sorgente parametri");
+        parameterSourceSelector.setMaxWidth(Double.MAX_VALUE);
 
         templateArea = new TextArea();
         templateArea.setPromptText("Inserisci template (doc-markup-v1)");
@@ -80,7 +86,18 @@ public class DocumentsTemplateBuilderView extends VBox {
                 createColumn("HTML Output", htmlPreviewArea)
         );
 
-        getChildren().addAll(header, new Label("Nome Template"), templateNameField, actions, editors, previews, new Label("Warnings"), warningsArea);
+        getChildren().addAll(
+                header,
+                new Label("Nome Template"),
+                templateNameField,
+                new Label("Sorgente parametri"),
+                parameterSourceSelector,
+                actions,
+                editors,
+                previews,
+                new Label("Warnings"),
+                warningsArea
+        );
     }
 
     private VBox createColumn(String title, TextArea area) {
@@ -98,6 +115,10 @@ public class DocumentsTemplateBuilderView extends VBox {
 
     public TextField getTemplateNameField() {
         return templateNameField;
+    }
+
+    public ComboBox<String> getParameterSourceSelector() {
+        return parameterSourceSelector;
     }
 
     public TextArea getTemplateArea() {

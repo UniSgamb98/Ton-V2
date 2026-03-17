@@ -21,6 +21,7 @@ class DocumentTemplateServiceTest {
         assertTrue(result.html().contains("<strong>Titolo</strong>"));
         assertTrue(result.html().contains("<hr />"));
         assertTrue(result.html().contains("<table"));
+        assertTrue(result.html().contains("<meta charset='UTF-8' />"));
         assertTrue(result.html().contains("ART-1"));
     }
 
