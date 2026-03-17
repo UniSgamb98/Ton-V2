@@ -29,6 +29,12 @@ public class BatchProductionView extends VBox {
     private final Button addRowButton = new Button("Aggiungi riga");
     private final Button produceButton = new Button("Produzione batch");
     private final Label feedbackLabel = new Label();
+    private final Label templateParamsHelpLabel = new Label(
+            "Parametri template disponibili (demo batch):\n" +
+                    "- {{line.name}}\n" +
+                    "- {{notes}}\n" +
+                    "- {{#each items}} ... {{code}} ... {{quantity}} ... {{/each}}"
+    );
 
     private final List<BatchRow> rows = new ArrayList<>();
 
@@ -46,6 +52,7 @@ public class BatchProductionView extends VBox {
         templateSelector.setMaxWidth(Double.MAX_VALUE);
 
         feedbackLabel.setStyle("-fx-text-fill: #374151;");
+        templateParamsHelpLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px;");
 
         HBox actions = new HBox(10, addRowButton, produceButton);
         actions.setAlignment(Pos.CENTER_LEFT);
@@ -60,6 +67,7 @@ public class BatchProductionView extends VBox {
                 notesArea,
                 new Label("Template documento"),
                 templateSelector,
+                templateParamsHelpLabel,
                 actions,
                 feedbackLabel
         );

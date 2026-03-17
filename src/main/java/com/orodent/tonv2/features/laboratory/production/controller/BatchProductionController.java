@@ -124,6 +124,8 @@ public class BatchProductionController {
 
             Path generatedDocument = documentGenerationService.generateForBatchProduction(
                     selectedTemplate,
+                    line.name(),
+                    view.getNotesArea().getText(),
                     toBatchItemParams(plan.lines()),
                     result.productionOrderId()
             );

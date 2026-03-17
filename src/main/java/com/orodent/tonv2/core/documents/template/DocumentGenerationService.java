@@ -1,7 +1,5 @@
 package com.orodent.tonv2.core.documents.template;
 
-import com.orodent.tonv2.core.database.model.Item;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -29,6 +27,8 @@ public class DocumentGenerationService {
     }
 
     public Path generateForBatchProduction(TemplateStorageService.SavedTemplateRef templateRef,
+                                           String productionLineName,
+                                           String notes,
                                            List<BatchItemParam> batchItems,
                                            int productionOrderId) throws IOException {
         TemplateStorageService.StoredTemplate template = templateStorageService.loadTemplate(templateRef.path());
@@ -42,8 +42,8 @@ public class DocumentGenerationService {
             items.add(item);
         }
 
-        Map<String, Object> rootItem = items.isEmpty() ? Map.of("code", "", "quantity", 0) : items.get(0);
-        params.put("item", rootItem);
+        params.put("line", Map.of("name", productionLineName == null ? "" : productionLineName));
+        params.put("notes", notes == null ? "" : notes);
         params.put("items", items);
 
         String html = templateService.render(template.templateBody(), params).html();

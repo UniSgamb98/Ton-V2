@@ -19,7 +19,7 @@ class DocumentGenerationServiceTest {
         TemplateStorageService storage = new TemplateStorageService(templatesDir);
         Path saved = storage.saveTemplate(
                 "Scheda batch",
-                "Codice: {{item.code}}\nQuantita: {{item.quantity}}",
+                "Linea: {{line.name}}\nNote: {{notes}}\n{{#each items}}- {{code}} x {{quantity}}\n{{/each}}",
                 "{}"
         );
 
@@ -31,12 +31,16 @@ class DocumentGenerationServiceTest {
 
         Path generated = generationService.generateForBatchProduction(
                 new TemplateStorageService.SavedTemplateRef(saved, "Scheda batch"),
+                "Linea Demo",
+                "Note demo",
                 List.of(new DocumentGenerationService.BatchItemParam("ITEM-001", 12)),
                 99
         );
 
         assertTrue(Files.exists(generated));
         String html = Files.readString(generated);
+        assertTrue(html.contains("Linea Demo"));
+        assertTrue(html.contains("Note demo"));
         assertTrue(html.contains("ITEM-001"));
         assertTrue(html.contains("12"));
     }
