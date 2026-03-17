@@ -57,6 +57,12 @@ public class BatchProductionController {
         List<Line> lines = lineRepo.findAll();
         view.setLines(lines);
         view.setTemplates(templateStorageService.listTemplates());
+        templateStorageService.findLastUsedTemplate().ifPresent(lastUsed -> {
+            view.getTemplateSelector().getItems().stream()
+                    .filter(t -> t.id() == lastUsed.id())
+                    .findFirst()
+                    .ifPresent(view.getTemplateSelector()::setValue);
+        });
 
         view.getLineSelector().setOnAction(e -> onLineChanged());
         view.getAddRowButton().setOnAction(e -> {

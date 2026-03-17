@@ -27,6 +27,10 @@ class TemplateStorageServiceTest {
             TemplateStorageService.StoredTemplate loaded = storageService.loadTemplate(saved.id());
             assertTrue(loaded.templateName().contains("Scheda Test"));
             assertTrue(loaded.templateBody().contains("Titolo"));
+
+            storageService.markTemplateAsUsed(saved.id());
+            assertTrue(storageService.findLastUsedTemplate().isPresent());
+            assertTrue(storageService.findLastUsedTemplate().get().id() == saved.id());
         }
     }
 }

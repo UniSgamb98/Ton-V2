@@ -8,6 +8,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class TemplateStorageService {
     private final Connection conn;
@@ -91,6 +92,55 @@ public class TemplateStorageService {
         }
     }
 
+
+    public void markTemplateAsUsed(long templateId) {
+        String updateSql = """
+                UPDATE document_template_usage
+                SET last_used_at = CURRENT_TIMESTAMP
+                WHERE template_id = ?
+                """;
+
+        try (PreparedStatement update = conn.prepareStatement(updateSql)) {
+            update.setLong(1, templateId);
+            int updated = update.executeUpdate();
+            if (updated == 0) {
+                String insertSql = """
+                        INSERT INTO document_template_usage (template_id, last_used_at)
+                        VALUES (?, CURRENT_TIMESTAMP)
+                        """;
+                try (PreparedStatement insert = conn.prepareStatement(insertSql)) {
+                    insert.setLong(1, templateId);
+                    insert.executeUpdate();
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore aggiornamento ultimo template usato", e);
+        }
+    }
+
+    public Optional<SavedTemplateRef> findLastUsedTemplate() {
+        String sql = """
+                SELECT dt.id, dt.template_name
+                FROM document_template_usage dtu
+                JOIN document_template dt ON dt.id = dtu.template_id
+                ORDER BY dtu.last_used_at DESC
+                FETCH FIRST ROW ONLY
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return Optional.of(new SavedTemplateRef(
+                        rs.getLong("id"),
+                        normalizeDisplayName(rs.getString("template_name"))
+                ));
+            }
+            return Optional.empty();
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore ricerca ultimo template usato", e);
+        }
+    }
+
     private void ensureSchema() {
         String ddl = """
                 CREATE TABLE document_template (
@@ -107,6 +157,23 @@ public class TemplateStorageService {
         } catch (SQLException e) {
             if (!tableAlreadyExists(e)) {
                 throw new RuntimeException("Errore creazione tabella document_template", e);
+            }
+        }
+
+        String usageDdl = """
+                CREATE TABLE document_template_usage (
+                    template_id INTEGER NOT NULL PRIMARY KEY,
+                    last_used_at TIMESTAMP NOT NULL,
+                    CONSTRAINT fk_dtu_template
+                        FOREIGN KEY (template_id) REFERENCES document_template(id)
+                )
+                """;
+
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate(usageDdl);
+        } catch (SQLException e) {
+            if (!tableAlreadyExists(e)) {
+                throw new RuntimeException("Errore creazione tabella document_template_usage", e);
             }
         }
     }
