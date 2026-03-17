@@ -3,7 +3,7 @@ package com.orodent.tonv2.features.laboratory.production.view;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
-import com.orodent.tonv2.features.documents.template.service.TemplateStorageService;
+import com.orodent.tonv2.core.documents.template.TemplateStorageService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;

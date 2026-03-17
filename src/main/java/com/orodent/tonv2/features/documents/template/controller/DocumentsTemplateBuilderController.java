@@ -1,9 +1,9 @@
 package com.orodent.tonv2.features.documents.template.controller;
 
 import com.google.gson.JsonSyntaxException;
-import com.orodent.tonv2.features.documents.template.service.DocumentTemplateService;
-import com.orodent.tonv2.features.documents.template.service.TemplateRenderResult;
-import com.orodent.tonv2.features.documents.template.service.TemplateStorageService;
+import com.orodent.tonv2.core.documents.template.DocumentTemplateService;
+import com.orodent.tonv2.core.documents.template.TemplateRenderResult;
+import com.orodent.tonv2.core.documents.template.TemplateStorageService;
 import com.orodent.tonv2.features.documents.template.view.DocumentsTemplateBuilderView;
 
 import java.awt.Desktop;

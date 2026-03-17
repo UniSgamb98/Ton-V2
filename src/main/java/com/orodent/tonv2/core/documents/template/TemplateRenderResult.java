@@ -1,4 +1,4 @@
-package com.orodent.tonv2.features.documents.template.service;
+package com.orodent.tonv2.core.documents.template;
 
 import java.util.List;
 

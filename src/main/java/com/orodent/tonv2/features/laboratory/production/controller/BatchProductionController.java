@@ -6,26 +6,18 @@ import com.orodent.tonv2.core.database.repository.CompositionRepository;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
-import com.orodent.tonv2.features.documents.template.service.DocumentTemplateService;
-import com.orodent.tonv2.features.documents.template.service.TemplateStorageService;
+import com.orodent.tonv2.core.documents.template.DocumentGenerationService;
+import com.orodent.tonv2.core.documents.template.DocumentTemplateService;
+import com.orodent.tonv2.core.documents.template.TemplateStorageService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class BatchProductionController {
-
-    private static final DateTimeFormatter FILE_TS = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     private final BatchProductionView view;
     private final ItemRepository itemRepo;
@@ -33,8 +25,8 @@ public class BatchProductionController {
     private final CompositionRepository compositionRepo;
     private final ProductionRepository productionRepo;
     private final BatchProductionService service;
-    private final DocumentTemplateService templateService;
     private final TemplateStorageService templateStorageService;
+    private final DocumentGenerationService documentGenerationService;
 
     private List<Item> filteredItems = List.of();
 
@@ -51,8 +43,12 @@ public class BatchProductionController {
         this.compositionRepo = compositionRepo;
         this.productionRepo = productionRepo;
         this.service = service;
-        this.templateService = new DocumentTemplateService();
         this.templateStorageService = new TemplateStorageService(Path.of("saved-templates"));
+        this.documentGenerationService = new DocumentGenerationService(
+                new DocumentTemplateService(),
+                templateStorageService,
+                Path.of("generated-documents")
+        );
 
         setupActions(preselectedItems);
     }
@@ -126,7 +122,11 @@ public class BatchProductionController {
                     view.getNotesArea().getText()
             );
 
-            Path generatedDocument = generateBatchDocument(selectedTemplate, plan, result.productionOrderId());
+            Path generatedDocument = documentGenerationService.generateForBatchProduction(
+                    selectedTemplate,
+                    toBatchItemParams(plan.lines()),
+                    result.productionOrderId()
+            );
 
             view.setFeedback(
                     "Batch salvato. Ordine #" + result.productionOrderId() +
@@ -141,40 +141,12 @@ public class BatchProductionController {
         }
     }
 
-    private Path generateBatchDocument(TemplateStorageService.SavedTemplateRef selectedTemplate,
-                                       BatchProductionService.ProductionPlan plan,
-                                       int productionOrderId) throws IOException {
-        TemplateStorageService.StoredTemplate template = templateStorageService.loadTemplate(selectedTemplate.path());
-
-        Map<String, Object> params = new HashMap<>(templateService.parseParameters(template.parametersJson()));
-        List<Map<String, Object>> items = new ArrayList<>();
-        for (BatchProductionService.ProductionPlanLine line : plan.lines()) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("code", line.item().code());
-            item.put("quantity", line.quantity());
-            items.add(item);
+    private List<DocumentGenerationService.BatchItemParam> toBatchItemParams(List<BatchProductionService.ProductionPlanLine> planLines) {
+        List<DocumentGenerationService.BatchItemParam> items = new ArrayList<>();
+        for (BatchProductionService.ProductionPlanLine line : planLines) {
+            items.add(new DocumentGenerationService.BatchItemParam(line.item().code(), line.quantity()));
         }
-
-        Map<String, Object> rootItem = items.isEmpty() ? Map.of("code", "", "quantity", 0) : items.get(0);
-        params.put("item", rootItem);
-        params.put("items", items);
-
-        String html = templateService.render(template.templateBody(), params).html();
-
-        Path outputDir = Path.of("generated-documents");
-        Files.createDirectories(outputDir);
-
-        String baseName = template.templateName().toLowerCase()
-                .replaceAll("[^a-z0-9-_]+", "-")
-                .replaceAll("-+", "-")
-                .replaceAll("^-|-$", "");
-        if (baseName.isBlank()) {
-            baseName = "documento-batch";
-        }
-
-        Path output = outputDir.resolve(baseName + "-order-" + productionOrderId + "-" + LocalDateTime.now().format(FILE_TS) + ".html");
-        Files.writeString(output, html, StandardCharsets.UTF_8);
-        return output;
+        return items;
     }
 
     private List<BatchProductionService.ProductionRequestLine> collectLines() {
