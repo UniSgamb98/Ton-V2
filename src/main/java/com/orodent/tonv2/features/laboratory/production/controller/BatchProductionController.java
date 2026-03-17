@@ -122,18 +122,18 @@ public class BatchProductionController {
                     view.getNotesArea().getText()
             );
 
-            Path generatedDocument = documentGenerationService.generateForBatchProduction(
+            String generatedDocumentPath = documentGenerationService.generateForBatchProduction(
                     selectedTemplate,
                     line.name(),
                     view.getNotesArea().getText(),
                     toBatchItemParams(plan.lines()),
                     result.productionOrderId()
-            );
+            ).toAbsolutePath().toString();
 
             view.setFeedback(
                     "Batch salvato. Ordine #" + result.productionOrderId() +
                             " con " + plan.lines().size() + " righe, quantità totale " + result.totalQuantity() +
-                            ". Documento: " + generatedDocument.toAbsolutePath(),
+                            ". Documento: " + generatedDocumentPath,
                     false
             );
         } catch (IllegalArgumentException ex) {
