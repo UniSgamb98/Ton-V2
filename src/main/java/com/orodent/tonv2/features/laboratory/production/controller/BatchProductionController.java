@@ -75,7 +75,7 @@ public class BatchProductionController {
         view.getProduceButton().setOnAction(e -> produceBatch());
 
         if (preselectedItems != null && !preselectedItems.isEmpty()) {
-            int productId = preselectedItems.get(0).productId();
+            int productId = preselectedItems.getFirst().productId();
             lines.stream()
                     .filter(l -> l.productId() == productId)
                     .findFirst()
@@ -84,7 +84,7 @@ public class BatchProductionController {
                         filteredItems = itemRepo.findByProduct(line.productId());
                         view.replaceRows(filteredItems);
                         if (!view.getRows().isEmpty()) {
-                            view.getRows().get(0).getItemSelector().setValue(preselectedItems.get(0));
+                            view.getRows().getFirst().getItemSelector().setValue(preselectedItems.getFirst());
                         }
                         for (int i = 1; i < preselectedItems.size(); i++) {
                             view.addRow(filteredItems, preselectedItems.get(i));

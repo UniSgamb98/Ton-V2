@@ -95,10 +95,6 @@ public class IngredientRowView extends HBox {
        GETTER PER IL CONTROLLER
        ======================= */
 
-    public ComboBox<Powder> getPowderSelector() {
-        return powderSelector;
-    }
-
     public void setOnIngredientChanged(Runnable onIngredientChanged) {
         this.onIngredientChanged = onIngredientChanged;
     }

@@ -13,5 +13,5 @@ public interface CompositionRepository {
     Optional<Integer> findBlankModelIdByCompositionId(int compositionId);
     void setActiveComposition(int productId, int compositionId);
     int insert(Composition composition);
-    int createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients);
+    void createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients);
 }

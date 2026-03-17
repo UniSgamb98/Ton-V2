@@ -175,7 +175,7 @@ public class CompositionRepositoryImpl implements CompositionRepository {
     }
 
     @Override
-    public int createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients) {
+    public void createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients) {
         boolean originalAutoCommit = true;
         try {
             originalAutoCommit = conn.getAutoCommit();
@@ -187,7 +187,6 @@ public class CompositionRepositoryImpl implements CompositionRepository {
             setActiveCompositionInternal(composition.productId(), compositionId);
 
             conn.commit();
-            return compositionId;
         } catch (SQLException e) {
             try {
                 conn.rollback();

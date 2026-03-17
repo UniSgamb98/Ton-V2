@@ -42,7 +42,7 @@ public class DocumentsTemplateBuilderController {
         if (view.getParameterSourceSelector().getItems().contains(DEFAULT_PARAMETER_SOURCE)) {
             view.getParameterSourceSelector().setValue(DEFAULT_PARAMETER_SOURCE);
         } else if (!view.getParameterSourceSelector().getItems().isEmpty()) {
-            view.getParameterSourceSelector().setValue(view.getParameterSourceSelector().getItems().get(0));
+            view.getParameterSourceSelector().setValue(view.getParameterSourceSelector().getItems().getFirst());
         }
 
         onParameterSourceChanged();

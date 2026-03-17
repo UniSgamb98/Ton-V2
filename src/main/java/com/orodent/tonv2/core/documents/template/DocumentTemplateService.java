@@ -130,18 +130,15 @@ public class DocumentTemplateService {
 
     public String markupToHtml(String markup) {
         List<String> lines = List.of(markup.split("\\R", -1));
-        StringBuilder html = new StringBuilder();
-        html.append("<html>\n");
-        html.append("  <head>\n");
-        html.append("    <meta charset='UTF-8' />\n");
-        html.append("  </head>\n");
-        html.append("  <body style='font-family:Segoe UI,Roboto,sans-serif;'>\n");
 
-        html.append(renderMarkupLines(lines, "    "));
-
-        html.append("  </body>\n");
-        html.append("</html>");
-        return html.toString();
+        return "<html>\n" +
+                "  <head>\n" +
+                "    <meta charset='UTF-8' />\n" +
+                "  </head>\n" +
+                "  <body style='font-family:Segoe UI,Roboto,sans-serif;'>\n" +
+                renderMarkupLines(lines, "    ") +
+                "  </body>\n" +
+                "</html>";
     }
 
     private String renderMarkupLines(List<String> lines, String baseIndent) {
@@ -232,7 +229,7 @@ public class DocumentTemplateService {
         StringBuilder html = new StringBuilder();
         html.append(baseIndent).append("<table border='1' cellspacing='0' cellpadding='6' style='border-collapse:collapse;width:100%;'>\n");
 
-        List<String> header = parseTableRow(lines.get(0));
+        List<String> header = parseTableRow(lines.getFirst());
         html.append(baseIndent).append("  <thead>\n");
         html.append(baseIndent).append("    <tr>\n");
         for (String cell : header) {
@@ -352,16 +349,18 @@ public class DocumentTemplateService {
     }
 
     public String defaultTemplate() {
-        return "**Scheda Lavorazione**\n" +
-                "---\n" +
-                "Articolo: {{item.code}}\n" +
-                "Lotto: {{lot.code}}\n" +
-                "\n" +
-                "| Fase | Materiale | Quantità |\n" +
-                "|------|-----------|----------|\n" +
-                "{{#each query.layers}}\n" +
-                "| {{index}} | {{name}} | {{thickness}} mm |\n" +
-                "{{/each}}\n";
+        return """
+                **Scheda Lavorazione**
+                ---
+                Articolo: {{item.code}}
+                Lotto: {{lot.code}}
+                
+                | Fase | Materiale | Quantità |
+                |------|-----------|----------|
+                {{#each query.layers}}
+                | {{index}} | {{name}} | {{thickness}} mm |
+                {{/each}}
+                """;
     }
 
     public List<String> availableParameterSources() {
@@ -385,10 +384,6 @@ public class DocumentTemplateService {
                 {
                 }
                 """;
-    }
-
-    public String defaultParametersJson() {
-        return parametersJsonForSource("Generico");
     }
 
     private String escapeHtml(String raw) {

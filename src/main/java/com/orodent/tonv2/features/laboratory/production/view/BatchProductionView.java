@@ -30,10 +30,11 @@ public class BatchProductionView extends VBox {
     private final Button produceButton = new Button("Produzione batch");
     private final Label feedbackLabel = new Label();
     private final Label templateParamsHelpLabel = new Label(
-            "Parametri template disponibili (demo batch):\n" +
-                    "- {{line.name}}\n" +
-                    "- {{notes}}\n" +
-                    "- {{#each items}} ... {{code}} ... {{quantity}} ... {{/each}}"
+            """
+                    Parametri template disponibili (demo batch):
+                    - {{line.name}}
+                    - {{notes}}
+                    - {{#each items}} ... {{code}} ... {{quantity}} ... {{/each}}"""
     );
 
     private final List<BatchRow> rows = new ArrayList<>();
@@ -81,7 +82,7 @@ public class BatchProductionView extends VBox {
         templateSelector.getItems().setAll(templates);
     }
 
-    public BatchRow addRow(List<Item> items, Item preselectedItem) {
+    public void addRow(List<Item> items, Item preselectedItem) {
         BatchRow row = new BatchRow(items, preselectedItem);
         rows.add(row);
         rowsBox.getChildren().add(row.container);
@@ -91,7 +92,6 @@ public class BatchProductionView extends VBox {
             rowsBox.getChildren().remove(row.container);
         });
 
-        return row;
     }
 
     public void replaceRows(List<Item> items) {
