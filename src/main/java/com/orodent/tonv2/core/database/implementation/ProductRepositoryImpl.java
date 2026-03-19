@@ -46,6 +46,32 @@ public class ProductRepositoryImpl implements ProductRepository {
         return products;
     }
 
+    @Override
+    public Product findById(int id) {
+        String sql = """
+        SELECT id, code, description
+        FROM product
+        WHERE id = ?
+        """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Product(
+                            rs.getInt("id"),
+                            rs.getString("code"),
+                            rs.getString("description")
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error loading product with id " + id, e);
+        }
+
+        return null;
+    }
 
     @Override
     public Product insert(String code, String description) {

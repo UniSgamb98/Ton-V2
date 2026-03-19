@@ -81,7 +81,7 @@ public class BatchProductionController {
                     .ifPresent(line -> {
                         view.getLineSelector().setValue(line);
                         filteredItems = itemRepo.findByProduct(line.productId());
-                        Product preselectedProduct = findProductById(line.productId());
+                        Product preselectedProduct = productRepo.findById(line.productId());
                         view.setSelectableProducts(preselectedProduct == null ? List.of() : List.of(preselectedProduct), preselectedProduct);
                         view.setItemRows(filteredItems);
                     });
@@ -97,7 +97,7 @@ public class BatchProductionController {
             return;
         }
 
-        Product lineProduct = findProductById(selected.productId());
+        Product lineProduct = productRepo.findById(selected.productId());
         view.setSelectableProducts(lineProduct == null ? List.of() : List.of(lineProduct), null);
         filteredItems = List.of();
         view.setItemRows(List.of());
@@ -111,12 +111,6 @@ public class BatchProductionController {
         view.setFeedback("", false);
     }
 
-    private Product findProductById(int productId) {
-        return productRepo.findAll().stream()
-                .filter(product -> product.id() == productId)
-                .findFirst()
-                .orElse(null);
-    }
 
     private void produceBatch() {
         try {
