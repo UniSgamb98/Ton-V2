@@ -65,6 +65,14 @@ Per supportare davvero la consegna ai ragazzi in laboratorio conviene introdurre
 {{/each}}
 ```
 
+- Divisione in N colonne:
+
+```text
+{{#columns N}} apre un blocco a N colonne,
+{{#column}} separa una colonna dalla successiva,
+{{/columns}} chiude il blocco. 
+```
+
 ### Perché è utile
 - L'utente scrive veloce in editor testuale.
 - Il renderer converte il markup in HTML/PDF stampabile.
