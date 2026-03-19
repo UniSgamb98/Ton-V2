@@ -8,6 +8,7 @@ import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.core.database.repository.ProductRepository;
+import com.orodent.tonv2.core.documents.template.DocumentDesktopService;
 import com.orodent.tonv2.core.documents.template.DocumentGenerationService;
 import com.orodent.tonv2.core.documents.template.DocumentTemplateService;
 import com.orodent.tonv2.core.documents.template.TemplateStorageService;
@@ -29,6 +30,7 @@ public class BatchProductionController {
     private final BatchProductionService service;
     private final TemplateStorageService templateStorageService;
     private final DocumentGenerationService documentGenerationService;
+    private final DocumentDesktopService documentDesktopService;
 
     private List<Item> filteredItems = List.of();
 
@@ -54,6 +56,7 @@ public class BatchProductionController {
                 templateStorageService,
                 java.nio.file.Path.of("generated-documents")
         );
+        this.documentDesktopService = new DocumentDesktopService();
 
         setupActions(preselectedItems);
     }
@@ -133,18 +136,20 @@ public class BatchProductionController {
                     view.getNotesArea().getText()
             );
 
-            String generatedDocumentPath = documentGenerationService.generateForBatchProduction(
+            java.nio.file.Path generatedDocument = documentGenerationService.generateForBatchProduction(
                     selectedTemplate,
                     line.name(),
                     view.getNotesArea().getText(),
                     toBatchItemParams(plan.lines()),
                     result.productionOrderId()
-            ).toAbsolutePath().toString();
+            ).toAbsolutePath();
+
+            String desktopResultMessage = openPreviewAndStartPrint(generatedDocument);
 
             view.setFeedback(
                     "Batch salvato. Ordine #" + result.productionOrderId() +
                             " con " + plan.lines().size() + " righe, quantità totale " + result.totalQuantity() +
-                            ". Documento: " + generatedDocumentPath,
+                            ". Documento: " + generatedDocument + ". " + desktopResultMessage,
                     false
             );
         } catch (IllegalArgumentException ex) {
@@ -152,6 +157,27 @@ public class BatchProductionController {
         } catch (Exception ex) {
             view.setFeedback("Errore durante il salvataggio batch.", true);
         }
+    }
+
+
+    private String openPreviewAndStartPrint(java.nio.file.Path generatedDocument) {
+        List<String> results = new ArrayList<>();
+
+        try {
+            documentDesktopService.openDocument(generatedDocument);
+            results.add("Anteprima aperta");
+        } catch (IllegalStateException | java.io.IOException ex) {
+            results.add(ex.getMessage());
+        }
+
+        try {
+            documentDesktopService.printDocument(generatedDocument);
+            results.add("print job avviato");
+        } catch (IllegalStateException | java.io.IOException ex) {
+            results.add(ex.getMessage());
+        }
+
+        return String.join(". ", results);
     }
 
     private List<DocumentGenerationService.BatchItemParam> toBatchItemParams(List<BatchProductionService.ProductionPlanLine> planLines) {
