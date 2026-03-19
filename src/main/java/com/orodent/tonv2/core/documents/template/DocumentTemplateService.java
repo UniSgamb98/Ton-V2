@@ -13,8 +13,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class DocumentTemplateService {
-    private static final Pattern EACH_BLOCK_PATTERN = Pattern.compile("(?s)\\{\\{#each\\s+([\\w.]+)\\s*}}(.*?)\\{\\{/each}}", Pattern.MULTILINE);
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.]+)\\s*}}", Pattern.MULTILINE);
+    private static final Pattern EACH_OPEN_PATTERN = Pattern.compile("\\{\\{#each\\s+([\\w.\\[\\]]+)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*}}", Pattern.MULTILINE);
+    private static final Pattern EACH_CLOSE_PATTERN = Pattern.compile("\\{\\{/each}}", Pattern.MULTILINE);
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
     private static final Pattern MATH_PATTERN = Pattern.compile("\\{\\{\\s*math\\s+(add|sub|mul|div|sqrt|pow)\\s+([^{}]+?)\\s*}}", Pattern.MULTILINE);
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
@@ -51,22 +52,37 @@ public class DocumentTemplateService {
     }
 
     private String expandEachBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
-        Matcher matcher = EACH_BLOCK_PATTERN.matcher(templateBody);
         StringBuilder output = new StringBuilder();
+        int cursor = 0;
 
-        while (matcher.find()) {
-            String collectionPath = matcher.group(1);
-            String blockBody = matcher.group(2);
-            Object value = resolvePath(parameters, collectionPath);
-            String normalizedBlockBody = normalizeEachBlockBody(blockBody);
+        while (cursor < templateBody.length()) {
+            Matcher openMatcher = EACH_OPEN_PATTERN.matcher(templateBody);
+            if (!openMatcher.find(cursor)) {
+                output.append(templateBody.substring(cursor));
+                break;
+            }
 
-            String replacement = "";
+            output.append(templateBody, cursor, openMatcher.start());
+
+            EachBlockMatch blockMatch = findMatchingEachBlock(templateBody, openMatcher);
+            if (blockMatch == null) {
+                warnings.add("Blocco each non chiuso correttamente.");
+                output.append(templateBody.substring(openMatcher.start()));
+                break;
+            }
+
+            Object value = resolvePath(parameters, blockMatch.collectionPath());
+            String normalizedBlockBody = normalizeEachBlockBody(blockMatch.blockBody());
+
             if (value instanceof List<?> list) {
                 StringBuilder repeated = new StringBuilder();
                 for (int i = 0; i < list.size(); i++) {
                     Object element = list.get(i);
                     Map<String, Object> scope = new HashMap<>(parameters);
                     scope.put("index", i + 1);
+                    if (blockMatch.alias() != null && !blockMatch.alias().isBlank()) {
+                        scope.put(blockMatch.alias(), i);
+                    }
                     if (element instanceof Map<?, ?> elementMap) {
                         for (Map.Entry<?, ?> entry : elementMap.entrySet()) {
                             if (entry.getKey() instanceof String key) {
@@ -76,21 +92,57 @@ public class DocumentTemplateService {
                     } else {
                         scope.put("value", element);
                     }
+
                     repeated.append(renderTemplateBody(normalizedBlockBody, scope, warnings));
                     if (!repeated.isEmpty() && repeated.charAt(repeated.length() - 1) != '\n') {
                         repeated.append('\n');
                     }
                 }
-                replacement = repeated.toString();
+                output.append(repeated);
             } else {
-                warnings.add("Blocco each ignorato: percorso non-lista '" + collectionPath + "'.");
+                warnings.add("Blocco each ignorato: percorso non-lista '" + blockMatch.collectionPath() + "'.");
             }
 
-            matcher.appendReplacement(output, Matcher.quoteReplacement(replacement));
+            cursor = blockMatch.afterEnd();
         }
 
-        matcher.appendTail(output);
         return output.toString();
+    }
+
+    private EachBlockMatch findMatchingEachBlock(String templateBody, Matcher firstOpenMatcher) {
+        int depth = 1;
+        int searchFrom = firstOpenMatcher.end();
+
+        while (searchFrom < templateBody.length()) {
+            Matcher nextOpen = EACH_OPEN_PATTERN.matcher(templateBody);
+            boolean foundOpen = nextOpen.find(searchFrom);
+
+            Matcher nextClose = EACH_CLOSE_PATTERN.matcher(templateBody);
+            boolean foundClose = nextClose.find(searchFrom);
+
+            if (!foundClose) {
+                return null;
+            }
+
+            if (foundOpen && nextOpen.start() < nextClose.start()) {
+                depth++;
+                searchFrom = nextOpen.end();
+                continue;
+            }
+
+            depth--;
+            if (depth == 0) {
+                return new EachBlockMatch(
+                        firstOpenMatcher.group(1),
+                        firstOpenMatcher.group(2),
+                        templateBody.substring(firstOpenMatcher.end(), nextClose.start()),
+                        nextClose.end()
+                );
+            }
+            searchFrom = nextClose.end();
+        }
+
+        return null;
     }
 
     private String normalizeEachBlockBody(String blockBody) {
@@ -405,21 +457,71 @@ public class DocumentTemplateService {
     }
 
     private Object resolvePath(Map<String, Object> scope, String path) {
-        String[] tokens = path.split("\\.");
         Object current = scope;
-
-        for (String token : tokens) {
-            if (current instanceof Map<?, ?> map) {
-                current = map.get(token);
-            } else {
-                return null;
+        for (String token : path.split("\\.")) {
+            String baseToken = token;
+            int bracketStart = token.indexOf('[');
+            if (bracketStart >= 0) {
+                baseToken = token.substring(0, bracketStart);
             }
-            if (current == null) {
-                return null;
+
+            if (!baseToken.isBlank()) {
+                if (current instanceof Map<?, ?> map) {
+                    current = map.get(baseToken);
+                } else {
+                    return null;
+                }
+                if (current == null) {
+                    return null;
+                }
+            }
+
+            int cursor = bracketStart;
+            while (cursor >= 0 && cursor < token.length()) {
+                int bracketEnd = token.indexOf(']', cursor);
+                if (bracketEnd < 0) {
+                    return null;
+                }
+
+                String indexToken = token.substring(cursor + 1, bracketEnd).trim();
+                Integer index = resolveIndex(scope, indexToken);
+                if (index == null || index < 0) {
+                    return null;
+                }
+
+                if (current instanceof List<?> list) {
+                    if (index >= list.size()) {
+                        return null;
+                    }
+                    current = list.get(index);
+                } else {
+                    return null;
+                }
+
+                cursor = token.indexOf('[', bracketEnd + 1);
             }
         }
 
         return current;
+    }
+
+    private Integer resolveIndex(Map<String, Object> scope, String token) {
+        try {
+            return Integer.parseInt(token);
+        } catch (NumberFormatException ignored) {
+            Object value = resolvePath(scope, token);
+            if (value instanceof Number number) {
+                return number.intValue();
+            }
+            if (value instanceof String stringValue) {
+                try {
+                    return Integer.parseInt(stringValue);
+                } catch (NumberFormatException ignoredAgain) {
+                    return null;
+                }
+            }
+            return null;
+        }
     }
 
     private Map<String, Object> jsonObjectToMap(JsonObject object) {
@@ -513,8 +615,8 @@ public class DocumentTemplateService {
                         }
                       ],
                       "items": [
-                        {"code": "ITEM-001", "quantity": 12},
-                        {"code": "ITEM-002", "quantity": 5}
+                        {"code": "ITEM-001", "quantity": 12, "height_mm": 18.5},
+                        {"code": "ITEM-002", "quantity": 5, "height_mm": 22.0}
                       ]
                     }
                     """;
@@ -533,4 +635,6 @@ public class DocumentTemplateService {
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
     }
+
+    private record EachBlockMatch(String collectionPath, String alias, String blockBody, int afterEnd) {}
 }

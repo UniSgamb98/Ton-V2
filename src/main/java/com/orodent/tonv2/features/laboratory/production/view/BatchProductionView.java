@@ -42,9 +42,9 @@ public class BatchProductionView extends VBox {
                     - {{line.name}}, {{notes}}
                     - {{composition.version}}, {{composition.num_layers}}
                     - {{blank_model.pressure_kg_cm2}}, {{blank_model.grams_per_mm}}, {{blank_model.diameter_mm}}
-                    - {{#each blank_model.layers}} {{layer_number}} / {{disk_percentage}} {{/each}}
+                    - {{#each blank_model.layers i}} {{layer_number}} / {{disk_percentage}} / {{composition_layers[i].layer_number}} {{/each}}
                     - {{#each composition_layers}} {{layer_number}} {{#each ingredients}} {{powder.code}} / {{percentage}} {{/each}} {{/each}}
-                    - {{#each items}} {{code}} / {{quantity}} {{/each}}
+                    - {{#each items}} {{code}} / {{quantity}} / {{height_mm}} {{/each}}
                     - Math: {{math add 2 3}}, {{math sub 10 4}}, {{math mul 2 5}}, {{math div 10 2}}, {{math sqrt 16}}, {{math pow 2 3}}"""
     );
 

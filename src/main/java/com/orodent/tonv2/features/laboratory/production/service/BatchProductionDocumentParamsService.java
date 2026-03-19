@@ -79,7 +79,8 @@ public class BatchProductionDocumentParamsService {
         for (BatchProductionService.ProductionPlanLine line : planLines) {
             items.add(Map.of(
                     "code", line.item().code(),
-                    "quantity", line.quantity()
+                    "quantity", line.quantity(),
+                    "height_mm", line.item().heightMm()
             ));
         }
         return items;
