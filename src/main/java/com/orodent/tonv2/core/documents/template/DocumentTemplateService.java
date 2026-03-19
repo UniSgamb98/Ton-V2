@@ -15,6 +15,8 @@ import java.util.regex.Pattern;
 public class DocumentTemplateService {
     private static final Pattern EACH_OPEN_PATTERN = Pattern.compile("\\{\\{#each\\s+([\\w.\\[\\]]+)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*}}", Pattern.MULTILINE);
     private static final Pattern EACH_CLOSE_PATTERN = Pattern.compile("\\{\\{/each}}", Pattern.MULTILINE);
+    private static final Pattern HEAD_OPEN_PATTERN = Pattern.compile("\\{\\{head}}", Pattern.MULTILINE);
+    private static final Pattern HEAD_CLOSE_PATTERN = Pattern.compile("\\{\\{/head}}", Pattern.MULTILINE);
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
     private static final Pattern MATH_PATTERN = Pattern.compile("\\{\\{\\s*math\\s+(add|sub|mul|div|sqrt|pow)\\s+([^{}]+?)\\s*}}", Pattern.MULTILINE);
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
@@ -40,15 +42,44 @@ public class DocumentTemplateService {
     }
 
     public TemplateRenderResult render(String templateBody, Map<String, Object> parameters) {
+        Map<String, Object> mutableParameters = new HashMap<>(parameters == null ? Collections.emptyMap() : parameters);
         List<String> warnings = new ArrayList<>();
-        String resolvedMarkup = renderTemplateBody(templateBody == null ? "" : templateBody, parameters, warnings);
+        String resolvedMarkup = renderTemplateBody(templateBody == null ? "" : templateBody, mutableParameters, warnings);
         String html = markupToHtml(resolvedMarkup);
         return new TemplateRenderResult(resolvedMarkup, html, warnings);
     }
 
     private String renderTemplateBody(String templateBody, Map<String, Object> parameters, List<String> warnings) {
-        String expandedLoops = expandEachBlocks(templateBody, parameters, warnings);
+        String withoutHeadBlocks = processHeadBlocks(templateBody, parameters, warnings);
+        String expandedLoops = expandEachBlocks(withoutHeadBlocks, parameters, warnings);
         return replacePlaceholders(expandedLoops, parameters, warnings);
+    }
+
+    private String processHeadBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
+        StringBuilder output = new StringBuilder();
+        int cursor = 0;
+
+        while (cursor < templateBody.length()) {
+            Matcher openMatcher = HEAD_OPEN_PATTERN.matcher(templateBody);
+            if (!openMatcher.find(cursor)) {
+                output.append(templateBody.substring(cursor));
+                break;
+            }
+
+            output.append(templateBody, cursor, openMatcher.start());
+
+            Matcher closeMatcher = HEAD_CLOSE_PATTERN.matcher(templateBody);
+            if (!closeMatcher.find(openMatcher.end())) {
+                warnings.add("Blocco head non chiuso correttamente.");
+                break;
+            }
+
+            String headBody = templateBody.substring(openMatcher.end(), closeMatcher.start());
+            renderTemplateBody(headBody, parameters, warnings);
+            cursor = closeMatcher.end();
+        }
+
+        return output.toString();
     }
 
     private String expandEachBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
@@ -192,7 +223,8 @@ public class DocumentTemplateService {
 
         while (matcher.find()) {
             String operation = matcher.group(1);
-            String[] args = matcher.group(2).trim().split("\\s+");
+            MathExpression mathExpression = parseMathExpression(matcher.group(2).trim());
+            String[] args = mathExpression.args();
 
             try {
                 double result = switch (operation) {
@@ -228,7 +260,13 @@ public class DocumentTemplateService {
                     }
                     default -> throw new IllegalArgumentException("Operazione non supportata");
                 };
-                matcher.appendReplacement(output, Matcher.quoteReplacement(formatMathResult(result)));
+                String formattedResult = formatMathResult(result);
+                if (mathExpression.alias() != null && !mathExpression.alias().isBlank()) {
+                    scope.put(mathExpression.alias(), formattedResult);
+                    matcher.appendReplacement(output, "");
+                } else {
+                    matcher.appendReplacement(output, Matcher.quoteReplacement(formattedResult));
+                }
             } catch (IllegalArgumentException ex) {
                 warnings.add("Espressione math non valida: {{math " + operation + " " + String.join(" ", args) + "}} (" + ex.getMessage() + ")");
                 matcher.appendReplacement(output, "");
@@ -237,6 +275,18 @@ public class DocumentTemplateService {
 
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    private MathExpression parseMathExpression(String rawExpression) {
+        Matcher aliasMatcher = Pattern.compile("^(.*?)(?:\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*))?$").matcher(rawExpression);
+        if (!aliasMatcher.matches()) {
+            return new MathExpression(rawExpression.isBlank() ? new String[0] : rawExpression.split("\\s+"), null);
+        }
+
+        String argsPart = aliasMatcher.group(1) == null ? "" : aliasMatcher.group(1).trim();
+        String alias = aliasMatcher.group(2);
+        String[] args = argsPart.isBlank() ? new String[0] : argsPart.split("\\s+");
+        return new MathExpression(args, alias);
     }
 
     private double[] requireArgs(String[] args, int expected, String operation, Map<String, Object> scope) {
@@ -617,7 +667,8 @@ public class DocumentTemplateService {
                       "items": [
                         {"code": "ITEM-001", "quantity": 12, "height_mm": 18.5},
                         {"code": "ITEM-002", "quantity": 5, "height_mm": 22.0}
-                      ]
+                      ],
+                      "calculated_example": "{{head}}\n{{math mul 3 6 as pippo}}\n{{/head}}\nValore: {{pippo}}"
                     }
                     """;
         }
@@ -637,4 +688,6 @@ public class DocumentTemplateService {
     }
 
     private record EachBlockMatch(String collectionPath, String alias, String blockBody, int afterEnd) {}
+
+    private record MathExpression(String[] args, String alias) {}
 }
