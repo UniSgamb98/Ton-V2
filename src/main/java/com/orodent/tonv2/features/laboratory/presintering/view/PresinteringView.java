@@ -10,7 +10,7 @@ import java.util.List;
 
 public class PresinteringView extends VBox {
 
-    private final AppHeader header = new AppHeader("Presinterizza");
+    private final AppHeader header = new AppHeader("Laboratorio - Presinterizza");
     private final VBox rowsBox = new VBox(8);
     private final Label feedbackLabel = new Label();
 

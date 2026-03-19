@@ -106,7 +106,7 @@ public class AppController {
         );
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Nuova composizione");
+        stage.setTitle("TON - Laboratorio - Nuova Composizione");
     }
 
 
@@ -156,6 +156,7 @@ public class AppController {
                 app.itemRepo(),
                 app.lineRepo(),
                 app.compositionRepo(),
+                app.productRepo(),
                 app.productionRepo(),
                 new BatchProductionService(),
                 new TemplateStorageService(app.database.getConnection()),
@@ -163,7 +164,7 @@ public class AppController {
         );
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Produzione batch");
+        stage.setTitle("TON - Laboratorio - Produzione");
     }
 
     public void showItemSetup() {
@@ -178,7 +179,7 @@ public class AppController {
         );
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Setup Item");
+        stage.setTitle("TON - Laboratorio - Nuovo Articolo");
     }
 
     public void showPresintering() {
@@ -191,7 +192,7 @@ public class AppController {
         );
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Presinterizza");
+        stage.setTitle("TON - Laboratorio - Presinterizza");
     }
 
     public void showCreateDiskModel() {
@@ -200,7 +201,7 @@ public class AppController {
         new CreateDiskModelController(view, this, app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo());
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Nuovo modello disco");
+        stage.setTitle("TON - Laboratorio - Nuovo Modello Disco");
     }
 
     /*

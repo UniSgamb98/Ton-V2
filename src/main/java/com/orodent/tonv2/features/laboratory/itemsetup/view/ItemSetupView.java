@@ -13,7 +13,7 @@ import javafx.scene.layout.VBox;
 
 public class ItemSetupView extends VBox {
 
-    private final AppHeader header = new AppHeader("Setup Item + Composizione");
+    private final AppHeader header = new AppHeader("Laboratorio - Nuovo Articolo");
     private final ComboBox<Product> productSelector = new ComboBox<>();
     private final Label activeCompositionLabel = new Label("Composizione attiva: -");
     private final Button activateLatestCompositionButton = new Button("Imposta ultima composizione come attiva");
