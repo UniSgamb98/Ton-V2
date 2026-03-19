@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,27 +26,17 @@ public class DocumentGenerationService {
     }
 
     public Path generateForBatchProduction(TemplateStorageService.SavedTemplateRef templateRef,
-                                           String productionLineName,
-                                           String notes,
-                                           List<BatchItemParam> batchItems,
+                                           Map<String, Object> params,
                                            int productionOrderId) throws IOException {
         TemplateStorageService.StoredTemplate template = templateStorageService.loadTemplate(templateRef.id());
         templateStorageService.markTemplateAsUsed(templateRef.id());
 
-        Map<String, Object> params = new HashMap<>(templateService.parseParameters(template.parametersJson()));
-        List<Map<String, Object>> items = new ArrayList<>();
-        for (BatchItemParam row : batchItems) {
-            Map<String, Object> item = new HashMap<>();
-            item.put("code", row.code());
-            item.put("quantity", row.quantity());
-            items.add(item);
+        Map<String, Object> mergedParams = new HashMap<>(templateService.parseParameters(template.parametersJson()));
+        if (params != null) {
+            mergedParams.putAll(params);
         }
 
-        params.put("line", Map.of("name", productionLineName == null ? "" : productionLineName));
-        params.put("notes", notes == null ? "" : notes);
-        params.put("items", items);
-
-        String html = templateService.render(template.templateBody(), params).html();
+        String html = templateService.render(template.templateBody(), mergedParams).html();
 
         Files.createDirectories(outputDir);
         String baseName = sanitizeFilePart(template.templateName());
@@ -64,6 +53,4 @@ public class DocumentGenerationService {
                 .replaceAll("^-|-$", "");
         return sanitized.isBlank() ? "documento-batch" : sanitized;
     }
-
-    public record BatchItemParam(String code, int quantity) {}
 }

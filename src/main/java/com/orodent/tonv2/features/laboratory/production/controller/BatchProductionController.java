@@ -12,6 +12,7 @@ import com.orodent.tonv2.core.documents.template.DocumentDesktopService;
 import com.orodent.tonv2.core.documents.template.DocumentGenerationService;
 import com.orodent.tonv2.core.documents.template.DocumentTemplateService;
 import com.orodent.tonv2.core.documents.template.TemplateStorageService;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 
@@ -31,6 +32,7 @@ public class BatchProductionController {
     private final TemplateStorageService templateStorageService;
     private final DocumentGenerationService documentGenerationService;
     private final DocumentDesktopService documentDesktopService;
+    private final BatchProductionDocumentParamsService documentParamsService;
 
     private List<Item> filteredItems = List.of();
 
@@ -41,6 +43,7 @@ public class BatchProductionController {
                                      ProductRepository productRepo,
                                      ProductionRepository productionRepo,
                                      BatchProductionService service,
+                                     BatchProductionDocumentParamsService documentParamsService,
                                      TemplateStorageService templateStorageService,
                                      List<Item> preselectedItems) {
         this.view = view;
@@ -50,6 +53,7 @@ public class BatchProductionController {
         this.productRepo = productRepo;
         this.productionRepo = productionRepo;
         this.service = service;
+        this.documentParamsService = documentParamsService;
         this.templateStorageService = templateStorageService;
         this.documentGenerationService = new DocumentGenerationService(
                 new DocumentTemplateService(),
@@ -136,11 +140,15 @@ public class BatchProductionController {
                     view.getNotesArea().getText()
             );
 
+            java.util.Map<String, Object> documentParams = documentParamsService.buildParams(
+                    line,
+                    view.getNotesArea().getText(),
+                    plan.lines()
+            );
+
             java.nio.file.Path generatedDocument = documentGenerationService.generateForBatchProduction(
                     selectedTemplate,
-                    line.name(),
-                    view.getNotesArea().getText(),
-                    toBatchItemParams(plan.lines()),
+                    documentParams,
                     result.productionOrderId()
             ).toAbsolutePath();
 
@@ -179,15 +187,6 @@ public class BatchProductionController {
 
         return String.join(". ", results);
     }
-
-    private List<DocumentGenerationService.BatchItemParam> toBatchItemParams(List<BatchProductionService.ProductionPlanLine> planLines) {
-        List<DocumentGenerationService.BatchItemParam> items = new ArrayList<>();
-        for (BatchProductionService.ProductionPlanLine line : planLines) {
-            items.add(new DocumentGenerationService.BatchItemParam(line.item().code(), line.quantity()));
-        }
-        return items;
-    }
-
     private List<BatchProductionService.ProductionRequestLine> collectLines() {
         List<BatchProductionService.ProductionRequestLine> lines = new ArrayList<>();
 

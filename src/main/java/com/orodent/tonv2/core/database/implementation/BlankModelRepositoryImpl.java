@@ -61,6 +61,47 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
     }
 
     @Override
+    public BlankModel findById(int id) {
+
+        String sql = """
+                SELECT id,
+                       code,
+                       diameter_mm,
+                       superior_overmaterial_default_mm,
+                       inferior_overmaterial_default_mm,
+                       pressure_kg_cm2,
+                       grams_per_mm,
+                       num_layers
+                FROM blank_model
+                WHERE id = ?
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new BlankModel(
+                            rs.getInt("id"),
+                            rs.getString("code"),
+                            rs.getDouble("diameter_mm"),
+                            rs.getDouble("superior_overmaterial_default_mm"),
+                            rs.getDouble("inferior_overmaterial_default_mm"),
+                            rs.getDouble("pressure_kg_cm2"),
+                            rs.getDouble("grams_per_mm"),
+                            rs.getInt("num_layers")
+                    );
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error loading blank model with id " + id, e);
+        }
+
+        return null;
+    }
+
+    @Override
     public BlankModel insert(String code, double diameterMm, double superiorOvermaterialDefaultMm, double inferiorOvermaterialDefaultMm, double pressureKgCm2, double gramsPerMm, int numLayers) {
         String sql = """
                 INSERT INTO blank_model (

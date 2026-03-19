@@ -39,9 +39,13 @@ public class BatchProductionView extends VBox {
     private final Label templateParamsHelpLabel = new Label(
             """
                     Parametri template disponibili (demo batch):
-                    - {{line.name}}
-                    - {{notes}}
-                    - {{#each items}} ... {{code}} ... {{quantity}} ... {{/each}}"""
+                    - {{line.name}}, {{notes}}
+                    - {{composition.version}}, {{composition.num_layers}}
+                    - {{blank_model.pressure_kg_cm2}}, {{blank_model.grams_per_mm}}, {{blank_model.diameter_mm}}
+                    - {{#each blank_model.layers}} {{layer_number}} / {{disk_percentage}} {{/each}}
+                    - {{#each composition_layers}} {{layer_number}} {{#each ingredients}} {{powder.code}} / {{percentage}} {{/each}} {{/each}}
+                    - {{#each items}} {{code}} / {{quantity}} {{/each}}
+                    - Math: {{math add 2 3}}, {{math sub 10 4}}, {{math mul 2 5}}, {{math div 10 2}}, {{math sqrt 16}}, {{math pow 2 3}}"""
     );
 
     private final List<BatchRow> rows = new ArrayList<>();

@@ -53,6 +53,33 @@ public class PowderRepositoryImpl implements PowderRepository {
     }
 
     @Override
+    public List<Powder> findByIds(List<Integer> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+
+        String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+        String sql = "SELECT id, code, name, strength, translucency, yttria, notes FROM powder WHERE id IN (" + placeholders + ")";
+        List<Powder> list = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (int i = 0; i < ids.size(); i++) {
+                ps.setInt(i + 1, ids.get(i));
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(map(rs));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    @Override
     public Powder save(Powder powder) {
         if (powder.id() == 0) {
             return insert(powder);

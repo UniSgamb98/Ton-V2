@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 public class DocumentTemplateService {
     private static final Pattern EACH_BLOCK_PATTERN = Pattern.compile("(?s)\\{\\{#each\\s+([\\w.]+)\\s*}}(.*?)\\{\\{/each}}", Pattern.MULTILINE);
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.]+)\\s*}}", Pattern.MULTILINE);
+    private static final Pattern MATH_PATTERN = Pattern.compile("\\{\\{\\s*math\\s+(add|sub|mul|div|sqrt|pow)\\s+([^{}]+?)\\s*}}", Pattern.MULTILINE);
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
 
@@ -39,10 +40,14 @@ public class DocumentTemplateService {
 
     public TemplateRenderResult render(String templateBody, Map<String, Object> parameters) {
         List<String> warnings = new ArrayList<>();
-        String expandedLoops = expandEachBlocks(templateBody == null ? "" : templateBody, parameters, warnings);
-        String resolvedMarkup = replacePlaceholders(expandedLoops, parameters, warnings);
+        String resolvedMarkup = renderTemplateBody(templateBody == null ? "" : templateBody, parameters, warnings);
         String html = markupToHtml(resolvedMarkup);
         return new TemplateRenderResult(resolvedMarkup, html, warnings);
+    }
+
+    private String renderTemplateBody(String templateBody, Map<String, Object> parameters, List<String> warnings) {
+        String expandedLoops = expandEachBlocks(templateBody, parameters, warnings);
+        return replacePlaceholders(expandedLoops, parameters, warnings);
     }
 
     private String expandEachBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
@@ -71,7 +76,7 @@ public class DocumentTemplateService {
                     } else {
                         scope.put("value", element);
                     }
-                    repeated.append(replacePlaceholders(normalizedBlockBody, scope, warnings));
+                    repeated.append(renderTemplateBody(normalizedBlockBody, scope, warnings));
                     if (!repeated.isEmpty() && repeated.charAt(repeated.length() - 1) != '\n') {
                         repeated.append('\n');
                     }
@@ -110,7 +115,8 @@ public class DocumentTemplateService {
     }
 
     private String replacePlaceholders(String body, Map<String, Object> scope, List<String> warnings) {
-        Matcher matcher = PLACEHOLDER_PATTERN.matcher(body);
+        String bodyWithMath = replaceMathExpressions(body, scope, warnings);
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(bodyWithMath);
         StringBuilder output = new StringBuilder();
 
         while (matcher.find()) {
@@ -126,6 +132,103 @@ public class DocumentTemplateService {
 
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    private String replaceMathExpressions(String body, Map<String, Object> scope, List<String> warnings) {
+        Matcher matcher = MATH_PATTERN.matcher(body);
+        StringBuilder output = new StringBuilder();
+
+        while (matcher.find()) {
+            String operation = matcher.group(1);
+            String[] args = matcher.group(2).trim().split("\\s+");
+
+            try {
+                double result = switch (operation) {
+                    case "add" -> {
+                        double[] values = requireArgs(args, 2, operation, scope);
+                        yield values[0] + values[1];
+                    }
+                    case "sub" -> {
+                        double[] values = requireArgs(args, 2, operation, scope);
+                        yield values[0] - values[1];
+                    }
+                    case "mul" -> {
+                        double[] values = requireArgs(args, 2, operation, scope);
+                        yield values[0] * values[1];
+                    }
+                    case "div" -> {
+                        double[] values = requireArgs(args, 2, operation, scope);
+                        if (values[1] == 0d) {
+                            throw new IllegalArgumentException("Divisione per zero");
+                        }
+                        yield values[0] / values[1];
+                    }
+                    case "sqrt" -> {
+                        double value = resolveNumberToken(args, 0, scope);
+                        if (value < 0d) {
+                            throw new IllegalArgumentException("Radice quadrata di numero negativo");
+                        }
+                        yield Math.sqrt(value);
+                    }
+                    case "pow" -> {
+                        double[] values = requireArgs(args, 2, operation, scope);
+                        yield Math.pow(values[0], values[1]);
+                    }
+                    default -> throw new IllegalArgumentException("Operazione non supportata");
+                };
+                matcher.appendReplacement(output, Matcher.quoteReplacement(formatMathResult(result)));
+            } catch (IllegalArgumentException ex) {
+                warnings.add("Espressione math non valida: {{math " + operation + " " + String.join(" ", args) + "}} (" + ex.getMessage() + ")");
+                matcher.appendReplacement(output, "");
+            }
+        }
+
+        matcher.appendTail(output);
+        return output.toString();
+    }
+
+    private double[] requireArgs(String[] args, int expected, String operation, Map<String, Object> scope) {
+        if (args.length != expected) {
+            throw new IllegalArgumentException("Argomenti attesi per " + operation + ": " + expected);
+        }
+        double[] values = new double[expected];
+        for (int i = 0; i < expected; i++) {
+            values[i] = resolveNumberToken(args, i, scope);
+        }
+        return values;
+    }
+
+    private double resolveNumberToken(String[] args, int index, Map<String, Object> scope) {
+        if (index >= args.length) {
+            throw new IllegalArgumentException("Argomento mancante");
+        }
+
+        String token = args[index];
+        try {
+            return Double.parseDouble(token);
+        } catch (NumberFormatException ignored) {
+            Object value = resolvePath(scope, token);
+            if (value instanceof Number number) {
+                return number.doubleValue();
+            }
+            if (value instanceof String stringValue) {
+                try {
+                    return Double.parseDouble(stringValue);
+                } catch (NumberFormatException ex) {
+                    throw new IllegalArgumentException("Valore non numerico per percorso '" + token + "'");
+                }
+            }
+            throw new IllegalArgumentException("Percorso numerico non trovato: '" + token + "'");
+        }
+    }
+
+    private String formatMathResult(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return String.valueOf(value);
+        }
+
+        java.math.BigDecimal decimal = java.math.BigDecimal.valueOf(value).stripTrailingZeros();
+        return decimal.scale() < 0 ? decimal.setScale(0).toPlainString() : decimal.toPlainString();
     }
 
     public String markupToHtml(String markup) {
@@ -373,6 +476,42 @@ public class DocumentTemplateService {
                     {
                       "line": {"name": "Linea A"},
                       "notes": "Note di esempio",
+                      "composition": {
+                        "id": 42,
+                        "version": 7,
+                        "num_layers": 4
+                      },
+                      "blank_model": {
+                        "id": 3,
+                        "code": "BM-98-A",
+                        "pressure_kg_cm2": 2300,
+                        "grams_per_mm": 0.55,
+                        "num_layers": 4,
+                        "diameter_mm": 98.0,
+                        "superior_overmaterial_default_mm": 1.2,
+                        "inferior_overmaterial_default_mm": 0.7,
+                        "layers": [
+                          {"layer_number": 1, "disk_percentage": 12.5},
+                          {"layer_number": 2, "disk_percentage": 27.5},
+                          {"layer_number": 3, "disk_percentage": 30.0},
+                          {"layer_number": 4, "disk_percentage": 30.0}
+                        ]
+                      },
+                      "composition_layers": [
+                        {
+                          "layer_number": 1,
+                          "ingredients": [
+                            {"percentage": 65.0, "powder": {"id": 10, "code": "PW-A1"}},
+                            {"percentage": 35.0, "powder": {"id": 11, "code": "PW-B1"}}
+                          ]
+                        },
+                        {
+                          "layer_number": 2,
+                          "ingredients": [
+                            {"percentage": 100.0, "powder": {"id": 12, "code": "PW-C2"}}
+                          ]
+                        }
+                      ],
                       "items": [
                         {"code": "ITEM-001", "quantity": 12},
                         {"code": "ITEM-002", "quantity": 5}
