@@ -16,6 +16,7 @@ import com.orodent.tonv2.features.laboratory.itemsetup.controller.ItemSetupContr
 import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
 import com.orodent.tonv2.features.laboratory.itemsetup.view.ItemSetupView;
 import com.orodent.tonv2.features.laboratory.production.controller.BatchProductionController;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 import com.orodent.tonv2.features.laboratory.presintering.controller.PresinteringController;
@@ -156,8 +157,16 @@ public class AppController {
                 app.itemRepo(),
                 app.lineRepo(),
                 app.compositionRepo(),
+                app.productRepo(),
                 app.productionRepo(),
                 new BatchProductionService(),
+                new BatchProductionDocumentParamsService(
+                        app.compositionRepo(),
+                        app.blankModelRepo(),
+                        app.blankModelLayerRepo(),
+                        app.compositionLayerIngredientRepo(),
+                        app.powderRepo()
+                ),
                 new TemplateStorageService(app.database.getConnection()),
                 preselectedItems
         );

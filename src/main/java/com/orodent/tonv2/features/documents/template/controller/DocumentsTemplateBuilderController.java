@@ -1,15 +1,13 @@
 package com.orodent.tonv2.features.documents.template.controller;
 
 import com.google.gson.JsonSyntaxException;
+import com.orodent.tonv2.core.documents.template.DocumentDesktopService;
 import com.orodent.tonv2.core.documents.template.DocumentTemplateService;
 import com.orodent.tonv2.core.documents.template.TemplateRenderResult;
 import com.orodent.tonv2.core.documents.template.TemplateStorageService;
 import com.orodent.tonv2.features.documents.template.view.DocumentsTemplateBuilderView;
 
-import java.awt.Desktop;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -19,6 +17,7 @@ public class DocumentsTemplateBuilderController {
     private final DocumentsTemplateBuilderView view;
     private final DocumentTemplateService service;
     private final TemplateStorageService storageService;
+    private final DocumentDesktopService desktopService;
 
     public DocumentsTemplateBuilderController(
             DocumentsTemplateBuilderView view,
@@ -28,6 +27,7 @@ public class DocumentsTemplateBuilderController {
         this.view = view;
         this.service = service;
         this.storageService = storageService;
+        this.desktopService = new DocumentDesktopService();
 
         initializeDefaults();
         view.getRenderButton().setOnAction(e -> onRender());
@@ -76,17 +76,10 @@ public class DocumentsTemplateBuilderController {
             return;
         }
 
-        if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-            appendWarning("Anteprima non disponibile: apertura browser non supportata in questo ambiente.");
-            return;
-        }
-
         try {
-            Path tempFile = Files.createTempFile("ton-document-preview-", ".html");
-            Files.writeString(tempFile, html, StandardCharsets.UTF_8);
-            Desktop.getDesktop().browse(tempFile.toUri());
+            Path tempFile = desktopService.openHtmlPreview(html);
             appendWarning("Anteprima aperta: " + tempFile);
-        } catch (IOException ex) {
+        } catch (IllegalStateException | IOException ex) {
             appendWarning("Errore apertura anteprima: " + ex.getMessage());
         }
     }

@@ -8,6 +8,7 @@ public interface PowderRepository {
 
     List<Powder> findAll();
     Powder findById(int id);
+    List<Powder> findByIds(List<Integer> ids);
     Powder save(Powder powder);
     boolean delete(int id);
 }

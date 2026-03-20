@@ -13,8 +13,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class DocumentTemplateService {
-    private static final Pattern EACH_BLOCK_PATTERN = Pattern.compile("(?s)\\{\\{#each\\s+([\\w.]+)\\s*}}(.*?)\\{\\{/each}}", Pattern.MULTILINE);
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.]+)\\s*}}", Pattern.MULTILINE);
+    private static final Pattern EACH_OPEN_PATTERN = Pattern.compile("\\{\\{#each\\s+([\\w.\\[\\]]+)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*}}", Pattern.MULTILINE);
+    private static final Pattern EACH_CLOSE_PATTERN = Pattern.compile("\\{\\{/each}}", Pattern.MULTILINE);
+    private static final Pattern HEAD_OPEN_PATTERN = Pattern.compile("\\{\\{head}}", Pattern.MULTILINE);
+    private static final Pattern HEAD_CLOSE_PATTERN = Pattern.compile("\\{\\{/head}}", Pattern.MULTILINE);
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
+    private static final Pattern MATH_PATTERN = Pattern.compile("\\{\\{\\s*math\\s+([^{}]+?)\\s*}}", Pattern.MULTILINE);
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
 
@@ -38,30 +42,78 @@ public class DocumentTemplateService {
     }
 
     public TemplateRenderResult render(String templateBody, Map<String, Object> parameters) {
+        Map<String, Object> mutableParameters = new HashMap<>(parameters == null ? Collections.emptyMap() : parameters);
         List<String> warnings = new ArrayList<>();
-        String expandedLoops = expandEachBlocks(templateBody == null ? "" : templateBody, parameters, warnings);
-        String resolvedMarkup = replacePlaceholders(expandedLoops, parameters, warnings);
+        String resolvedMarkup = renderTemplateBody(templateBody == null ? "" : templateBody, mutableParameters, warnings);
         String html = markupToHtml(resolvedMarkup);
         return new TemplateRenderResult(resolvedMarkup, html, warnings);
     }
 
-    private String expandEachBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
-        Matcher matcher = EACH_BLOCK_PATTERN.matcher(templateBody);
+    private String renderTemplateBody(String templateBody, Map<String, Object> parameters, List<String> warnings) {
+        String withoutHeadBlocks = processHeadBlocks(templateBody, parameters, warnings);
+        String expandedLoops = expandEachBlocks(withoutHeadBlocks, parameters, warnings);
+        return replacePlaceholders(expandedLoops, parameters, warnings);
+    }
+
+    private String processHeadBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
         StringBuilder output = new StringBuilder();
+        int cursor = 0;
 
-        while (matcher.find()) {
-            String collectionPath = matcher.group(1);
-            String blockBody = matcher.group(2);
-            Object value = resolvePath(parameters, collectionPath);
-            String normalizedBlockBody = normalizeEachBlockBody(blockBody);
+        while (cursor < templateBody.length()) {
+            Matcher openMatcher = HEAD_OPEN_PATTERN.matcher(templateBody);
+            if (!openMatcher.find(cursor)) {
+                output.append(templateBody.substring(cursor));
+                break;
+            }
 
-            String replacement = "";
+            output.append(templateBody, cursor, openMatcher.start());
+
+            Matcher closeMatcher = HEAD_CLOSE_PATTERN.matcher(templateBody);
+            if (!closeMatcher.find(openMatcher.end())) {
+                warnings.add("Blocco head non chiuso correttamente.");
+                break;
+            }
+
+            String headBody = templateBody.substring(openMatcher.end(), closeMatcher.start());
+            renderTemplateBody(headBody, parameters, warnings);
+            cursor = closeMatcher.end();
+        }
+
+        return output.toString();
+    }
+
+    private String expandEachBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
+        StringBuilder output = new StringBuilder();
+        int cursor = 0;
+
+        while (cursor < templateBody.length()) {
+            Matcher openMatcher = EACH_OPEN_PATTERN.matcher(templateBody);
+            if (!openMatcher.find(cursor)) {
+                output.append(templateBody.substring(cursor));
+                break;
+            }
+
+            output.append(templateBody, cursor, openMatcher.start());
+
+            EachBlockMatch blockMatch = findMatchingEachBlock(templateBody, openMatcher);
+            if (blockMatch == null) {
+                warnings.add("Blocco each non chiuso correttamente.");
+                output.append(templateBody.substring(openMatcher.start()));
+                break;
+            }
+
+            Object value = resolvePath(parameters, blockMatch.collectionPath());
+            String normalizedBlockBody = normalizeEachBlockBody(blockMatch.blockBody());
+
             if (value instanceof List<?> list) {
                 StringBuilder repeated = new StringBuilder();
                 for (int i = 0; i < list.size(); i++) {
                     Object element = list.get(i);
                     Map<String, Object> scope = new HashMap<>(parameters);
                     scope.put("index", i + 1);
+                    if (blockMatch.alias() != null && !blockMatch.alias().isBlank()) {
+                        scope.put(blockMatch.alias(), i);
+                    }
                     if (element instanceof Map<?, ?> elementMap) {
                         for (Map.Entry<?, ?> entry : elementMap.entrySet()) {
                             if (entry.getKey() instanceof String key) {
@@ -71,21 +123,57 @@ public class DocumentTemplateService {
                     } else {
                         scope.put("value", element);
                     }
-                    repeated.append(replacePlaceholders(normalizedBlockBody, scope, warnings));
+
+                    repeated.append(renderTemplateBody(normalizedBlockBody, scope, warnings));
                     if (!repeated.isEmpty() && repeated.charAt(repeated.length() - 1) != '\n') {
                         repeated.append('\n');
                     }
                 }
-                replacement = repeated.toString();
+                output.append(repeated);
             } else {
-                warnings.add("Blocco each ignorato: percorso non-lista '" + collectionPath + "'.");
+                warnings.add("Blocco each ignorato: percorso non-lista '" + blockMatch.collectionPath() + "'.");
             }
 
-            matcher.appendReplacement(output, Matcher.quoteReplacement(replacement));
+            cursor = blockMatch.afterEnd();
         }
 
-        matcher.appendTail(output);
         return output.toString();
+    }
+
+    private EachBlockMatch findMatchingEachBlock(String templateBody, Matcher firstOpenMatcher) {
+        int depth = 1;
+        int searchFrom = firstOpenMatcher.end();
+
+        while (searchFrom < templateBody.length()) {
+            Matcher nextOpen = EACH_OPEN_PATTERN.matcher(templateBody);
+            boolean foundOpen = nextOpen.find(searchFrom);
+
+            Matcher nextClose = EACH_CLOSE_PATTERN.matcher(templateBody);
+            boolean foundClose = nextClose.find(searchFrom);
+
+            if (!foundClose) {
+                return null;
+            }
+
+            if (foundOpen && nextOpen.start() < nextClose.start()) {
+                depth++;
+                searchFrom = nextOpen.end();
+                continue;
+            }
+
+            depth--;
+            if (depth == 0) {
+                return new EachBlockMatch(
+                        firstOpenMatcher.group(1),
+                        firstOpenMatcher.group(2),
+                        templateBody.substring(firstOpenMatcher.end(), nextClose.start()),
+                        nextClose.end()
+                );
+            }
+            searchFrom = nextClose.end();
+        }
+
+        return null;
     }
 
     private String normalizeEachBlockBody(String blockBody) {
@@ -110,7 +198,8 @@ public class DocumentTemplateService {
     }
 
     private String replacePlaceholders(String body, Map<String, Object> scope, List<String> warnings) {
-        Matcher matcher = PLACEHOLDER_PATTERN.matcher(body);
+        String bodyWithMath = replaceMathExpressions(body, scope, warnings);
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(bodyWithMath);
         StringBuilder output = new StringBuilder();
 
         while (matcher.find()) {
@@ -126,6 +215,149 @@ public class DocumentTemplateService {
 
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    private String replaceMathExpressions(String body, Map<String, Object> scope, List<String> warnings) {
+        Matcher matcher = MATH_PATTERN.matcher(body);
+        StringBuilder output = new StringBuilder();
+
+        while (matcher.find()) {
+            MathExpression mathExpression = parseMathExpression(matcher.group(1).trim());
+
+            try {
+                double result = evaluateMathExpression(mathExpression.expression(), scope);
+                String formattedResult = formatMathResult(result);
+                if (mathExpression.alias() != null && !mathExpression.alias().isBlank()) {
+                    scope.put(mathExpression.alias(), formattedResult);
+                    matcher.appendReplacement(output, "");
+                } else {
+                    matcher.appendReplacement(output, Matcher.quoteReplacement(formattedResult));
+                }
+            } catch (IllegalArgumentException ex) {
+                warnings.add("Espressione math non valida: {{math " + mathExpression.expression() + "}} (" + ex.getMessage() + ")");
+                matcher.appendReplacement(output, "");
+            }
+        }
+
+        matcher.appendTail(output);
+        return output.toString();
+    }
+
+    private MathExpression parseMathExpression(String rawExpression) {
+        Matcher aliasMatcher = Pattern.compile("^(.*?)(?:\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*))?$").matcher(rawExpression);
+        if (!aliasMatcher.matches()) {
+            return new MathExpression(rawExpression, null);
+        }
+
+        String expressionPart = aliasMatcher.group(1) == null ? "" : aliasMatcher.group(1).trim();
+        String alias = aliasMatcher.group(2);
+        return new MathExpression(expressionPart, alias);
+    }
+
+    private double evaluateMathExpression(String expression, Map<String, Object> scope) {
+        String trimmed = expression == null ? "" : expression.trim();
+        if (trimmed.isBlank()) {
+            throw new IllegalArgumentException("Espressione vuota");
+        }
+
+        String[] parts = trimmed.split("\\s+");
+        if (isLegacyOperation(parts[0])) {
+            return evaluateLegacyOperation(parts, scope);
+        }
+
+        ExpressionParser parser = new ExpressionParser(trimmed, scope);
+        double result = parser.parseExpression();
+        parser.ensureFullyConsumed();
+        return result;
+    }
+
+    private boolean isLegacyOperation(String token) {
+        return "add".equals(token) || "sub".equals(token) || "mul".equals(token)
+                || "div".equals(token) || "sqrt".equals(token) || "pow".equals(token);
+    }
+
+    private double evaluateLegacyOperation(String[] args, Map<String, Object> scope) {
+        String operation = args[0];
+        return switch (operation) {
+            case "add" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield values[0] + values[1];
+            }
+            case "sub" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield values[0] - values[1];
+            }
+            case "mul" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield values[0] * values[1];
+            }
+            case "div" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                if (values[1] == 0d) {
+                    throw new IllegalArgumentException("Divisione per zero");
+                }
+                yield values[0] / values[1];
+            }
+            case "sqrt" -> {
+                if (args.length != 2) {
+                    throw new IllegalArgumentException("Argomenti attesi per sqrt: 1");
+                }
+                double value = resolveNumberToken(args, 1, scope);
+                if (value < 0d) {
+                    throw new IllegalArgumentException("Radice quadrata di numero negativo");
+                }
+                yield Math.sqrt(value);
+            }
+            case "pow" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield Math.pow(values[0], values[1]);
+            }
+            default -> throw new IllegalArgumentException("Operazione non supportata");
+        };
+    }
+
+    private double[] requireArgs(String[] args, int expected, String operation, Map<String, Object> scope) {
+        if (args.length != expected + 1) {
+            throw new IllegalArgumentException("Argomenti attesi per " + operation + ": " + expected);
+        }
+        double[] values = new double[expected];
+        for (int i = 0; i < expected; i++) {
+            values[i] = resolveNumberToken(args, i + 1, scope);
+        }
+        return values;
+    }
+
+    private double resolveNumberToken(String[] args, int index, Map<String, Object> scope) {
+        if (index >= args.length) {
+            throw new IllegalArgumentException("Argomento mancante");
+        }
+
+        String token = args[index];
+        try {
+            return Double.parseDouble(token);
+        } catch (NumberFormatException ignored) {
+            Object value = resolvePath(scope, token);
+            if (value instanceof Number number) {
+                return number.doubleValue();
+            }
+            if (value instanceof String stringValue) {
+                try {
+                    return Double.parseDouble(stringValue);
+                } catch (NumberFormatException ex) {
+                    throw new IllegalArgumentException("Valore non numerico per percorso '" + token + "'");
+                }
+            }
+            throw new IllegalArgumentException("Percorso numerico non trovato: '" + token + "'");
+        }
+    }
+
+    private String formatMathResult(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return String.valueOf(value);
+        }
+
+        java.math.BigDecimal decimal = java.math.BigDecimal.valueOf(value).stripTrailingZeros();
+        return decimal.scale() < 0 ? decimal.setScale(0).toPlainString() : decimal.toPlainString();
     }
 
     public String markupToHtml(String markup) {
@@ -302,21 +534,71 @@ public class DocumentTemplateService {
     }
 
     private Object resolvePath(Map<String, Object> scope, String path) {
-        String[] tokens = path.split("\\.");
         Object current = scope;
-
-        for (String token : tokens) {
-            if (current instanceof Map<?, ?> map) {
-                current = map.get(token);
-            } else {
-                return null;
+        for (String token : path.split("\\.")) {
+            String baseToken = token;
+            int bracketStart = token.indexOf('[');
+            if (bracketStart >= 0) {
+                baseToken = token.substring(0, bracketStart);
             }
-            if (current == null) {
-                return null;
+
+            if (!baseToken.isBlank()) {
+                if (current instanceof Map<?, ?> map) {
+                    current = map.get(baseToken);
+                } else {
+                    return null;
+                }
+                if (current == null) {
+                    return null;
+                }
+            }
+
+            int cursor = bracketStart;
+            while (cursor >= 0 && cursor < token.length()) {
+                int bracketEnd = token.indexOf(']', cursor);
+                if (bracketEnd < 0) {
+                    return null;
+                }
+
+                String indexToken = token.substring(cursor + 1, bracketEnd).trim();
+                Integer index = resolveIndex(scope, indexToken);
+                if (index == null || index < 0) {
+                    return null;
+                }
+
+                if (current instanceof List<?> list) {
+                    if (index >= list.size()) {
+                        return null;
+                    }
+                    current = list.get(index);
+                } else {
+                    return null;
+                }
+
+                cursor = token.indexOf('[', bracketEnd + 1);
             }
         }
 
         return current;
+    }
+
+    private Integer resolveIndex(Map<String, Object> scope, String token) {
+        try {
+            return Integer.parseInt(token);
+        } catch (NumberFormatException ignored) {
+            Object value = resolvePath(scope, token);
+            if (value instanceof Number number) {
+                return number.intValue();
+            }
+            if (value instanceof String stringValue) {
+                try {
+                    return Integer.parseInt(stringValue);
+                } catch (NumberFormatException ignoredAgain) {
+                    return null;
+                }
+            }
+            return null;
+        }
     }
 
     private Map<String, Object> jsonObjectToMap(JsonObject object) {
@@ -373,10 +655,47 @@ public class DocumentTemplateService {
                     {
                       "line": {"name": "Linea A"},
                       "notes": "Note di esempio",
+                      "composition": {
+                        "id": 42,
+                        "version": 7,
+                        "num_layers": 4
+                      },
+                      "blank_model": {
+                        "id": 3,
+                        "code": "BM-98-A",
+                        "pressure_kg_cm2": 2300,
+                        "grams_per_mm": 0.55,
+                        "num_layers": 4,
+                        "diameter_mm": 98.0,
+                        "superior_overmaterial_default_mm": 1.2,
+                        "inferior_overmaterial_default_mm": 0.7,
+                        "layers": [
+                          {"layer_number": 1, "disk_percentage": 12.5},
+                          {"layer_number": 2, "disk_percentage": 27.5},
+                          {"layer_number": 3, "disk_percentage": 30.0},
+                          {"layer_number": 4, "disk_percentage": 30.0}
+                        ]
+                      },
+                      "composition_layers": [
+                        {
+                          "layer_number": 1,
+                          "ingredients": [
+                            {"percentage": 65.0, "powder": {"id": 10, "code": "PW-A1"}},
+                            {"percentage": 35.0, "powder": {"id": 11, "code": "PW-B1"}}
+                          ]
+                        },
+                        {
+                          "layer_number": 2,
+                          "ingredients": [
+                            {"percentage": 100.0, "powder": {"id": 12, "code": "PW-C2"}}
+                          ]
+                        }
+                      ],
                       "items": [
-                        {"code": "ITEM-001", "quantity": 12},
-                        {"code": "ITEM-002", "quantity": 5}
-                      ]
+                        {"code": "ITEM-001", "quantity": 12, "height_mm": 18.5},
+                        {"code": "ITEM-002", "quantity": 5, "height_mm": 22.0}
+                      ],
+                      "calculated_example": "{{head}}\n{{math mul 3 6 as pippo}}\n{{/head}}\nValore: {{pippo}}"
                     }
                     """;
         }
@@ -393,5 +712,190 @@ public class DocumentTemplateService {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    private record EachBlockMatch(String collectionPath, String alias, String blockBody, int afterEnd) {}
+
+    private record MathExpression(String expression, String alias) {}
+
+    private final class ExpressionParser {
+        private final String expression;
+        private final Map<String, Object> scope;
+        private int position;
+
+        private ExpressionParser(String expression, Map<String, Object> scope) {
+            this.expression = expression;
+            this.scope = scope;
+        }
+
+        private double parseExpression() {
+            double value = parseTerm();
+            while (true) {
+                skipWhitespace();
+                if (match('+')) {
+                    value += parseTerm();
+                } else if (match('-')) {
+                    value -= parseTerm();
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private double parseTerm() {
+            double value = parsePower();
+            while (true) {
+                skipWhitespace();
+                if (match('*')) {
+                    value *= parsePower();
+                } else if (match('/')) {
+                    double divisor = parsePower();
+                    if (divisor == 0d) {
+                        throw new IllegalArgumentException("Divisione per zero");
+                    }
+                    value /= divisor;
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private double parsePower() {
+            double base = parseUnary();
+            skipWhitespace();
+            if (match('^')) {
+                return Math.pow(base, parsePower());
+            }
+            return base;
+        }
+
+        private double parseUnary() {
+            skipWhitespace();
+            if (match('+')) {
+                return parseUnary();
+            }
+            if (match('-')) {
+                return -parseUnary();
+            }
+            return parsePrimary();
+        }
+
+        private double parsePrimary() {
+            skipWhitespace();
+            if (match('(')) {
+                double value = parseExpression();
+                skipWhitespace();
+                expect(')');
+                return value;
+            }
+
+            if (peekIdentifierStart()) {
+                String identifier = parseIdentifier();
+                skipWhitespace();
+                if ("sqrt".equals(identifier) && match('(')) {
+                    double value = parseExpression();
+                    skipWhitespace();
+                    expect(')');
+                    if (value < 0d) {
+                        throw new IllegalArgumentException("Radice quadrata di numero negativo");
+                    }
+                    return Math.sqrt(value);
+                }
+                if ("pow".equals(identifier) && match('(')) {
+                    double left = parseExpression();
+                    skipWhitespace();
+                    expect(',');
+                    double right = parseExpression();
+                    skipWhitespace();
+                    expect(')');
+                    return Math.pow(left, right);
+                }
+
+                Object value = resolvePath(scope, identifier);
+                if (value instanceof Number number) {
+                    return number.doubleValue();
+                }
+                if (value instanceof String stringValue) {
+                    try {
+                        return Double.parseDouble(stringValue);
+                    } catch (NumberFormatException ex) {
+                        throw new IllegalArgumentException("Valore non numerico per percorso '" + identifier + "'");
+                    }
+                }
+                throw new IllegalArgumentException("Percorso numerico non trovato: '" + identifier + "'");
+            }
+
+            return parseNumber();
+        }
+
+        private double parseNumber() {
+            skipWhitespace();
+            int start = position;
+            boolean dotSeen = false;
+
+            while (position < expression.length()) {
+                char current = expression.charAt(position);
+                if (Character.isDigit(current)) {
+                    position++;
+                } else if (current == '.' && !dotSeen) {
+                    dotSeen = true;
+                    position++;
+                } else {
+                    break;
+                }
+            }
+
+            if (start == position) {
+                throw new IllegalArgumentException("Numero atteso alla posizione " + position);
+            }
+
+            return Double.parseDouble(expression.substring(start, position));
+        }
+
+        private String parseIdentifier() {
+            int start = position;
+            while (position < expression.length()) {
+                char current = expression.charAt(position);
+                if (Character.isLetterOrDigit(current) || current == '_' || current == '.' || current == '[' || current == ']') {
+                    position++;
+                } else {
+                    break;
+                }
+            }
+            return expression.substring(start, position);
+        }
+
+        private void ensureFullyConsumed() {
+            skipWhitespace();
+            if (position != expression.length()) {
+                throw new IllegalArgumentException("Token inatteso alla posizione " + position);
+            }
+        }
+
+        private boolean peekIdentifierStart() {
+            return position < expression.length()
+                    && (Character.isLetter(expression.charAt(position)) || expression.charAt(position) == '_');
+        }
+
+        private boolean match(char expected) {
+            skipWhitespace();
+            if (position < expression.length() && expression.charAt(position) == expected) {
+                position++;
+                return true;
+            }
+            return false;
+        }
+
+        private void expect(char expected) {
+            if (!match(expected)) {
+                throw new IllegalArgumentException("Atteso '" + expected + "' alla posizione " + position);
+            }
+        }
+
+        private void skipWhitespace() {
+            while (position < expression.length() && Character.isWhitespace(expression.charAt(position))) {
+                position++;
+            }
+        }
     }
 }

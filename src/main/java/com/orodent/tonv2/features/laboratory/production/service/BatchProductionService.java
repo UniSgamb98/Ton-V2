@@ -32,10 +32,17 @@ public class BatchProductionService {
             if (reqLine.itemId() <= 0) {
                 throw new IllegalArgumentException("Item non valido in una delle righe.");
             }
-            if (reqLine.quantity() <= 0) {
-                throw new IllegalArgumentException("La quantità deve essere maggiore di zero.");
+            if (reqLine.quantity() < 0) {
+                throw new IllegalArgumentException("La quantità non può essere negativa.");
+            }
+            if (reqLine.quantity() == 0) {
+                continue;
             }
             mergedQtyByItem.merge(reqLine.itemId(), reqLine.quantity(), Integer::sum);
+        }
+
+        if (mergedQtyByItem.isEmpty()) {
+            throw new IllegalArgumentException("Inserisci almeno una quantità maggiore di zero per produrre.");
         }
 
         List<ProductionPlanLine> planLines = new ArrayList<>();
