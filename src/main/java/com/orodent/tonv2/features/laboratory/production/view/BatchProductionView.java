@@ -45,7 +45,7 @@ public class BatchProductionView extends VBox {
                     - {{#each blank_model.layers i}} {{layer_number}} / {{disk_percentage}} / {{composition_layers[i].layer_number}} {{/each}}
                     - {{#each composition_layers}} {{layer_number}} {{#each ingredients}} {{powder.code}} / {{percentage}} {{/each}} {{/each}}
                     - {{#each items}} {{code}} / {{quantity}} / {{height_mm}} {{/each}}
-                    - Math: {{math add 2 3}}, {{math sub 10 4}}, {{math mul 2 5}}, {{math div 10 2}}, {{math sqrt 16}}, {{math pow 2 3}}
+                    - Math: {{math add 2 3}}, {{math sub 10 4}}, {{math mul 2 5}}, {{math div 10 2}}, {{math sqrt 16}}, {{math pow 2 3}}, {{math (8+9)*2/5+0.2}}
                     - Head/calcoli: {{head}} {{math mul 3 6 as pippo}} {{/head}} poi {{pippo}}"""
     );
 

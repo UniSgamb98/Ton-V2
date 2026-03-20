@@ -18,7 +18,7 @@ public class DocumentTemplateService {
     private static final Pattern HEAD_OPEN_PATTERN = Pattern.compile("\\{\\{head}}", Pattern.MULTILINE);
     private static final Pattern HEAD_CLOSE_PATTERN = Pattern.compile("\\{\\{/head}}", Pattern.MULTILINE);
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
-    private static final Pattern MATH_PATTERN = Pattern.compile("\\{\\{\\s*math\\s+(add|sub|mul|div|sqrt|pow)\\s+([^{}]+?)\\s*}}", Pattern.MULTILINE);
+    private static final Pattern MATH_PATTERN = Pattern.compile("\\{\\{\\s*math\\s+([^{}]+?)\\s*}}", Pattern.MULTILINE);
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
 
@@ -222,44 +222,10 @@ public class DocumentTemplateService {
         StringBuilder output = new StringBuilder();
 
         while (matcher.find()) {
-            String operation = matcher.group(1);
-            MathExpression mathExpression = parseMathExpression(matcher.group(2).trim());
-            String[] args = mathExpression.args();
+            MathExpression mathExpression = parseMathExpression(matcher.group(1).trim());
 
             try {
-                double result = switch (operation) {
-                    case "add" -> {
-                        double[] values = requireArgs(args, 2, operation, scope);
-                        yield values[0] + values[1];
-                    }
-                    case "sub" -> {
-                        double[] values = requireArgs(args, 2, operation, scope);
-                        yield values[0] - values[1];
-                    }
-                    case "mul" -> {
-                        double[] values = requireArgs(args, 2, operation, scope);
-                        yield values[0] * values[1];
-                    }
-                    case "div" -> {
-                        double[] values = requireArgs(args, 2, operation, scope);
-                        if (values[1] == 0d) {
-                            throw new IllegalArgumentException("Divisione per zero");
-                        }
-                        yield values[0] / values[1];
-                    }
-                    case "sqrt" -> {
-                        double value = resolveNumberToken(args, 0, scope);
-                        if (value < 0d) {
-                            throw new IllegalArgumentException("Radice quadrata di numero negativo");
-                        }
-                        yield Math.sqrt(value);
-                    }
-                    case "pow" -> {
-                        double[] values = requireArgs(args, 2, operation, scope);
-                        yield Math.pow(values[0], values[1]);
-                    }
-                    default -> throw new IllegalArgumentException("Operazione non supportata");
-                };
+                double result = evaluateMathExpression(mathExpression.expression(), scope);
                 String formattedResult = formatMathResult(result);
                 if (mathExpression.alias() != null && !mathExpression.alias().isBlank()) {
                     scope.put(mathExpression.alias(), formattedResult);
@@ -268,7 +234,7 @@ public class DocumentTemplateService {
                     matcher.appendReplacement(output, Matcher.quoteReplacement(formattedResult));
                 }
             } catch (IllegalArgumentException ex) {
-                warnings.add("Espressione math non valida: {{math " + operation + " " + String.join(" ", args) + "}} (" + ex.getMessage() + ")");
+                warnings.add("Espressione math non valida: {{math " + mathExpression.expression() + "}} (" + ex.getMessage() + ")");
                 matcher.appendReplacement(output, "");
             }
         }
@@ -280,22 +246,83 @@ public class DocumentTemplateService {
     private MathExpression parseMathExpression(String rawExpression) {
         Matcher aliasMatcher = Pattern.compile("^(.*?)(?:\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*))?$").matcher(rawExpression);
         if (!aliasMatcher.matches()) {
-            return new MathExpression(rawExpression.isBlank() ? new String[0] : rawExpression.split("\\s+"), null);
+            return new MathExpression(rawExpression, null);
         }
 
-        String argsPart = aliasMatcher.group(1) == null ? "" : aliasMatcher.group(1).trim();
+        String expressionPart = aliasMatcher.group(1) == null ? "" : aliasMatcher.group(1).trim();
         String alias = aliasMatcher.group(2);
-        String[] args = argsPart.isBlank() ? new String[0] : argsPart.split("\\s+");
-        return new MathExpression(args, alias);
+        return new MathExpression(expressionPart, alias);
+    }
+
+    private double evaluateMathExpression(String expression, Map<String, Object> scope) {
+        String trimmed = expression == null ? "" : expression.trim();
+        if (trimmed.isBlank()) {
+            throw new IllegalArgumentException("Espressione vuota");
+        }
+
+        String[] parts = trimmed.split("\\s+");
+        if (isLegacyOperation(parts[0])) {
+            return evaluateLegacyOperation(parts, scope);
+        }
+
+        ExpressionParser parser = new ExpressionParser(trimmed, scope);
+        double result = parser.parseExpression();
+        parser.ensureFullyConsumed();
+        return result;
+    }
+
+    private boolean isLegacyOperation(String token) {
+        return "add".equals(token) || "sub".equals(token) || "mul".equals(token)
+                || "div".equals(token) || "sqrt".equals(token) || "pow".equals(token);
+    }
+
+    private double evaluateLegacyOperation(String[] args, Map<String, Object> scope) {
+        String operation = args[0];
+        return switch (operation) {
+            case "add" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield values[0] + values[1];
+            }
+            case "sub" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield values[0] - values[1];
+            }
+            case "mul" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield values[0] * values[1];
+            }
+            case "div" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                if (values[1] == 0d) {
+                    throw new IllegalArgumentException("Divisione per zero");
+                }
+                yield values[0] / values[1];
+            }
+            case "sqrt" -> {
+                if (args.length != 2) {
+                    throw new IllegalArgumentException("Argomenti attesi per sqrt: 1");
+                }
+                double value = resolveNumberToken(args, 1, scope);
+                if (value < 0d) {
+                    throw new IllegalArgumentException("Radice quadrata di numero negativo");
+                }
+                yield Math.sqrt(value);
+            }
+            case "pow" -> {
+                double[] values = requireArgs(args, 2, operation, scope);
+                yield Math.pow(values[0], values[1]);
+            }
+            default -> throw new IllegalArgumentException("Operazione non supportata");
+        };
     }
 
     private double[] requireArgs(String[] args, int expected, String operation, Map<String, Object> scope) {
-        if (args.length != expected) {
+        if (args.length != expected + 1) {
             throw new IllegalArgumentException("Argomenti attesi per " + operation + ": " + expected);
         }
         double[] values = new double[expected];
         for (int i = 0; i < expected; i++) {
-            values[i] = resolveNumberToken(args, i, scope);
+            values[i] = resolveNumberToken(args, i + 1, scope);
         }
         return values;
     }
@@ -689,5 +716,186 @@ public class DocumentTemplateService {
 
     private record EachBlockMatch(String collectionPath, String alias, String blockBody, int afterEnd) {}
 
-    private record MathExpression(String[] args, String alias) {}
+    private record MathExpression(String expression, String alias) {}
+
+    private final class ExpressionParser {
+        private final String expression;
+        private final Map<String, Object> scope;
+        private int position;
+
+        private ExpressionParser(String expression, Map<String, Object> scope) {
+            this.expression = expression;
+            this.scope = scope;
+        }
+
+        private double parseExpression() {
+            double value = parseTerm();
+            while (true) {
+                skipWhitespace();
+                if (match('+')) {
+                    value += parseTerm();
+                } else if (match('-')) {
+                    value -= parseTerm();
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private double parseTerm() {
+            double value = parsePower();
+            while (true) {
+                skipWhitespace();
+                if (match('*')) {
+                    value *= parsePower();
+                } else if (match('/')) {
+                    double divisor = parsePower();
+                    if (divisor == 0d) {
+                        throw new IllegalArgumentException("Divisione per zero");
+                    }
+                    value /= divisor;
+                } else {
+                    return value;
+                }
+            }
+        }
+
+        private double parsePower() {
+            double base = parseUnary();
+            skipWhitespace();
+            if (match('^')) {
+                return Math.pow(base, parsePower());
+            }
+            return base;
+        }
+
+        private double parseUnary() {
+            skipWhitespace();
+            if (match('+')) {
+                return parseUnary();
+            }
+            if (match('-')) {
+                return -parseUnary();
+            }
+            return parsePrimary();
+        }
+
+        private double parsePrimary() {
+            skipWhitespace();
+            if (match('(')) {
+                double value = parseExpression();
+                skipWhitespace();
+                expect(')');
+                return value;
+            }
+
+            if (peekIdentifierStart()) {
+                String identifier = parseIdentifier();
+                skipWhitespace();
+                if ("sqrt".equals(identifier) && match('(')) {
+                    double value = parseExpression();
+                    skipWhitespace();
+                    expect(')');
+                    if (value < 0d) {
+                        throw new IllegalArgumentException("Radice quadrata di numero negativo");
+                    }
+                    return Math.sqrt(value);
+                }
+                if ("pow".equals(identifier) && match('(')) {
+                    double left = parseExpression();
+                    skipWhitespace();
+                    expect(',');
+                    double right = parseExpression();
+                    skipWhitespace();
+                    expect(')');
+                    return Math.pow(left, right);
+                }
+
+                Object value = resolvePath(scope, identifier);
+                if (value instanceof Number number) {
+                    return number.doubleValue();
+                }
+                if (value instanceof String stringValue) {
+                    try {
+                        return Double.parseDouble(stringValue);
+                    } catch (NumberFormatException ex) {
+                        throw new IllegalArgumentException("Valore non numerico per percorso '" + identifier + "'");
+                    }
+                }
+                throw new IllegalArgumentException("Percorso numerico non trovato: '" + identifier + "'");
+            }
+
+            return parseNumber();
+        }
+
+        private double parseNumber() {
+            skipWhitespace();
+            int start = position;
+            boolean dotSeen = false;
+
+            while (position < expression.length()) {
+                char current = expression.charAt(position);
+                if (Character.isDigit(current)) {
+                    position++;
+                } else if (current == '.' && !dotSeen) {
+                    dotSeen = true;
+                    position++;
+                } else {
+                    break;
+                }
+            }
+
+            if (start == position) {
+                throw new IllegalArgumentException("Numero atteso alla posizione " + position);
+            }
+
+            return Double.parseDouble(expression.substring(start, position));
+        }
+
+        private String parseIdentifier() {
+            int start = position;
+            while (position < expression.length()) {
+                char current = expression.charAt(position);
+                if (Character.isLetterOrDigit(current) || current == '_' || current == '.' || current == '[' || current == ']') {
+                    position++;
+                } else {
+                    break;
+                }
+            }
+            return expression.substring(start, position);
+        }
+
+        private void ensureFullyConsumed() {
+            skipWhitespace();
+            if (position != expression.length()) {
+                throw new IllegalArgumentException("Token inatteso alla posizione " + position);
+            }
+        }
+
+        private boolean peekIdentifierStart() {
+            return position < expression.length()
+                    && (Character.isLetter(expression.charAt(position)) || expression.charAt(position) == '_');
+        }
+
+        private boolean match(char expected) {
+            skipWhitespace();
+            if (position < expression.length() && expression.charAt(position) == expected) {
+                position++;
+                return true;
+            }
+            return false;
+        }
+
+        private void expect(char expected) {
+            if (!match(expected)) {
+                throw new IllegalArgumentException("Atteso '" + expected + "' alla posizione " + position);
+            }
+        }
+
+        private void skipWhitespace() {
+            while (position < expression.length() && Character.isWhitespace(expression.charAt(position))) {
+                position++;
+            }
+        }
+    }
 }
