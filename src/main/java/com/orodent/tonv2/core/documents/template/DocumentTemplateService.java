@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +25,7 @@ public class DocumentTemplateService {
     private static final Pattern ASSIGNMENT_PATTERN = Pattern.compile("^(.*?)\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)$");
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
+    private static final int MAX_DECIMAL_SCALE = 12;
 
     private final Gson gson;
 
@@ -495,7 +497,11 @@ public class DocumentTemplateService {
     }
 
     private Object normalizeNumericValue(BigDecimal value) {
-        BigDecimal decimal = value.stripTrailingZeros();
+        BigDecimal decimal = value;
+        if (decimal.scale() > MAX_DECIMAL_SCALE) {
+            decimal = decimal.setScale(MAX_DECIMAL_SCALE, RoundingMode.HALF_UP);
+        }
+        decimal = decimal.stripTrailingZeros();
         return decimal.scale() < 0 ? decimal.setScale(0) : decimal;
     }
 
@@ -514,11 +520,16 @@ public class DocumentTemplateService {
 
     private String formatExpressionValue(Object value) {
         if (value instanceof BigDecimal decimal) {
-            BigDecimal normalized = decimal.stripTrailingZeros();
-            return normalized.scale() < 0 ? normalized.setScale(0).toPlainString() : normalized.toPlainString();
+            Object normalized = normalizeNumericValue(decimal);
+            return normalized instanceof BigDecimal normalizedDecimal
+                    ? normalizedDecimal.toPlainString()
+                    : String.valueOf(normalized);
         }
         if (value instanceof Number number) {
-            return BigDecimal.valueOf(number.doubleValue()).stripTrailingZeros().toPlainString();
+            Object normalized = normalizeNumericValue(number.doubleValue());
+            return normalized instanceof BigDecimal normalizedDecimal
+                    ? normalizedDecimal.toPlainString()
+                    : String.valueOf(normalized);
         }
         return String.valueOf(value);
     }
