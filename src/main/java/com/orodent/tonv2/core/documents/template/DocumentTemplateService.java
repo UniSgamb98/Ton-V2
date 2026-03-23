@@ -10,9 +10,11 @@ import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,10 +24,11 @@ public class DocumentTemplateService {
     private static final Pattern HEAD_OPEN_PATTERN = Pattern.compile("\\{\\{head}}", Pattern.MULTILINE);
     private static final Pattern HEAD_CLOSE_PATTERN = Pattern.compile("\\{\\{/head}}", Pattern.MULTILINE);
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
-    private static final Pattern ASSIGNMENT_PATTERN = Pattern.compile("^(.*?)\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)$");
+    private static final Pattern ASSIGNMENT_PATTERN = Pattern.compile("^(.*?)\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)(\\[\\])?$");
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
     private static final int MAX_DECIMAL_SCALE = 12;
+    private static final String ARRAY_ASSIGNMENT_NAMES_KEY = "__array_assignment_names";
 
     private final Gson gson;
 
@@ -112,9 +115,11 @@ public class DocumentTemplateService {
 
             if (value instanceof List<?> list) {
                 StringBuilder repeated = new StringBuilder();
+                Map<String, Object> loopAssignments = new HashMap<>();
                 for (int i = 0; i < list.size(); i++) {
                     Object element = list.get(i);
                     Map<String, Object> scope = new HashMap<>(parameters);
+                    scope.putAll(loopAssignments);
                     scope.put("index", i + 1);
                     if (blockMatch.alias() != null && !blockMatch.alias().isBlank()) {
                         scope.put(blockMatch.alias(), i);
@@ -130,10 +135,12 @@ public class DocumentTemplateService {
                     }
 
                     repeated.append(renderTemplateBody(normalizedBlockBody, scope, warnings));
+                    mergeArrayAssignments(loopAssignments, scope);
                     if (!repeated.isEmpty() && repeated.charAt(repeated.length() - 1) != '\n') {
                         repeated.append('\n');
                     }
                 }
+                parameters.putAll(loopAssignments);
                 output.append(repeated);
             } else {
                 warnings.add("Blocco each ignorato: percorso non-lista '" + blockMatch.collectionPath() + "'.");
@@ -229,7 +236,7 @@ public class DocumentTemplateService {
             double result = evaluateMathExpression(interpolateInlinePlaceholders(mathExpression.expression(), scope, warnings), scope);
             Object numericResult = normalizeNumericValue(result);
             if (mathExpression.alias() != null && !mathExpression.alias().isBlank()) {
-                scope.put(mathExpression.alias(), numericResult);
+                assignAliasValue(scope, mathExpression.alias(), mathExpression.appendToArray(), numericResult);
             }
             return formatRenderedValue(numericResult);
         }, "Espressione math non valida: {{math %s}} (%s)");
@@ -244,12 +251,13 @@ public class DocumentTemplateService {
 
             String expression = assignmentMatcher.group(1) == null ? "" : assignmentMatcher.group(1).trim();
             String alias = assignmentMatcher.group(2);
+            boolean appendToArray = assignmentMatcher.group(3) != null;
             if (expression.isBlank() || alias == null || alias.isBlank()) {
                 return null;
             }
 
             Object value = resolveAssignmentValue(expression, scope, warnings);
-            scope.put(alias, value);
+            assignAliasValue(scope, alias, appendToArray, value);
             return formatRenderedValue(value);
         }, "Assegnazione non valida: {{%s}} (%s)");
     }
@@ -344,6 +352,47 @@ public class DocumentTemplateService {
                 || rawTag.startsWith("#column");
     }
 
+    private void assignAliasValue(Map<String, Object> scope, String alias, boolean appendToArray, Object value) {
+        if (!appendToArray) {
+            scope.put(alias, value);
+            return;
+        }
+
+        List<Object> values;
+        Object existing = scope.get(alias);
+        if (existing instanceof List<?> existingList) {
+            values = (List<Object>) existingList;
+        } else {
+            values = new ArrayList<>();
+            scope.put(alias, values);
+        }
+        values.add(value);
+        getArrayAssignmentNames(scope).add(alias);
+    }
+
+    private void mergeArrayAssignments(Map<String, Object> target, Map<String, Object> scope) {
+        for (String alias : getArrayAssignmentNames(scope)) {
+            Object value = scope.get(alias);
+            if (value instanceof List<?>) {
+                target.put(alias, value);
+            }
+        }
+        if (scope.containsKey(ARRAY_ASSIGNMENT_NAMES_KEY)) {
+            target.put(ARRAY_ASSIGNMENT_NAMES_KEY, new LinkedHashSet<>(getArrayAssignmentNames(scope)));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Set<String> getArrayAssignmentNames(Map<String, Object> scope) {
+        Object existing = scope.get(ARRAY_ASSIGNMENT_NAMES_KEY);
+        if (existing instanceof Set<?> existingSet) {
+            return (Set<String>) existingSet;
+        }
+        Set<String> names = new LinkedHashSet<>();
+        scope.put(ARRAY_ASSIGNMENT_NAMES_KEY, names);
+        return names;
+    }
+
     private String interpolateInlinePlaceholders(String expression, Map<String, Object> scope, List<String> warnings) {
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(expression == null ? "" : expression);
         StringBuilder output = new StringBuilder();
@@ -382,14 +431,15 @@ public class DocumentTemplateService {
     }
 
     private MathExpression parseMathExpression(String rawExpression) {
-        Matcher aliasMatcher = Pattern.compile("^(.*?)(?:\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*))?$").matcher(rawExpression);
+        Matcher aliasMatcher = Pattern.compile("^(.*?)(?:\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)(\\[\\])?)?$").matcher(rawExpression);
         if (!aliasMatcher.matches()) {
-            return new MathExpression(rawExpression, null);
+            return new MathExpression(rawExpression, null, false);
         }
 
         String expressionPart = aliasMatcher.group(1) == null ? "" : aliasMatcher.group(1).trim();
         String alias = aliasMatcher.group(2);
-        return new MathExpression(expressionPart, alias);
+        boolean appendToArray = aliasMatcher.group(3) != null;
+        return new MathExpression(expressionPart, alias, appendToArray);
     }
 
     private double evaluateMathExpression(String expression, Map<String, Object> scope) {
@@ -903,7 +953,7 @@ public class DocumentTemplateService {
 
     private record EachBlockMatch(String collectionPath, String alias, String blockBody, int afterEnd) {}
 
-    private record MathExpression(String expression, String alias) {}
+    private record MathExpression(String expression, String alias, boolean appendToArray) {}
 
     private final class ExpressionParser {
         private final String expression;
