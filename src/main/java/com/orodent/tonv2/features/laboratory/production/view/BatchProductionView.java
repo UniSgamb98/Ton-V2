@@ -49,6 +49,7 @@ public class BatchProductionView extends VBox {
                     - Math con placeholder annidati: {{math {{disk_percentage}}*{{items[j].height_mm}}/100 as mm}} poi {{mm}}
                     - Assegnazione semplice: {{50 as pippo}} oppure {{items[j].height_mm as altezza}}
                     - Vettori: {{#each blank_model.layers i}} {{math {{disk_percentage}}*{{items[j].height_mm}}/100 as mm[]}} {{/each}} poi {{#each mm}} {{value}} {{/each}}
+                    - Head stile: {{head font_size=16 table_cell_padding=10 table_min_col_width=80 table_max_col_width=180}}{{/head}}
                     - Head/calcoli: {{head}} {{math mul 3 6 as pippo}} {{/head}} poi {{pippo}}"""
     );
 

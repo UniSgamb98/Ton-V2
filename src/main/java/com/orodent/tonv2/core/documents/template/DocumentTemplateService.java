@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 public class DocumentTemplateService {
     private static final Pattern EACH_OPEN_PATTERN = Pattern.compile("\\{\\{#each\\s+([\\w.\\[\\]]+)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*}}", Pattern.MULTILINE);
     private static final Pattern EACH_CLOSE_PATTERN = Pattern.compile("\\{\\{/each}}", Pattern.MULTILINE);
-    private static final Pattern HEAD_OPEN_PATTERN = Pattern.compile("\\{\\{head}}", Pattern.MULTILINE);
+    private static final Pattern HEAD_OPEN_PATTERN = Pattern.compile("\\{\\{head(?:\\s+([^}]+))?}}", Pattern.MULTILINE);
     private static final Pattern HEAD_CLOSE_PATTERN = Pattern.compile("\\{\\{/head}}", Pattern.MULTILINE);
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
     private static final Pattern ASSIGNMENT_PATTERN = Pattern.compile("^(.*?)\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)(\\[\\])?$");
@@ -29,6 +29,7 @@ public class DocumentTemplateService {
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
     private static final int MAX_DECIMAL_SCALE = 12;
     private static final String ARRAY_ASSIGNMENT_NAMES_KEY = "__array_assignment_names";
+    private static final String RENDER_SETTINGS_KEY = "__render_settings";
 
     private final Gson gson;
 
@@ -53,7 +54,7 @@ public class DocumentTemplateService {
         Map<String, Object> mutableParameters = new HashMap<>(parameters == null ? Collections.emptyMap() : parameters);
         List<String> warnings = new ArrayList<>();
         String resolvedMarkup = renderTemplateBody(templateBody == null ? "" : templateBody, mutableParameters, warnings);
-        String html = markupToHtml(resolvedMarkup);
+        String html = markupToHtml(resolvedMarkup, mutableParameters);
         return new TemplateRenderResult(resolvedMarkup, html, warnings);
     }
 
@@ -75,6 +76,7 @@ public class DocumentTemplateService {
             }
 
             output.append(templateBody, cursor, openMatcher.start());
+            applyHeadSettings(openMatcher.group(1), parameters, warnings);
 
             Matcher closeMatcher = HEAD_CLOSE_PATTERN.matcher(templateBody);
             if (!closeMatcher.find(openMatcher.end())) {
@@ -88,6 +90,50 @@ public class DocumentTemplateService {
         }
 
         return output.toString();
+    }
+
+    private void applyHeadSettings(String rawSettings, Map<String, Object> parameters, List<String> warnings) {
+        if (rawSettings == null || rawSettings.isBlank()) {
+            return;
+        }
+
+        Matcher matcher = Pattern.compile("([A-Za-z_][A-Za-z0-9_]*)=([^\\s]+)").matcher(rawSettings);
+        int matches = 0;
+        while (matcher.find()) {
+            matches++;
+            getRenderSettings(parameters).put(matcher.group(1), matcher.group(2));
+        }
+
+        if (matches == 0) {
+            warnings.add("Attributi head non validi: " + rawSettings);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> getRenderSettings(Map<String, Object> parameters) {
+        Object existing = parameters.get(RENDER_SETTINGS_KEY);
+        if (existing instanceof Map<?, ?> existingMap) {
+            return (Map<String, String>) existingMap;
+        }
+        Map<String, String> settings = new HashMap<>();
+        parameters.put(RENDER_SETTINGS_KEY, settings);
+        return settings;
+    }
+
+    private String getRenderSetting(Map<String, Object> parameters, String key, String defaultValue) {
+        return getRenderSettings(parameters).getOrDefault(key, defaultValue);
+    }
+
+    private int getRenderSettingInt(Map<String, Object> parameters, String key, int defaultValue) {
+        String raw = getRenderSettings(parameters).get(key);
+        if (raw == null || raw.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
     }
 
     private String expandEachBlocks(String templateBody, Map<String, Object> parameters, List<String> warnings) {
@@ -585,19 +631,24 @@ public class DocumentTemplateService {
     }
 
     public String markupToHtml(String markup) {
+        return markupToHtml(markup, Collections.emptyMap());
+    }
+
+    private String markupToHtml(String markup, Map<String, Object> parameters) {
         List<String> lines = List.of(markup.split("\\R", -1));
+        int fontSize = getRenderSettingInt(parameters, "font_size", 14);
 
         return "<html>\n" +
                 "  <head>\n" +
                 "    <meta charset='UTF-8' />\n" +
                 "  </head>\n" +
-                "  <body style='font-family:Segoe UI,Roboto,sans-serif;'>\n" +
-                renderMarkupLines(lines, "    ") +
+                "  <body style='font-family:Segoe UI,Roboto,sans-serif;font-size:" + fontSize + "px;'>\n" +
+                renderMarkupLines(lines, "    ", parameters) +
                 "  </body>\n" +
                 "</html>";
     }
 
-    private String renderMarkupLines(List<String> lines, String baseIndent) {
+    private String renderMarkupLines(List<String> lines, String baseIndent, Map<String, Object> parameters) {
         StringBuilder html = new StringBuilder();
         int i = 0;
 
@@ -613,7 +664,7 @@ public class DocumentTemplateService {
                 }
 
                 List<String> contentBlock = lines.subList(i + 1, end);
-                html.append(renderColumnsBlock(contentBlock, Math.max(1, requestedColumns), baseIndent));
+                html.append(renderColumnsBlock(contentBlock, Math.max(1, requestedColumns), baseIndent, parameters));
                 i = (end < lines.size()) ? end + 1 : end;
                 continue;
             }
@@ -630,7 +681,7 @@ public class DocumentTemplateService {
                     tableLines.add(lines.get(i));
                     i++;
                 }
-                html.append(renderTable(tableLines, baseIndent));
+                html.append(renderTable(tableLines, baseIndent, parameters));
                 continue;
             }
 
@@ -646,7 +697,7 @@ public class DocumentTemplateService {
         return html.toString();
     }
 
-    private String renderColumnsBlock(List<String> blockLines, int requestedColumns, String baseIndent) {
+    private String renderColumnsBlock(List<String> blockLines, int requestedColumns, String baseIndent, Map<String, Object> parameters) {
         List<List<String>> columns = new ArrayList<>();
         List<String> current = new ArrayList<>();
 
@@ -669,7 +720,7 @@ public class DocumentTemplateService {
 
         for (List<String> column : columns) {
             html.append(baseIndent).append("  <div>\n");
-            html.append(renderMarkupLines(column, baseIndent + "    "));
+            html.append(renderMarkupLines(column, baseIndent + "    ", parameters));
             html.append(baseIndent).append("  </div>\n");
         }
 
@@ -677,7 +728,7 @@ public class DocumentTemplateService {
         return html.toString();
     }
 
-    private String renderTable(List<String> lines, String baseIndent) {
+    private String renderTable(List<String> lines, String baseIndent, Map<String, Object> parameters) {
         if (lines.isEmpty()) {
             return "";
         }
@@ -688,7 +739,7 @@ public class DocumentTemplateService {
         int bodyStartIndex = 0;
         if (lines.size() > 1 && isSeparatorRow(lines.get(1))) {
             html.append(baseIndent).append("  <thead>\n");
-            appendTableRow(html, parseTableRow(lines.getFirst()), baseIndent, "    ", true);
+            appendTableRow(html, parseTableRow(lines.getFirst()), baseIndent, "    ", true, parameters);
             html.append(baseIndent).append("  </thead>\n");
             bodyStartIndex = 2;
         }
@@ -700,7 +751,7 @@ public class DocumentTemplateService {
             }
 
             boolean headerStyleRow = i + 1 < lines.size() && isSeparatorRow(lines.get(i + 1));
-            appendTableRow(html, parseTableRow(lines.get(i)), baseIndent, "    ", headerStyleRow);
+            appendTableRow(html, parseTableRow(lines.get(i)), baseIndent, "    ", headerStyleRow, parameters);
         }
 
         html.append(baseIndent).append("  </tbody>\n");
@@ -712,10 +763,25 @@ public class DocumentTemplateService {
                                 List<String> cells,
                                 String baseIndent,
                                 String rowIndent,
-                                boolean headerStyleRow) {
+                                boolean headerStyleRow,
+                                Map<String, Object> parameters) {
         html.append(baseIndent).append(rowIndent).append("<tr>\n");
         String cellTag = headerStyleRow ? "th" : "td";
-        String extraStyle = headerStyleRow ? " style='font-weight:700;background:#f5f5f5;'" : "";
+        int tableCellPadding = getRenderSettingInt(parameters, "table_cell_padding", 6);
+        String minColumnWidth = getRenderSetting(parameters, "table_min_col_width", null);
+        String maxColumnWidth = getRenderSetting(parameters, "table_max_col_width", null);
+        StringBuilder styleBuilder = new StringBuilder();
+        if (headerStyleRow) {
+            styleBuilder.append("font-weight:700;background:#f5f5f5;");
+        }
+        styleBuilder.append("padding:").append(tableCellPadding).append("px;");
+        if (minColumnWidth != null && !minColumnWidth.isBlank()) {
+            styleBuilder.append("min-width:").append(minColumnWidth).append("px;");
+        }
+        if (maxColumnWidth != null && !maxColumnWidth.isBlank()) {
+            styleBuilder.append("max-width:").append(maxColumnWidth).append("px;");
+        }
+        String extraStyle = styleBuilder.isEmpty() ? "" : " style='" + styleBuilder + "'";
 
         for (String cell : cells) {
             html.append(baseIndent)
