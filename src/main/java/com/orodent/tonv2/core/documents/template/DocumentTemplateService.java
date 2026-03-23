@@ -893,6 +893,73 @@ public class DocumentTemplateService {
         return restored;
     }
 
+    private StyleBlockMatch findMatchingStyleBlock(String text, Matcher firstOpenMatcher) {
+        int depth = 1;
+        int searchFrom = firstOpenMatcher.end();
+
+        while (searchFrom < text.length()) {
+            Matcher nextOpen = STYLE_OPEN_PATTERN.matcher(text);
+            boolean foundOpen = nextOpen.find(searchFrom);
+
+            Matcher nextClose = STYLE_CLOSE_PATTERN.matcher(text);
+            boolean foundClose = nextClose.find(searchFrom);
+
+            if (!foundClose) {
+                return null;
+            }
+
+            if (foundOpen && nextOpen.start() < nextClose.start()) {
+                depth++;
+                searchFrom = nextOpen.end();
+                continue;
+            }
+
+            depth--;
+            if (depth == 0) {
+                return new StyleBlockMatch(text.substring(firstOpenMatcher.end(), nextClose.start()), nextClose.end());
+            }
+            searchFrom = nextClose.end();
+        }
+
+        return null;
+    }
+
+    private Map<String, String> parseStyleSettings(String rawSettings) {
+        if (rawSettings == null || rawSettings.isBlank()) {
+            return Map.of();
+        }
+
+        Map<String, String> styles = new HashMap<>();
+        Matcher matcher = Pattern.compile("([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*([^\\s]+)").matcher(rawSettings);
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String value = matcher.group(2);
+            switch (key) {
+                case "font_size" -> styles.put("font-size", value + "px");
+                case "color" -> styles.put("color", value);
+                case "background_color" -> styles.put("background-color", value);
+                case "font_weight" -> styles.put("font-weight", value);
+                case "font_style" -> styles.put("font-style", value);
+                case "underline" -> {
+                    if ("true".equalsIgnoreCase(value)) {
+                        styles.put("text-decoration", "underline");
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+        return styles;
+    }
+
+    private String toInlineCss(Map<String, String> styles) {
+        StringBuilder css = new StringBuilder();
+        for (Map.Entry<String, String> entry : styles.entrySet()) {
+            css.append(entry.getKey()).append(':').append(entry.getValue()).append(';');
+        }
+        return css.toString();
+    }
+
     private Object resolvePath(Map<String, Object> scope, String path) {
         Object current = scope;
         for (String token : path.split("\\.")) {
