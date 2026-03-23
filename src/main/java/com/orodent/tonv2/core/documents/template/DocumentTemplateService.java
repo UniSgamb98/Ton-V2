@@ -32,6 +32,7 @@ public class DocumentTemplateService {
     private static final int MAX_DECIMAL_SCALE = 12;
     private static final String ARRAY_ASSIGNMENT_NAMES_KEY = "__array_assignment_names";
     private static final String RENDER_SETTINGS_KEY = "__render_settings";
+    private static final String INLINE_HTML_TOKEN_PREFIX = "__inline_html_token_";
 
     private final Gson gson;
 
@@ -56,7 +57,9 @@ public class DocumentTemplateService {
         Map<String, Object> mutableParameters = new HashMap<>(parameters == null ? Collections.emptyMap() : parameters);
         List<String> warnings = new ArrayList<>();
         String resolvedMarkup = renderTemplateBody(templateBody == null ? "" : templateBody, mutableParameters, warnings);
-        String html = markupToHtml(resolvedMarkup, mutableParameters);
+        Map<String, String> inlineHtmlTokens = new HashMap<>();
+        String markupWithStyleTokens = materializeStyleTokens(resolvedMarkup, Map.of(), inlineHtmlTokens);
+        String html = markupToHtml(markupWithStyleTokens, mutableParameters, inlineHtmlTokens);
         return new TemplateRenderResult(resolvedMarkup, html, warnings);
     }
 
@@ -635,10 +638,10 @@ public class DocumentTemplateService {
     }
 
     public String markupToHtml(String markup) {
-        return markupToHtml(markup, Collections.emptyMap());
+        return markupToHtml(markup, Collections.emptyMap(), Collections.emptyMap());
     }
 
-    private String markupToHtml(String markup, Map<String, Object> parameters) {
+    private String markupToHtml(String markup, Map<String, Object> parameters, Map<String, String> inlineHtmlTokens) {
         List<String> lines = List.of(markup.split("\\R", -1));
         int fontSize = getRenderSettingInt(parameters, "font_size", 14);
 
@@ -647,12 +650,12 @@ public class DocumentTemplateService {
                 "    <meta charset='UTF-8' />\n" +
                 "  </head>\n" +
                 "  <body style='font-family:Segoe UI,Roboto,sans-serif;font-size:" + fontSize + "px;'>\n" +
-                renderMarkupLines(lines, "    ", parameters) +
+                renderMarkupLines(lines, "    ", parameters, inlineHtmlTokens) +
                 "  </body>\n" +
                 "</html>";
     }
 
-    private String renderMarkupLines(List<String> lines, String baseIndent, Map<String, Object> parameters) {
+    private String renderMarkupLines(List<String> lines, String baseIndent, Map<String, Object> parameters, Map<String, String> inlineHtmlTokens) {
         StringBuilder html = new StringBuilder();
         int i = 0;
 
@@ -668,7 +671,7 @@ public class DocumentTemplateService {
                 }
 
                 List<String> contentBlock = lines.subList(i + 1, end);
-                html.append(renderColumnsBlock(contentBlock, Math.max(1, requestedColumns), baseIndent, parameters));
+                html.append(renderColumnsBlock(contentBlock, Math.max(1, requestedColumns), baseIndent, parameters, inlineHtmlTokens));
                 i = (end < lines.size()) ? end + 1 : end;
                 continue;
             }
@@ -685,14 +688,14 @@ public class DocumentTemplateService {
                     tableLines.add(lines.get(i));
                     i++;
                 }
-                html.append(renderTable(tableLines, baseIndent, parameters));
+                html.append(renderTable(tableLines, baseIndent, parameters, inlineHtmlTokens));
                 continue;
             }
 
             if (!line.isBlank()) {
                 html.append(baseIndent)
                         .append("<p>")
-                        .append(applyInlineFormatting(escapeHtml(line)))
+                        .append(formatInlineHtml(line, inlineHtmlTokens))
                         .append("</p>\n");
             }
             i++;
@@ -701,7 +704,7 @@ public class DocumentTemplateService {
         return html.toString();
     }
 
-    private String renderColumnsBlock(List<String> blockLines, int requestedColumns, String baseIndent, Map<String, Object> parameters) {
+    private String renderColumnsBlock(List<String> blockLines, int requestedColumns, String baseIndent, Map<String, Object> parameters, Map<String, String> inlineHtmlTokens) {
         List<List<String>> columns = new ArrayList<>();
         List<String> current = new ArrayList<>();
 
@@ -724,7 +727,7 @@ public class DocumentTemplateService {
 
         for (List<String> column : columns) {
             html.append(baseIndent).append("  <div>\n");
-            html.append(renderMarkupLines(column, baseIndent + "    ", parameters));
+            html.append(renderMarkupLines(column, baseIndent + "    ", parameters, inlineHtmlTokens));
             html.append(baseIndent).append("  </div>\n");
         }
 
@@ -732,7 +735,7 @@ public class DocumentTemplateService {
         return html.toString();
     }
 
-    private String renderTable(List<String> lines, String baseIndent, Map<String, Object> parameters) {
+    private String renderTable(List<String> lines, String baseIndent, Map<String, Object> parameters, Map<String, String> inlineHtmlTokens) {
         if (lines.isEmpty()) {
             return "";
         }
@@ -743,7 +746,7 @@ public class DocumentTemplateService {
         int bodyStartIndex = 0;
         if (lines.size() > 1 && isSeparatorRow(lines.get(1))) {
             html.append(baseIndent).append("  <thead>\n");
-            appendTableRow(html, parseTableRow(lines.getFirst()), baseIndent, "    ", true, parameters);
+            appendTableRow(html, parseTableRow(lines.getFirst()), baseIndent, "    ", true, parameters, inlineHtmlTokens);
             html.append(baseIndent).append("  </thead>\n");
             bodyStartIndex = 2;
         }
@@ -755,7 +758,7 @@ public class DocumentTemplateService {
             }
 
             boolean headerStyleRow = i + 1 < lines.size() && isSeparatorRow(lines.get(i + 1));
-            appendTableRow(html, parseTableRow(lines.get(i)), baseIndent, "    ", headerStyleRow, parameters);
+            appendTableRow(html, parseTableRow(lines.get(i)), baseIndent, "    ", headerStyleRow, parameters, inlineHtmlTokens);
         }
 
         html.append(baseIndent).append("  </tbody>\n");
@@ -768,7 +771,8 @@ public class DocumentTemplateService {
                                 String baseIndent,
                                 String rowIndent,
                                 boolean headerStyleRow,
-                                Map<String, Object> parameters) {
+                                Map<String, Object> parameters,
+                                Map<String, String> inlineHtmlTokens) {
         html.append(baseIndent).append(rowIndent).append("<tr>\n");
         String cellTag = headerStyleRow ? "th" : "td";
         int tableCellPadding = getRenderSettingInt(parameters, "table_cell_padding", 6);
@@ -794,7 +798,7 @@ public class DocumentTemplateService {
                     .append(cellTag)
                     .append(extraStyle)
                     .append(">")
-                    .append(applyInlineFormatting(escapeHtml(cell)))
+                    .append(formatInlineHtml(cell, inlineHtmlTokens))
                     .append("</")
                     .append(cellTag)
                     .append(">\n");
@@ -829,38 +833,11 @@ public class DocumentTemplateService {
     }
 
     private String applyInlineFormatting(String line) {
-        return applyInlineFormatting(line, Map.of());
+        return applyBoldFormatting(line);
     }
 
-    private String applyInlineFormatting(String line, Map<String, String> inheritedStyles) {
-        StringBuilder output = new StringBuilder();
-        int cursor = 0;
-
-        while (cursor < line.length()) {
-            Matcher openMatcher = STYLE_OPEN_PATTERN.matcher(line);
-            if (!openMatcher.find(cursor)) {
-                output.append(applyBoldFormatting(line.substring(cursor)));
-                break;
-            }
-
-            output.append(applyBoldFormatting(line.substring(cursor, openMatcher.start())));
-            StyleBlockMatch blockMatch = findMatchingStyleBlock(line, openMatcher);
-            if (blockMatch == null) {
-                output.append(applyBoldFormatting(line.substring(openMatcher.start())));
-                break;
-            }
-
-            Map<String, String> mergedStyles = new HashMap<>(inheritedStyles);
-            mergedStyles.putAll(parseStyleSettings(openMatcher.group(1)));
-            output.append("<span style='")
-                    .append(toInlineCss(mergedStyles))
-                    .append("'>")
-                    .append(applyInlineFormatting(blockMatch.blockBody(), mergedStyles))
-                    .append("</span>");
-            cursor = blockMatch.afterEnd();
-        }
-
-        return output.toString();
+    private String formatInlineHtml(String line, Map<String, String> inlineHtmlTokens) {
+        return restoreInlineHtmlTokens(applyInlineFormatting(escapeHtml(line)), inlineHtmlTokens);
     }
 
     private String applyBoldFormatting(String line) {
@@ -873,71 +850,47 @@ public class DocumentTemplateService {
         return output.toString();
     }
 
-    private StyleBlockMatch findMatchingStyleBlock(String line, Matcher firstOpenMatcher) {
-        int depth = 1;
-        int searchFrom = firstOpenMatcher.end();
+    private String materializeStyleTokens(String text,
+                                          Map<String, String> inheritedStyles,
+                                          Map<String, String> inlineHtmlTokens) {
+        StringBuilder output = new StringBuilder();
+        int cursor = 0;
 
-        while (searchFrom < line.length()) {
-            Matcher nextOpen = STYLE_OPEN_PATTERN.matcher(line);
-            boolean foundOpen = nextOpen.find(searchFrom);
-
-            Matcher nextClose = STYLE_CLOSE_PATTERN.matcher(line);
-            boolean foundClose = nextClose.find(searchFrom);
-
-            if (!foundClose) {
-                return null;
+        while (cursor < text.length()) {
+            Matcher openMatcher = STYLE_OPEN_PATTERN.matcher(text);
+            if (!openMatcher.find(cursor)) {
+                output.append(text.substring(cursor));
+                break;
             }
 
-            if (foundOpen && nextOpen.start() < nextClose.start()) {
-                depth++;
-                searchFrom = nextOpen.end();
-                continue;
+            output.append(text, cursor, openMatcher.start());
+            StyleBlockMatch blockMatch = findMatchingStyleBlock(text, openMatcher);
+            if (blockMatch == null) {
+                output.append(text.substring(openMatcher.start()));
+                break;
             }
 
-            depth--;
-            if (depth == 0) {
-                return new StyleBlockMatch(line.substring(firstOpenMatcher.end(), nextClose.start()), nextClose.end());
-            }
-            searchFrom = nextClose.end();
+            Map<String, String> mergedStyles = new HashMap<>(inheritedStyles);
+            mergedStyles.putAll(parseStyleSettings(openMatcher.group(1)));
+            String token = INLINE_HTML_TOKEN_PREFIX + inlineHtmlTokens.size() + "__";
+            String renderedBody = materializeStyleTokens(blockMatch.blockBody(), mergedStyles, inlineHtmlTokens);
+            inlineHtmlTokens.put(token,
+                    "<span style='" + toInlineCss(mergedStyles) + "'>"
+                            + restoreInlineHtmlTokens(applyBoldFormatting(escapeHtml(renderedBody)), inlineHtmlTokens)
+                            + "</span>");
+            output.append(token);
+            cursor = blockMatch.afterEnd();
         }
 
-        return null;
+        return output.toString();
     }
 
-    private Map<String, String> parseStyleSettings(String rawSettings) {
-        if (rawSettings == null || rawSettings.isBlank()) {
-            return Map.of();
+    private String restoreInlineHtmlTokens(String text, Map<String, String> inlineHtmlTokens) {
+        String restored = text;
+        for (Map.Entry<String, String> entry : inlineHtmlTokens.entrySet()) {
+            restored = restored.replace(entry.getKey(), entry.getValue());
         }
-
-        Map<String, String> styles = new HashMap<>();
-        Matcher matcher = Pattern.compile("([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*([^\\s]+)").matcher(rawSettings);
-        while (matcher.find()) {
-            String key = matcher.group(1);
-            String value = matcher.group(2);
-            switch (key) {
-                case "font_size" -> styles.put("font-size", value + "px");
-                case "color" -> styles.put("color", value);
-                case "background_color" -> styles.put("background-color", value);
-                case "font_weight" -> styles.put("font-weight", value);
-                case "font_style" -> styles.put("font-style", value);
-                case "underline" -> {
-                    if ("true".equalsIgnoreCase(value)) {
-                        styles.put("text-decoration", "underline");
-                    }
-                }
-                default -> {
-                }
-            }
-        }
-        return styles;
-    }
-
-    private String toInlineCss(Map<String, String> styles) {
-        StringBuilder css = new StringBuilder();
-        for (Map.Entry<String, String> entry : styles.entrySet()) {
-            css.append(entry.getKey()).append(':').append(entry.getValue()).append(';');
-        }
-        return css.toString();
+        return restored;
     }
 
     private Object resolvePath(Map<String, Object> scope, String path) {
