@@ -595,41 +595,52 @@ public class DocumentTemplateService {
         StringBuilder html = new StringBuilder();
         html.append(baseIndent).append("<table border='1' cellspacing='0' cellpadding='6' style='border-collapse:collapse;width:100%;'>\n");
 
-        List<String> header = parseTableRow(lines.getFirst());
-        html.append(baseIndent).append("  <thead>\n");
-        html.append(baseIndent).append("    <tr>\n");
-        for (String cell : header) {
-            html
-                    .append(baseIndent).append("      <th>")
-                    .append(applyInlineFormatting(escapeHtml(cell)))
-                    .append("</th>\n");
-        }
-        html.append(baseIndent).append("    </tr>\n");
-        html.append(baseIndent).append("  </thead>\n");
-        html.append(baseIndent).append("  <tbody>\n");
-
-        int startRow = 1;
+        int bodyStartIndex = 0;
         if (lines.size() > 1 && isSeparatorRow(lines.get(1))) {
-            startRow = 2;
+            html.append(baseIndent).append("  <thead>\n");
+            appendTableRow(html, parseTableRow(lines.getFirst()), baseIndent, "    ", true);
+            html.append(baseIndent).append("  </thead>\n");
+            bodyStartIndex = 2;
         }
 
-        for (int i = startRow; i < lines.size(); i++) {
+        html.append(baseIndent).append("  <tbody>\n");
+        for (int i = bodyStartIndex; i < lines.size(); i++) {
             if (isSeparatorRow(lines.get(i))) {
                 continue;
             }
-            html.append(baseIndent).append("    <tr>\n");
-            for (String cell : parseTableRow(lines.get(i))) {
-                html
-                        .append(baseIndent).append("      <td>")
-                        .append(applyInlineFormatting(escapeHtml(cell)))
-                        .append("</td>\n");
-            }
-            html.append(baseIndent).append("    </tr>\n");
+
+            boolean headerStyleRow = i + 1 < lines.size() && isSeparatorRow(lines.get(i + 1));
+            appendTableRow(html, parseTableRow(lines.get(i)), baseIndent, "    ", headerStyleRow);
         }
 
         html.append(baseIndent).append("  </tbody>\n");
         html.append(baseIndent).append("</table>\n");
         return html.toString();
+    }
+
+    private void appendTableRow(StringBuilder html,
+                                List<String> cells,
+                                String baseIndent,
+                                String rowIndent,
+                                boolean headerStyleRow) {
+        html.append(baseIndent).append(rowIndent).append("<tr>\n");
+        String cellTag = headerStyleRow ? "th" : "td";
+        String extraStyle = headerStyleRow ? " style='font-weight:700;background:#f5f5f5;'" : "";
+
+        for (String cell : cells) {
+            html.append(baseIndent)
+                    .append(rowIndent)
+                    .append("  <")
+                    .append(cellTag)
+                    .append(extraStyle)
+                    .append(">")
+                    .append(applyInlineFormatting(escapeHtml(cell)))
+                    .append("</")
+                    .append(cellTag)
+                    .append(">\n");
+        }
+
+        html.append(baseIndent).append(rowIndent).append("</tr>\n");
     }
 
     private boolean isTableLine(String line) {
