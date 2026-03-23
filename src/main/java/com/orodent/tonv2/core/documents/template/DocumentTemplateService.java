@@ -4,10 +4,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -210,7 +213,7 @@ public class DocumentTemplateService {
                 warnings.add("Placeholder senza valore: {{" + path + "}}");
                 matcher.appendReplacement(output, "");
             } else {
-                matcher.appendReplacement(output, Matcher.quoteReplacement(String.valueOf(value)));
+                matcher.appendReplacement(output, Matcher.quoteReplacement(formatRenderedValue(value)));
             }
         }
 
@@ -222,11 +225,11 @@ public class DocumentTemplateService {
         return replaceCustomTags(body, scope, warnings, "math", rawContent -> {
             MathExpression mathExpression = parseMathExpression(rawContent);
             double result = evaluateMathExpression(interpolateInlinePlaceholders(mathExpression.expression(), scope, warnings), scope);
-            String formattedResult = formatMathResult(result);
+            Object numericResult = normalizeNumericValue(result);
             if (mathExpression.alias() != null && !mathExpression.alias().isBlank()) {
-                scope.put(mathExpression.alias(), formattedResult);
+                scope.put(mathExpression.alias(), numericResult);
             }
-            return formattedResult;
+            return formatRenderedValue(numericResult);
         }, "Espressione math non valida: {{math %s}} (%s)");
     }
 
@@ -244,9 +247,8 @@ public class DocumentTemplateService {
             }
 
             Object value = resolveAssignmentValue(expression, scope, warnings);
-            String renderedValue = value == null ? "" : String.valueOf(value);
-            scope.put(alias, renderedValue);
-            return renderedValue;
+            scope.put(alias, value);
+            return formatRenderedValue(value);
         }, "Assegnazione non valida: {{%s}} (%s)");
     }
 
@@ -351,7 +353,7 @@ public class DocumentTemplateService {
                 warnings.add("Placeholder senza valore: {{" + path + "}}");
                 matcher.appendReplacement(output, "");
             } else {
-                matcher.appendReplacement(output, Matcher.quoteReplacement(String.valueOf(value)));
+                matcher.appendReplacement(output, Matcher.quoteReplacement(formatExpressionValue(value)));
             }
         }
 
@@ -371,7 +373,7 @@ public class DocumentTemplateService {
         }
 
         try {
-            return formatMathResult(Double.parseDouble(resolvedExpression));
+            return normalizeNumericValue(new BigDecimal(resolvedExpression));
         } catch (NumberFormatException ignored) {
             return resolvedExpression;
         }
@@ -485,13 +487,40 @@ public class DocumentTemplateService {
         }
     }
 
-    private String formatMathResult(double value) {
+    private Object normalizeNumericValue(double value) {
         if (Double.isNaN(value) || Double.isInfinite(value)) {
-            return String.valueOf(value);
+            return value;
         }
+        return normalizeNumericValue(BigDecimal.valueOf(value));
+    }
 
-        java.math.BigDecimal decimal = java.math.BigDecimal.valueOf(value).stripTrailingZeros();
-        return decimal.scale() < 0 ? decimal.setScale(0).toPlainString() : decimal.toPlainString();
+    private Object normalizeNumericValue(BigDecimal value) {
+        BigDecimal decimal = value.stripTrailingZeros();
+        return decimal.scale() < 0 ? decimal.setScale(0) : decimal;
+    }
+
+    private String formatRenderedValue(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof Number number) {
+            NumberFormat formatter = NumberFormat.getNumberInstance(Locale.ITALY);
+            formatter.setGroupingUsed(true);
+            formatter.setMaximumFractionDigits(340);
+            return formatter.format(number);
+        }
+        return String.valueOf(value);
+    }
+
+    private String formatExpressionValue(Object value) {
+        if (value instanceof BigDecimal decimal) {
+            BigDecimal normalized = decimal.stripTrailingZeros();
+            return normalized.scale() < 0 ? normalized.setScale(0).toPlainString() : normalized.toPlainString();
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue()).stripTrailingZeros().toPlainString();
+        }
+        return String.valueOf(value);
     }
 
     public String markupToHtml(String markup) {
