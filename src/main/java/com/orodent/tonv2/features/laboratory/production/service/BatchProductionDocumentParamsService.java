@@ -58,7 +58,6 @@ public class BatchProductionDocumentParamsService {
         Optional<Composition> composition = compositionRepo.findById(compositionId);
         params.put("composition", composition
                 .<Map<String, Object>>map(value -> Map.of(
-                        "id", value.id(),
                         "version", value.version(),
                         "num_layers", value.numLayers()
                 ))
@@ -94,11 +93,9 @@ public class BatchProductionDocumentParamsService {
 
     private Map<String, Object> buildBlankModel(BlankModel blankModel) {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("id", blankModel.id());
         result.put("code", blankModel.code());
         result.put("pressure_kg_cm2", blankModel.pressureKgCm2());
         result.put("grams_per_mm", blankModel.gramsPerMm());
-        result.put("num_layers", blankModel.numLayers());
         result.put("diameter_mm", blankModel.diameterMm());
         result.put("superior_overmaterial_default_mm", blankModel.superiorOvermaterialDefaultMm());
         result.put("inferior_overmaterial_default_mm", blankModel.inferiorOvermaterialDefaultMm());

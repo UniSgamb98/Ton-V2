@@ -830,16 +830,13 @@ public class DocumentTemplateService {
                       "line": {"name": "Linea A"},
                       "notes": "Note di esempio",
                       "composition": {
-                        "id": 42,
                         "version": 7,
                         "num_layers": 4
                       },
                       "blank_model": {
-                        "id": 3,
                         "code": "BM-98-A",
                         "pressure_kg_cm2": 2300,
                         "grams_per_mm": 0.55,
-                        "num_layers": 4,
                         "diameter_mm": 98.0,
                         "superior_overmaterial_default_mm": 1.2,
                         "inferior_overmaterial_default_mm": 0.7,
