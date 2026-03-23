@@ -18,7 +18,7 @@ public class DocumentTemplateService {
     private static final Pattern HEAD_OPEN_PATTERN = Pattern.compile("\\{\\{head}}", Pattern.MULTILINE);
     private static final Pattern HEAD_CLOSE_PATTERN = Pattern.compile("\\{\\{/head}}", Pattern.MULTILINE);
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
-    private static final Pattern MATH_PATTERN = Pattern.compile("\\{\\{\\s*math\\s+([^{}]+?)\\s*}}", Pattern.MULTILINE);
+    private static final Pattern ASSIGNMENT_PATTERN = Pattern.compile("^(.*?)\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)$");
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
 
