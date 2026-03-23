@@ -199,7 +199,8 @@ public class DocumentTemplateService {
 
     private String replacePlaceholders(String body, Map<String, Object> scope, List<String> warnings) {
         String bodyWithMath = replaceMathExpressions(body, scope, warnings);
-        Matcher matcher = PLACEHOLDER_PATTERN.matcher(bodyWithMath);
+        String bodyWithAssignments = replaceAssignments(bodyWithMath, scope, warnings);
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(bodyWithAssignments);
         StringBuilder output = new StringBuilder();
 
         while (matcher.find()) {
@@ -218,29 +219,162 @@ public class DocumentTemplateService {
     }
 
     private String replaceMathExpressions(String body, Map<String, Object> scope, List<String> warnings) {
-        Matcher matcher = MATH_PATTERN.matcher(body);
+        return replaceCustomTags(body, scope, warnings, "math", rawContent -> {
+            MathExpression mathExpression = parseMathExpression(rawContent);
+            double result = evaluateMathExpression(interpolateInlinePlaceholders(mathExpression.expression(), scope, warnings), scope);
+            String formattedResult = formatMathResult(result);
+            if (mathExpression.alias() != null && !mathExpression.alias().isBlank()) {
+                scope.put(mathExpression.alias(), formattedResult);
+            }
+            return formattedResult;
+        }, "Espressione math non valida: {{math %s}} (%s)");
+    }
+
+    private String replaceAssignments(String body, Map<String, Object> scope, List<String> warnings) {
+        return replaceCustomTags(body, scope, warnings, null, rawContent -> {
+            Matcher assignmentMatcher = ASSIGNMENT_PATTERN.matcher(rawContent);
+            if (!assignmentMatcher.matches()) {
+                return null;
+            }
+
+            String expression = assignmentMatcher.group(1) == null ? "" : assignmentMatcher.group(1).trim();
+            String alias = assignmentMatcher.group(2);
+            if (expression.isBlank() || alias == null || alias.isBlank()) {
+                return null;
+            }
+
+            Object value = resolveAssignmentValue(expression, scope, warnings);
+            String renderedValue = value == null ? "" : String.valueOf(value);
+            scope.put(alias, renderedValue);
+            return renderedValue;
+        }, "Assegnazione non valida: {{%s}} (%s)");
+    }
+
+    private String replaceCustomTags(String body,
+                                     Map<String, Object> scope,
+                                     List<String> warnings,
+                                     String requiredPrefix,
+                                     TagResolver resolver,
+                                     String warningTemplate) {
+        StringBuilder output = new StringBuilder();
+        int cursor = 0;
+
+        while (cursor < body.length()) {
+            int start = body.indexOf("{{", cursor);
+            if (start < 0) {
+                output.append(body.substring(cursor));
+                break;
+            }
+
+            output.append(body, cursor, start);
+            int tagEnd = findTagEnd(body, start);
+            if (tagEnd < 0) {
+                output.append(body.substring(start));
+                break;
+            }
+
+            String rawTag = body.substring(start + 2, tagEnd).trim();
+            String tagBody = rawTag;
+            if (requiredPrefix != null) {
+                if (!rawTag.startsWith(requiredPrefix) || (rawTag.length() > requiredPrefix.length() && !Character.isWhitespace(rawTag.charAt(requiredPrefix.length())))) {
+                    output.append(body, start, tagEnd + 2);
+                    cursor = tagEnd + 2;
+                    continue;
+                }
+                tagBody = rawTag.substring(requiredPrefix.length()).trim();
+            } else if (isNonAssignmentTag(rawTag)) {
+                output.append(body, start, tagEnd + 2);
+                cursor = tagEnd + 2;
+                continue;
+            }
+
+            try {
+                String replacement = resolver.resolve(tagBody);
+                if (replacement == null) {
+                    output.append(body, start, tagEnd + 2);
+                } else {
+                    output.append(replacement);
+                }
+            } catch (IllegalArgumentException ex) {
+                warnings.add(warningTemplate.formatted(tagBody, ex.getMessage()));
+            }
+
+            cursor = tagEnd + 2;
+        }
+
+        return output.toString();
+    }
+
+    private int findTagEnd(String body, int start) {
+        int depth = 1;
+        int cursor = start + 2;
+
+        while (cursor < body.length() - 1) {
+            if (body.startsWith("{{", cursor)) {
+                depth++;
+                cursor += 2;
+                continue;
+            }
+            if (body.startsWith("}}", cursor)) {
+                depth--;
+                if (depth == 0) {
+                    return cursor;
+                }
+                cursor += 2;
+                continue;
+            }
+            cursor++;
+        }
+
+        return -1;
+    }
+
+    private boolean isNonAssignmentTag(String rawTag) {
+        return rawTag.startsWith("#")
+                || rawTag.startsWith("/")
+                || rawTag.startsWith("head")
+                || rawTag.startsWith("math ")
+                || rawTag.equals("math")
+                || rawTag.startsWith("#each")
+                || rawTag.startsWith("#columns")
+                || rawTag.startsWith("#column");
+    }
+
+    private String interpolateInlinePlaceholders(String expression, Map<String, Object> scope, List<String> warnings) {
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(expression == null ? "" : expression);
         StringBuilder output = new StringBuilder();
 
         while (matcher.find()) {
-            MathExpression mathExpression = parseMathExpression(matcher.group(1).trim());
-
-            try {
-                double result = evaluateMathExpression(mathExpression.expression(), scope);
-                String formattedResult = formatMathResult(result);
-                if (mathExpression.alias() != null && !mathExpression.alias().isBlank()) {
-                    scope.put(mathExpression.alias(), formattedResult);
-                    matcher.appendReplacement(output, "");
-                } else {
-                    matcher.appendReplacement(output, Matcher.quoteReplacement(formattedResult));
-                }
-            } catch (IllegalArgumentException ex) {
-                warnings.add("Espressione math non valida: {{math " + mathExpression.expression() + "}} (" + ex.getMessage() + ")");
+            String path = matcher.group(1);
+            Object value = resolvePath(scope, path);
+            if (value == null) {
+                warnings.add("Placeholder senza valore: {{" + path + "}}");
                 matcher.appendReplacement(output, "");
+            } else {
+                matcher.appendReplacement(output, Matcher.quoteReplacement(String.valueOf(value)));
             }
         }
 
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    private Object resolveAssignmentValue(String expression, Map<String, Object> scope, List<String> warnings) {
+        String resolvedExpression = interpolateInlinePlaceholders(expression, scope, warnings).trim();
+        if (resolvedExpression.isBlank()) {
+            throw new IllegalArgumentException("Espressione vuota");
+        }
+
+        Object pathValue = resolvePath(scope, resolvedExpression);
+        if (pathValue != null) {
+            return pathValue;
+        }
+
+        try {
+            return formatMathResult(Double.parseDouble(resolvedExpression));
+        } catch (NumberFormatException ignored) {
+            return resolvedExpression;
+        }
     }
 
     private MathExpression parseMathExpression(String rawExpression) {
@@ -712,6 +846,11 @@ public class DocumentTemplateService {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    @FunctionalInterface
+    private interface TagResolver {
+        String resolve(String rawContent);
     }
 
     private record EachBlockMatch(String collectionPath, String alias, String blockBody, int afterEnd) {}

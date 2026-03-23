@@ -46,6 +46,8 @@ public class BatchProductionView extends VBox {
                     - {{#each composition_layers}} {{layer_number}} {{#each ingredients}} {{powder.code}} / {{percentage}} {{/each}} {{/each}}
                     - {{#each items}} {{code}} / {{quantity}} / {{height_mm}} {{/each}}
                     - Math: {{math add 2 3}}, {{math sub 10 4}}, {{math mul 2 5}}, {{math div 10 2}}, {{math sqrt 16}}, {{math pow 2 3}}, {{math (8+9)*2/5+0.2}}
+                    - Math con placeholder annidati: {{math {{disk_percentage}}*{{items[j].height_mm}}/100 as mm}} poi {{mm}}
+                    - Assegnazione semplice: {{50 as pippo}} oppure {{items[j].height_mm as altezza}}
                     - Head/calcoli: {{head}} {{math mul 3 6 as pippo}} {{/head}} poi {{pippo}}"""
     );
 
