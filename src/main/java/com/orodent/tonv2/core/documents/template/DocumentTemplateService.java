@@ -26,6 +26,8 @@ public class DocumentTemplateService {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{\\s*([\\w.\\[\\]]+)\\s*}}", Pattern.MULTILINE);
     private static final Pattern ASSIGNMENT_PATTERN = Pattern.compile("^(.*?)\\s+as\\s+([A-Za-z_][A-Za-z0-9_]*)(\\[\\])?$");
     private static final Pattern BOLD_PATTERN = Pattern.compile("\\*\\*(.+?)\\*\\*");
+    private static final Pattern STYLE_OPEN_PATTERN = Pattern.compile("\\{\\{style(?:\\s+([^}]+))?}}", Pattern.MULTILINE);
+    private static final Pattern STYLE_CLOSE_PATTERN = Pattern.compile("\\{\\{/style}}", Pattern.MULTILINE);
     private static final Pattern COLUMNS_START_PATTERN = Pattern.compile("\\{\\{#columns\\s+(\\d+)}}\\s*");
     private static final int MAX_DECIMAL_SCALE = 12;
     private static final String ARRAY_ASSIGNMENT_NAMES_KEY = "__array_assignment_names";
@@ -393,6 +395,8 @@ public class DocumentTemplateService {
                 || rawTag.startsWith("head")
                 || rawTag.startsWith("math ")
                 || rawTag.equals("math")
+                || rawTag.startsWith("style")
+                || rawTag.equals("style")
                 || rawTag.startsWith("#each")
                 || rawTag.startsWith("#columns")
                 || rawTag.startsWith("#column");
@@ -825,6 +829,41 @@ public class DocumentTemplateService {
     }
 
     private String applyInlineFormatting(String line) {
+        return applyInlineFormatting(line, Map.of());
+    }
+
+    private String applyInlineFormatting(String line, Map<String, String> inheritedStyles) {
+        StringBuilder output = new StringBuilder();
+        int cursor = 0;
+
+        while (cursor < line.length()) {
+            Matcher openMatcher = STYLE_OPEN_PATTERN.matcher(line);
+            if (!openMatcher.find(cursor)) {
+                output.append(applyBoldFormatting(line.substring(cursor)));
+                break;
+            }
+
+            output.append(applyBoldFormatting(line.substring(cursor, openMatcher.start())));
+            StyleBlockMatch blockMatch = findMatchingStyleBlock(line, openMatcher);
+            if (blockMatch == null) {
+                output.append(applyBoldFormatting(line.substring(openMatcher.start())));
+                break;
+            }
+
+            Map<String, String> mergedStyles = new HashMap<>(inheritedStyles);
+            mergedStyles.putAll(parseStyleSettings(openMatcher.group(1)));
+            output.append("<span style='")
+                    .append(toInlineCss(mergedStyles))
+                    .append("'>")
+                    .append(applyInlineFormatting(blockMatch.blockBody(), mergedStyles))
+                    .append("</span>");
+            cursor = blockMatch.afterEnd();
+        }
+
+        return output.toString();
+    }
+
+    private String applyBoldFormatting(String line) {
         Matcher matcher = BOLD_PATTERN.matcher(line);
         StringBuilder output = new StringBuilder();
         while (matcher.find()) {
@@ -832,6 +871,73 @@ public class DocumentTemplateService {
         }
         matcher.appendTail(output);
         return output.toString();
+    }
+
+    private StyleBlockMatch findMatchingStyleBlock(String line, Matcher firstOpenMatcher) {
+        int depth = 1;
+        int searchFrom = firstOpenMatcher.end();
+
+        while (searchFrom < line.length()) {
+            Matcher nextOpen = STYLE_OPEN_PATTERN.matcher(line);
+            boolean foundOpen = nextOpen.find(searchFrom);
+
+            Matcher nextClose = STYLE_CLOSE_PATTERN.matcher(line);
+            boolean foundClose = nextClose.find(searchFrom);
+
+            if (!foundClose) {
+                return null;
+            }
+
+            if (foundOpen && nextOpen.start() < nextClose.start()) {
+                depth++;
+                searchFrom = nextOpen.end();
+                continue;
+            }
+
+            depth--;
+            if (depth == 0) {
+                return new StyleBlockMatch(line.substring(firstOpenMatcher.end(), nextClose.start()), nextClose.end());
+            }
+            searchFrom = nextClose.end();
+        }
+
+        return null;
+    }
+
+    private Map<String, String> parseStyleSettings(String rawSettings) {
+        if (rawSettings == null || rawSettings.isBlank()) {
+            return Map.of();
+        }
+
+        Map<String, String> styles = new HashMap<>();
+        Matcher matcher = Pattern.compile("([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*([^\\s]+)").matcher(rawSettings);
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String value = matcher.group(2);
+            switch (key) {
+                case "font_size" -> styles.put("font-size", value + "px");
+                case "color" -> styles.put("color", value);
+                case "background_color" -> styles.put("background-color", value);
+                case "font_weight" -> styles.put("font-weight", value);
+                case "font_style" -> styles.put("font-style", value);
+                case "underline" -> {
+                    if ("true".equalsIgnoreCase(value)) {
+                        styles.put("text-decoration", "underline");
+                    }
+                }
+                default -> {
+                }
+            }
+        }
+        return styles;
+    }
+
+    private String toInlineCss(Map<String, String> styles) {
+        StringBuilder css = new StringBuilder();
+        for (Map.Entry<String, String> entry : styles.entrySet()) {
+            css.append(entry.getKey()).append(':').append(entry.getValue()).append(';');
+        }
+        return css.toString();
     }
 
     private Object resolvePath(Map<String, Object> scope, String path) {
@@ -1018,6 +1124,8 @@ public class DocumentTemplateService {
     }
 
     private record EachBlockMatch(String collectionPath, String alias, String blockBody, int afterEnd) {}
+
+    private record StyleBlockMatch(String blockBody, int afterEnd) {}
 
     private record MathExpression(String expression, String alias, boolean appendToArray) {}
 
