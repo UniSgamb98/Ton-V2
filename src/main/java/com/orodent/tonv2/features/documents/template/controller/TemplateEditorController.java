@@ -108,6 +108,8 @@ public class TemplateEditorController {
         view.getValidateButton().setOnAction(e -> validateTemplate());
         view.getPreviewButton().setOnAction(e -> previewTemplate());
         view.getSaveButton().setOnAction(e -> saveTemplate());
+        view.getPreviewPortraitButton().setOnAction(e -> view.setPreviewPortraitMode());
+        view.getPreviewLandscapeButton().setOnAction(e -> view.setPreviewLandscapeMode());
     }
 
     private String buildExpression(TreeItem<String> leaf) {

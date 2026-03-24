@@ -78,6 +78,16 @@ public class CodeMirrorEditor extends StackPane {
                     .CodeMirror-gutters { background:#1e293b; border-right:1px solid #334155; }
                     .CodeMirror-cursor { border-left: 2px solid #f8fafc !important; }
                     .CodeMirror-focused .CodeMirror-selected { background: #334155 !important; }
+                    .cm-keyword { color: #fda4af !important; }
+                    .cm-atom { color: #93c5fd !important; }
+                    .cm-number { color: #fcd34d !important; }
+                    .cm-def { color: #86efac !important; }
+                    .cm-variable, .cm-variable-2, .cm-variable-3 { color: #e2e8f0 !important; }
+                    .cm-property { color: #67e8f9 !important; }
+                    .cm-string { color: #bef264 !important; }
+                    .cm-comment { color: #cbd5e1 !important; font-style: italic; }
+                    .cm-tag { color: #f9a8d4 !important; }
+                    .cm-attribute { color: #fdba74 !important; }
                   </style>
                 </head>
                 <body>
