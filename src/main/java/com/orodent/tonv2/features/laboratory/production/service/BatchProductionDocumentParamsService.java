@@ -41,7 +41,7 @@ public class BatchProductionDocumentParamsService {
         int blankModelId = planLines.getFirst().item().blankModelId();
 
         params.put("composition", fetchComposition(compositionId));
-        params.put("blank_model", fetchBlankModel(blankModelId));
+        params.put("blank_model", fetchBlankModel(blankModelId, compositionId));
         return params;
     }
 
@@ -67,7 +67,7 @@ public class BatchProductionDocumentParamsService {
                     "height_mm", sample.heightMm
             )));
             params.put("composition", fetchComposition(sample.compositionId));
-            params.put("blank_model", fetchBlankModel(sample.blankModelId));
+            params.put("blank_model", fetchBlankModel(sample.blankModelId, sample.compositionId));
             return params;
         } catch (SQLException e) {
             throw new RuntimeException("Errore costruzione preset da DB", e);
@@ -119,7 +119,6 @@ public class BatchProductionDocumentParamsService {
                 }
             }
 
-            composition.put("layers", fetchCompositionLayers(connection, compositionId));
             return composition;
         } catch (SQLException e) {
             throw new RuntimeException("Errore lettura composition", e);
@@ -168,7 +167,7 @@ public class BatchProductionDocumentParamsService {
         return layers;
     }
 
-    private Map<String, Object> fetchBlankModel(int blankModelId) {
+    private Map<String, Object> fetchBlankModel(int blankModelId, int compositionId) {
         try (Connection connection = connectionSupplier.get()) {
             Map<String, Object> result = new LinkedHashMap<>();
             String blankSql = """
@@ -195,7 +194,9 @@ public class BatchProductionDocumentParamsService {
                 }
             }
 
-            result.put("layers", fetchBlankModelLayers(connection, blankModelId));
+            List<Map<String, Object>> blankModelLayers = fetchBlankModelLayers(connection, blankModelId);
+            List<Map<String, Object>> compositionLayers = fetchCompositionLayers(connection, compositionId);
+            result.put("layers", mergeBlankAndCompositionLayers(blankModelLayers, compositionLayers));
             return result;
         } catch (SQLException e) {
             throw new RuntimeException("Errore lettura blank model", e);
@@ -223,6 +224,49 @@ public class BatchProductionDocumentParamsService {
             }
         }
         return layers;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> mergeBlankAndCompositionLayers(List<Map<String, Object>> blankLayers,
+                                                                     List<Map<String, Object>> compositionLayers) {
+        Map<Integer, Map<String, Object>> compositionByLayer = new LinkedHashMap<>();
+        for (Map<String, Object> compositionLayer : compositionLayers) {
+            Object layerNumber = compositionLayer.get("layer_number");
+            if (layerNumber instanceof Integer layer) {
+                compositionByLayer.put(layer, compositionLayer);
+            }
+        }
+
+        List<Map<String, Object>> merged = new ArrayList<>();
+        for (Map<String, Object> blankLayer : blankLayers) {
+            int layerNumber = ((Number) blankLayer.getOrDefault("layer_number", 0)).intValue();
+            double diskPercentage = ((Number) blankLayer.getOrDefault("disk_percentage", 0.0)).doubleValue();
+
+            Map<String, Object> compositionLayer = compositionByLayer.get(layerNumber);
+            double compositionPercentage = compositionLayer == null
+                    ? 0.0
+                    : ((Number) compositionLayer.getOrDefault("percentage", 0.0)).doubleValue();
+
+            List<Map<String, Object>> compositionIngredients = compositionLayer == null
+                    ? List.of()
+                    : (List<Map<String, Object>>) compositionLayer.getOrDefault("ingredients", List.of());
+
+            List<Map<String, Object>> ingredients = new ArrayList<>();
+            for (Map<String, Object> ingredient : compositionIngredients) {
+                ingredients.add(Map.of(
+                        "powder", ingredient.get("powder"),
+                        "percentage", compositionPercentage
+                ));
+            }
+
+            merged.add(Map.of(
+                    "layer_number", layerNumber,
+                    "disk_percentage", diskPercentage,
+                    "ingredients", ingredients
+            ));
+        }
+
+        return merged;
     }
 
     private List<Map<String, Object>> buildItems(List<BatchProductionService.ProductionPlanLine> planLines) {
