@@ -61,8 +61,8 @@ public class TemplateEditorView extends VBox {
         templateNameField.setPromptText("Nome template");
 
         HBox topBar = new HBox(10,
-                label("Preset:"), presetSelector,
-                label("Nome:"), templateNameField
+                topLabel("Preset:"), presetSelector,
+                topLabel("Nome:"), templateNameField
         );
         topBar.setAlignment(Pos.CENTER_LEFT);
 
@@ -134,6 +134,12 @@ public class TemplateEditorView extends VBox {
     private Label label(String text) {
         Label label = new Label(text);
         label.setStyle("-fx-text-fill: #0f172a; -fx-font-weight: 700;");
+        return label;
+    }
+
+    private Label topLabel(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-text-fill: white; -fx-font-weight: 700;");
         return label;
     }
 

@@ -101,6 +101,14 @@ public class TemplateEditorService {
         return new QueryVariablesResult(root.toNodes(), gson.toJson(sampleData));
     }
 
+    public List<VariableNode> extractVariablesFromParamsMap(Map<String, Object> paramsMap) {
+        return mapToVariableNodes(paramsMap);
+    }
+
+    public String toJson(Map<String, Object> payload) {
+        return gson.toJson(payload == null ? Map.of() : payload);
+    }
+
     public List<TemplateSnapshot> getSavedTemplates() {
         return List.copyOf(savedTemplates);
     }
@@ -176,6 +184,42 @@ public class TemplateEditorService {
 
     private String stringifyValue(Object value) {
         return value == null ? null : value.toString();
+    }
+
+    private List<VariableNode> mapToVariableNodes(Map<String, Object> map) {
+        if (map == null) {
+            return List.of();
+        }
+
+        List<VariableNode> nodes = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            nodes.add(buildVariableNode(entry.getKey(), entry.getValue()));
+        }
+        return nodes;
+    }
+
+    @SuppressWarnings("unchecked")
+    private VariableNode buildVariableNode(String name, Object value) {
+        if (value instanceof Map<?, ?> nestedMap) {
+            List<VariableNode> children = mapToVariableNodes((Map<String, Object>) nestedMap);
+            return new VariableNode(name, null, children);
+        }
+
+        if (value instanceof List<?> listValue) {
+            if (listValue.isEmpty()) {
+                return new VariableNode(name + "[]", null, List.of());
+            }
+
+            Object first = listValue.getFirst();
+            if (first instanceof Map<?, ?> firstMap) {
+                List<VariableNode> children = mapToVariableNodes((Map<String, Object>) firstMap);
+                return new VariableNode(name + "[]", null, children);
+            }
+
+            return new VariableNode(name + "[]", first.toString(), List.of());
+        }
+
+        return new VariableNode(name, stringifyValue(value), List.of());
     }
 
     public record ValidationResult(boolean valid, String message) {

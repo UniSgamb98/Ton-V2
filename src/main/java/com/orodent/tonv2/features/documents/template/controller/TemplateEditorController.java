@@ -2,10 +2,12 @@ package com.orodent.tonv2.features.documents.template.controller;
 
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import javafx.scene.control.TreeItem;
 
 import java.sql.Connection;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class TemplateEditorController {
@@ -13,6 +15,8 @@ public class TemplateEditorController {
     private final TemplateEditorView view;
     private final TemplateEditorService service;
     private final Supplier<Connection> connectionSupplier;
+    private final BatchProductionDocumentParamsService batchPresetService;
+    private final Map<String, Map<String, Object>> presetPayloadByCode;
     private String previewJsonPayload;
 
     public TemplateEditorController(TemplateEditorView view,
@@ -21,6 +25,8 @@ public class TemplateEditorController {
         this.view = view;
         this.service = service;
         this.connectionSupplier = connectionSupplier;
+        this.batchPresetService = new BatchProductionDocumentParamsService();
+        this.presetPayloadByCode = new LinkedHashMap<>();
 
         setupDefaults();
         setupActions();
@@ -44,25 +50,16 @@ public class TemplateEditorController {
                 }
                 """;
 
-        view.setVariables(defaultVariables());
-    }
+        Map<String, Object> batchPreset = batchPresetService.buildSamplePreset();
+        presetPayloadByCode.put("Batch Production", batchPreset);
 
-    private List<TemplateEditorService.VariableNode> defaultVariables() {
-        return List.of(
-                new TemplateEditorService.VariableNode("line", null, List.of(
-                        new TemplateEditorService.VariableNode("name", "Linea A", List.of())
-                )),
-                new TemplateEditorService.VariableNode("composition", null, List.of(
-                        new TemplateEditorService.VariableNode("id", "10", List.of()),
-                        new TemplateEditorService.VariableNode("version", "3", List.of()),
-                        new TemplateEditorService.VariableNode("num_layers", "5", List.of())
-                )),
-                new TemplateEditorService.VariableNode("items[]", null, List.of(
-                        new TemplateEditorService.VariableNode("code", "A01", List.of()),
-                        new TemplateEditorService.VariableNode("quantity", "3", List.of()),
-                        new TemplateEditorService.VariableNode("height_mm", "14.2", List.of())
-                ))
-        );
+        view.getPresetSelector().setDisable(false);
+        view.getPresetSelector().getItems().setAll(presetPayloadByCode.keySet());
+        view.getPresetSelector().setValue("Batch Production");
+
+        previewJsonPayload = service.toJson(batchPreset);
+        view.setVariables(service.extractVariablesFromParamsMap(batchPreset));
+
     }
 
     private void setupActions() {
@@ -110,6 +107,22 @@ public class TemplateEditorController {
         view.getSaveButton().setOnAction(e -> saveTemplate());
         view.getPreviewPortraitButton().setOnAction(e -> view.setPreviewPortraitMode());
         view.getPreviewLandscapeButton().setOnAction(e -> view.setPreviewLandscapeMode());
+        view.getPresetSelector().valueProperty().addListener((obs, oldVal, newVal) -> applyPreset(newVal));
+    }
+
+    private void applyPreset(String presetCode) {
+        if (presetCode == null || presetCode.isBlank()) {
+            return;
+        }
+
+        Map<String, Object> payload = presetPayloadByCode.get(presetCode);
+        if (payload == null) {
+            return;
+        }
+
+        previewJsonPayload = service.toJson(payload);
+        view.setVariables(service.extractVariablesFromParamsMap(payload));
+        view.setFeedback("Preset caricato: " + presetCode, false);
     }
 
     private String buildExpression(TreeItem<String> leaf) {
