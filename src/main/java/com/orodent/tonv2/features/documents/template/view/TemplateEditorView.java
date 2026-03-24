@@ -16,6 +16,7 @@ import javafx.scene.control.TreeView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.web.WebView;
 
 import java.util.List;
 
@@ -44,8 +45,9 @@ public class TemplateEditorView extends VBox {
     private final Button saveButton = new Button("Salva");
 
     private final TextArea sampleJsonArea = new TextArea();
-    private final TextArea outputArea = new TextArea();
     private final Label feedbackLabel = new Label();
+
+    private final WebView previewWebView = new WebView();
 
     public TemplateEditorView() {
         setSpacing(12);
@@ -53,17 +55,15 @@ public class TemplateEditorView extends VBox {
 
         presetSelector.setPromptText("Preset parametri (placeholder)");
         presetSelector.setDisable(true);
-
         templateNameField.setPromptText("Nome template");
 
         HBox topBar = new HBox(10,
-                new Label("Preset:"), presetSelector,
-                new Label("Nome:"), templateNameField
+                label("Preset:"), presetSelector,
+                label("Nome:"), templateNameField
         );
         topBar.setAlignment(Pos.CENTER_LEFT);
 
-        VBox snippetsBox = new VBox(8,
-                new Label("Blocchi FreeMarker"),
+        HBox snippetsRow = new HBox(8,
                 snippetVariableButton,
                 snippetIfButton,
                 snippetListButton,
@@ -72,49 +72,62 @@ public class TemplateEditorView extends VBox {
                 snippetHeaderButton,
                 snippetFooterButton
         );
-        snippetsBox.setPrefWidth(180);
+        snippetsRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox templateBox = new VBox(6, label("Template FreeMarker"), templateEditor);
+        VBox.setVgrow(templateEditor, Priority.ALWAYS);
 
         TreeItem<String> root = new TreeItem<>("variabili");
         root.setExpanded(true);
         variablesTree.setRoot(root);
         variablesTree.setShowRoot(false);
+        VBox variablesBox = new VBox(6, label("Variabili disponibili"), variablesTree);
+        variablesBox.setPrefWidth(260);
+        VBox.setVgrow(variablesTree, Priority.ALWAYS);
 
-        VBox variablesBox = new VBox(6, new Label("Variabili disponibili"), variablesTree);
-        variablesBox.setPrefWidth(240);
-
-        VBox templateEditorBox = new VBox(6, new Label("Template FreeMarker"), templateEditor);
-        VBox.setVgrow(templateEditor, Priority.ALWAYS);
-
-        SplitPane upperPane = new SplitPane(snippetsBox, templateEditorBox, variablesBox);
-        upperPane.setDividerPositions(0.16, 0.73);
-
-        VBox sqlBox = new VBox(6, new Label("Query SQL (solo SELECT)"), sqlEditor);
+        VBox queryBox = new VBox(6, label("Query SQL (solo SELECT)"), sqlEditor);
         VBox.setVgrow(sqlEditor, Priority.ALWAYS);
+
+        HBox queryAndVariables = new HBox(10, queryBox, variablesBox);
+        HBox.setHgrow(queryBox, Priority.ALWAYS);
+        HBox.setHgrow(variablesBox, Priority.SOMETIMES);
 
         sampleJsonArea.setPromptText("Dati JSON di esempio per anteprima...");
         sampleJsonArea.setPrefRowCount(5);
 
-        outputArea.setEditable(false);
-        outputArea.setWrapText(true);
-        outputArea.setPrefRowCount(8);
-
         HBox actions = new HBox(10, fetchDbButton, validateButton, previewButton, saveButton);
+
+        VBox leftPane = new VBox(10,
+                snippetsRow,
+                templateBox,
+                queryAndVariables,
+                label("JSON anteprima"),
+                sampleJsonArea,
+                actions,
+                feedbackLabel
+        );
+        VBox.setVgrow(templateBox, Priority.ALWAYS);
+        VBox.setVgrow(queryAndVariables, Priority.ALWAYS);
+
+        previewWebView.getEngine().loadContent("<html><body><h3>Anteprima HTML</h3><p>Premi 'Anteprima' per vedere il render.</p></body></html>");
+        VBox previewPane = new VBox(6, label("Anteprima HTML"), previewWebView);
+        VBox.setVgrow(previewWebView, Priority.ALWAYS);
+
+        SplitPane splitPane = new SplitPane(leftPane, previewPane);
+        splitPane.setDividerPositions(0.62);
+        VBox.setVgrow(splitPane, Priority.ALWAYS);
 
         getChildren().addAll(
                 header,
                 topBar,
-                upperPane,
-                sqlBox,
-                new Label("JSON anteprima"),
-                sampleJsonArea,
-                actions,
-                feedbackLabel,
-                new Label("Output / Anteprima HTML"),
-                outputArea
+                splitPane
         );
+    }
 
-        VBox.setVgrow(upperPane, Priority.ALWAYS);
-        VBox.setVgrow(sqlBox, Priority.ALWAYS);
+    private Label label(String text) {
+        Label label = new Label(text);
+        label.setStyle("-fx-text-fill: #0f172a; -fx-font-weight: 700;");
+        return label;
     }
 
     public void setVariables(List<TemplateEditorService.VariableNode> variables) {
@@ -134,6 +147,10 @@ public class TemplateEditorView extends VBox {
             item.getChildren().add(toTreeItem(child));
         }
         return item;
+    }
+
+    public void renderPreview(String html) {
+        previewWebView.getEngine().loadContent(html == null ? "" : html, "text/html");
     }
 
     public void setFeedback(String message, boolean error) {
@@ -159,5 +176,4 @@ public class TemplateEditorView extends VBox {
     public Button getPreviewButton() { return previewButton; }
     public Button getSaveButton() { return saveButton; }
     public TextArea getSampleJsonArea() { return sampleJsonArea; }
-    public TextArea getOutputArea() { return outputArea; }
 }

@@ -1,5 +1,6 @@
 package com.orodent.tonv2.features.documents.template.controller;
 
+import com.orodent.tonv2.core.ui.HtmlPreviewBrowserLauncher;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import javafx.scene.control.TreeItem;
@@ -13,6 +14,7 @@ public class TemplateEditorController {
     private final TemplateEditorView view;
     private final TemplateEditorService service;
     private final Supplier<Connection> connectionSupplier;
+    private final HtmlPreviewBrowserLauncher previewBrowserLauncher;
 
     public TemplateEditorController(TemplateEditorView view,
                                     TemplateEditorService service,
@@ -20,6 +22,7 @@ public class TemplateEditorController {
         this.view = view;
         this.service = service;
         this.connectionSupplier = connectionSupplier;
+        this.previewBrowserLauncher = new HtmlPreviewBrowserLauncher();
 
         setupDefaults();
         setupActions();
@@ -145,8 +148,15 @@ public class TemplateEditorController {
                 view.getTemplateEditor().getValue(),
                 view.getSampleJsonArea().getText()
         );
-        view.getOutputArea().setText(result.htmlOrError());
-        view.setFeedback(result.success() ? "Anteprima generata." : "Errore durante anteprima.", !result.success());
+
+        if (!result.success()) {
+            view.setFeedback(result.htmlOrError(), true);
+            return;
+        }
+
+        view.renderPreview(result.htmlOrError());
+        HtmlPreviewBrowserLauncher.LaunchResult browserResult = previewBrowserLauncher.openInBrowser(result.htmlOrError());
+        view.setFeedback(browserResult.message(), !browserResult.success());
     }
 
     private void saveTemplate() {

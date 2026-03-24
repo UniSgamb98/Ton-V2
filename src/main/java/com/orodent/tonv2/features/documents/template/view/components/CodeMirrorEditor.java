@@ -68,6 +68,8 @@ public class CodeMirrorEditor extends StackPane {
                     html, body { height:100%%; margin:0; background:#0f172a; }
                     .CodeMirror { height:100vh; font-size:13px; background:#0f172a; color:#e2e8f0; }
                     .CodeMirror-gutters { background:#1e293b; border-right:1px solid #334155; }
+                    .CodeMirror-cursor { border-left: 2px solid #f8fafc !important; }
+                    .CodeMirror-focused .CodeMirror-selected { background: #334155 !important; }
                   </style>
                 </head>
                 <body>
