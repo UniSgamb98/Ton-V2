@@ -3,6 +3,9 @@ package com.orodent.tonv2.app;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
 import com.orodent.tonv2.features.documents.home.view.DocumentsView;
+import com.orodent.tonv2.features.documents.template.controller.TemplateEditorController;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
@@ -33,6 +36,7 @@ public class AppController {
     private final Stage stage;
     private final AppContainer app;
     private final String cssPath;
+    private final TemplateEditorService templateEditorService;
 
     /*
     In questo progetto l'applicazione è state-less. Che significa che tutte le View vengono create da zero sempre.
@@ -47,6 +51,7 @@ public class AppController {
         this.stage = stage;
         this.app = new AppContainer();
         this.cssPath = Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm();
+        this.templateEditorService = new TemplateEditorService();
 
         showHome();
         stage.setOnCloseRequest(e -> shutdown());
@@ -68,7 +73,12 @@ public class AppController {
     }
 
     public void showDocumentsCreate() {
-        showDocuments();
+        TemplateEditorView view = new TemplateEditorView();
+        configureHeader(view.getHeader());
+        new TemplateEditorController(view, templateEditorService, app.database::getConnection);
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Nuovo documento");
     }
 
     public void showDocumentsArchive() {
