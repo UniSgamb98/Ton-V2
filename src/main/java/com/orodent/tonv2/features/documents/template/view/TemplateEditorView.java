@@ -92,9 +92,11 @@ public class TemplateEditorView extends VBox {
         VBox queryBox = new VBox(6, label("Query per Variabili"), sqlEditor);
         VBox.setVgrow(sqlEditor, Priority.ALWAYS);
 
-        HBox queryAndVariables = new HBox(10, queryBox, variablesBox);
-        HBox.setHgrow(queryBox, Priority.ALWAYS);
-        HBox.setHgrow(variablesBox, Priority.SOMETIMES);
+        SplitPane queryAndVariables = new SplitPane(queryBox, variablesBox);
+        queryAndVariables.setOrientation(Orientation.HORIZONTAL);
+        queryAndVariables.setDividerPositions(0.68);
+        queryAndVariables.setMinHeight(220);
+        HBox.setHgrow(queryAndVariables, Priority.ALWAYS);
 
         HBox actions = new HBox(10, fetchDbButton, validateButton, previewButton, saveButton);
 
