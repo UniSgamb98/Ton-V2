@@ -149,7 +149,6 @@ public class BatchProductionDocumentParamsService {
                     groupedIngredients.computeIfAbsent(layer, ignored -> new ArrayList<>())
                             .add(Map.of(
                                     "powder", Map.of(
-                                            "id", rs.getInt("powder_id"),
                                             "code", rs.getString("powder_code")
                                     )
                             ));
