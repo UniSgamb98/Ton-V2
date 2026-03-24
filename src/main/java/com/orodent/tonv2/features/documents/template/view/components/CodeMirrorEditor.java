@@ -58,12 +58,12 @@ public class CodeMirrorEditor extends StackPane {
                 <!doctype html>
                 <html>
                 <head>
-                  <meta charset=\"UTF-8\" />
-                  <link rel=\"stylesheet\" href=\"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css\" />
-                  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js\"></script>
-                  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/xml/xml.min.js\"></script>
-                  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/sql/sql.min.js\"></script>
-                  <script src=\"https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/htmlmixed/htmlmixed.min.js\"></script>
+                  <meta charset="UTF-8" />
+                  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.css" />
+                  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/codemirror.min.js"></script>
+                  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/xml/xml.min.js"></script>
+                  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/sql/sql.min.js"></script>
+                  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/htmlmixed/htmlmixed.min.js"></script>
                   <style>
                     html, body { height:100%; margin:0; background:#0f172a; }
                     .CodeMirror { height:100vh; font-size:13px; background:#0f172a; color:#e2e8f0; }
@@ -71,11 +71,11 @@ public class CodeMirrorEditor extends StackPane {
                   </style>
                 </head>
                 <body>
-                  <textarea id=\"editor\"></textarea>
+                  <textarea id="editor"></textarea>
                   <script>
                     window.editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
                       lineNumbers: true,
-                      mode: '""" + safeMode + """',
+                      mode: '%s',
                       tabSize: 2,
                       indentUnit: 2,
                       matchBrackets: true,
@@ -90,7 +90,7 @@ public class CodeMirrorEditor extends StackPane {
                   </script>
                 </body>
                 </html>
-                """;
+                """.formatted(escapeJsSingleQuotedString(safeMode));
     }
 
     private String toJsString(String raw) {
@@ -101,5 +101,13 @@ public class CodeMirrorEditor extends StackPane {
                 .replace("\"", "\\\"")
                 .replace("'", "\\'");
         return "\"" + escaped + "\"";
+    }
+
+    private String escapeJsSingleQuotedString(String raw) {
+        return raw
+                .replace("\\", "\\\\")
+                .replace("'", "\\'")
+                .replace("\n", "")
+                .replace("\r", "");
     }
 }
