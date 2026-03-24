@@ -32,8 +32,8 @@ public class TemplateEditorView extends VBox {
     private final Button snippetIfButton = new Button("If");
     private final Button snippetListButton = new Button("Ciclo items");
     private final Button snippetAssignButton = new Button("Assign");
-    private final Button snippetItemsTableButton = new Button("Tabella items");
-    private final Button snippetHeaderButton = new Button("Header documento");
+    private final Button snippetItemsTableButton = new Button("Tabella");
+    private final Button snippetHeaderButton = new Button("Header");
     private final Button snippetFooterButton = new Button("Footer");
 
     private final TreeView<String> variablesTree = new TreeView<>();
@@ -80,7 +80,8 @@ public class TemplateEditorView extends VBox {
         variablesTree.setRoot(root);
         variablesTree.setShowRoot(false);
         VBox variablesBox = new VBox(6, label("Variabili disponibili"), variablesTree);
-        variablesBox.setPrefWidth(260);
+        variablesBox.setPrefWidth(400);
+        variablesBox.setMinWidth(400);
         VBox.setVgrow(variablesTree, Priority.ALWAYS);
 
         VBox queryBox = new VBox(6, label("Query per Variabili"), sqlEditor);

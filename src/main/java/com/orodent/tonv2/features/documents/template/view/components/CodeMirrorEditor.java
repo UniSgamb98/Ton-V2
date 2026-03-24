@@ -94,7 +94,18 @@ public class CodeMirrorEditor extends StackPane {
                     window.insertSnippet = function(snippet) {
                       const doc = window.editor.getDoc();
                       const cursor = doc.getCursor();
-                      doc.replaceRange(snippet, cursor);
+                      const marker = '£';
+                      const markerIndex = snippet.indexOf(marker);
+                      const sanitized = markerIndex >= 0 ? snippet.replace(marker, '') : snippet;
+
+                      doc.replaceRange(sanitized, cursor);
+
+                      if (markerIndex >= 0) {
+                        const from = doc.indexFromPos(cursor);
+                        const target = doc.posFromIndex(from + markerIndex);
+                        doc.setCursor(target);
+                      }
+
                       window.editor.focus();
                     }
                   </script>

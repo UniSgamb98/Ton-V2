@@ -66,30 +66,30 @@ public class TemplateEditorController {
     }
 
     private void setupActions() {
-        view.getSnippetVariableButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("${variable}\n"));
+        view.getSnippetVariableButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("${variable£}"));
         view.getSnippetIfButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("""
                 <#if condition>
-                  <!-- contenuto -->
+                  <!-- contenuto -->£
                 </#if>
                 """));
         view.getSnippetListButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("""
                 <#list items as item>
-                  <p>Codice: ${item.code}</p>
+                  <p>Codice: ${item.code}£</p>
                 </#list>
                 """));
-        view.getSnippetAssignButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<#assign nomeVariabile = \"valore\">\n"));
+        view.getSnippetAssignButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<#assign nomeVariabile = \"valore£\">"));
         view.getSnippetItemsTableButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("""
                 <table>
                   <thead><tr><th>Codice</th><th>Qta</th><th>Altezza</th></tr></thead>
                   <tbody>
                     <#list items as item>
-                      <tr><td>${item.code}</td><td>${item.quantity}</td><td>${item.height_mm}</td></tr>
+                      <tr><td>${item.code}</td><td>${item.quantity}</td><td>${item.height_mm}£</td></tr>
                     </#list>
                   </tbody>
                 </table>
                 """));
-        view.getSnippetHeaderButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<header><h1>${line.name!}</h1></header>\n"));
-        view.getSnippetFooterButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<footer><p>Documento generato automaticamente</p></footer>\n"));
+        view.getSnippetHeaderButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<header><h1>${line.name!}£</h1></header>"));
+        view.getSnippetFooterButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<footer><p>Documento generato automaticamente£</p></footer>"));
 
         view.getVariablesTree().setOnMouseClicked(event -> {
             TreeItem<String> selected = view.getVariablesTree().getSelectionModel().getSelectedItem();
