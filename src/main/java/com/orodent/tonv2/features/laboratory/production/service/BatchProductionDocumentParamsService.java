@@ -138,29 +138,31 @@ public class BatchProductionDocumentParamsService {
                 ORDER BY cli.layer_number, cli.powder_id
                 """;
 
-        Map<Integer, List<Map<String, Object>>> grouped = new LinkedHashMap<>();
+        Map<Integer, List<Map<String, Object>>> groupedIngredients = new LinkedHashMap<>();
+        Map<Integer, Double> groupedPercentages = new LinkedHashMap<>();
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, compositionId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int layer = rs.getInt("layer_number");
-                    grouped.computeIfAbsent(layer, ignored -> new ArrayList<>())
+                    groupedIngredients.computeIfAbsent(layer, ignored -> new ArrayList<>())
                             .add(Map.of(
-                                    "percentage", rs.getDouble("percentage"),
                                     "powder", Map.of(
                                             "id", rs.getInt("powder_id"),
                                             "code", rs.getString("powder_code")
                                     )
                             ));
+                    groupedPercentages.merge(layer, rs.getDouble("percentage"), Double::sum);
                 }
             }
         }
 
         List<Map<String, Object>> layers = new ArrayList<>();
-        for (Map.Entry<Integer, List<Map<String, Object>>> entry : grouped.entrySet()) {
+        for (Map.Entry<Integer, List<Map<String, Object>>> entry : groupedIngredients.entrySet()) {
             layers.add(Map.of(
                     "layer_number", entry.getKey(),
+                    "percentage", groupedPercentages.getOrDefault(entry.getKey(), 0.0),
                     "ingredients", entry.getValue()
             ));
         }
