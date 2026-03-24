@@ -9,7 +9,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
-import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -44,7 +43,6 @@ public class TemplateEditorView extends VBox {
     private final Button previewButton = new Button("Anteprima");
     private final Button saveButton = new Button("Salva");
 
-    private final TextArea sampleJsonArea = new TextArea();
     private final Label feedbackLabel = new Label();
 
     private final WebView previewWebView = new WebView();
@@ -85,15 +83,12 @@ public class TemplateEditorView extends VBox {
         variablesBox.setPrefWidth(260);
         VBox.setVgrow(variablesTree, Priority.ALWAYS);
 
-        VBox queryBox = new VBox(6, label("Query SQL (solo SELECT)"), sqlEditor);
+        VBox queryBox = new VBox(6, label("Query per Variabili"), sqlEditor);
         VBox.setVgrow(sqlEditor, Priority.ALWAYS);
 
         HBox queryAndVariables = new HBox(10, queryBox, variablesBox);
         HBox.setHgrow(queryBox, Priority.ALWAYS);
         HBox.setHgrow(variablesBox, Priority.SOMETIMES);
-
-        sampleJsonArea.setPromptText("Dati JSON di esempio per anteprima...");
-        sampleJsonArea.setPrefRowCount(5);
 
         HBox actions = new HBox(10, fetchDbButton, validateButton, previewButton, saveButton);
 
@@ -101,8 +96,6 @@ public class TemplateEditorView extends VBox {
                 snippetsRow,
                 templateBox,
                 queryAndVariables,
-                label("JSON anteprima"),
-                sampleJsonArea,
                 actions,
                 feedbackLabel
         );
@@ -141,12 +134,20 @@ public class TemplateEditorView extends VBox {
     }
 
     private TreeItem<String> toTreeItem(TemplateEditorService.VariableNode node) {
-        TreeItem<String> item = new TreeItem<>(node.name());
+        TreeItem<String> item = new TreeItem<>(formatVariableLabel(node));
         item.setExpanded(true);
         for (TemplateEditorService.VariableNode child : node.children()) {
             item.getChildren().add(toTreeItem(child));
         }
         return item;
+    }
+
+
+    private String formatVariableLabel(TemplateEditorService.VariableNode node) {
+        if (node.sampleValue() == null || node.sampleValue().isBlank()) {
+            return node.name();
+        }
+        return node.name() + " = " + node.sampleValue();
     }
 
     public void renderPreview(String html) {
@@ -175,5 +176,4 @@ public class TemplateEditorView extends VBox {
     public Button getValidateButton() { return validateButton; }
     public Button getPreviewButton() { return previewButton; }
     public Button getSaveButton() { return saveButton; }
-    public TextArea getSampleJsonArea() { return sampleJsonArea; }
 }

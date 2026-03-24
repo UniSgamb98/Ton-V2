@@ -50,6 +50,14 @@ public class CodeMirrorEditor extends StackPane {
             return;
         }
         engine.executeScript("window.insertSnippet(" + toJsString(safeSnippet) + ");");
+        focusEditor();
+    }
+
+    public void focusEditor() {
+        webView.requestFocus();
+        if (ready) {
+            engine.executeScript("window.editor.focus();");
+        }
     }
 
     private String buildHtml(String mode) {

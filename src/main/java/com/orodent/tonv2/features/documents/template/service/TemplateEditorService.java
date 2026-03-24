@@ -1,6 +1,7 @@
 package com.orodent.tonv2.features.documents.template.service;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import freemarker.cache.StringTemplateLoader;
 import freemarker.template.Configuration;
@@ -28,7 +29,7 @@ public class TemplateEditorService {
     private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
     private static final String RUNTIME_TEMPLATE_KEY = "runtime-template";
 
-    private final Gson gson = new Gson();
+    private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final List<TemplateSnapshot> savedTemplates = new ArrayList<>();
 
     public ValidationResult validateTemplate(String templateText) {
@@ -74,24 +75,30 @@ public class TemplateEditorService {
         return SaveResult.ok("Template salvato in memoria applicativa.");
     }
 
-    public List<VariableNode> extractVariablesFromQuery(String sqlQuery, Connection connection) {
+    public QueryVariablesResult extractVariablesFromQuery(String sqlQuery, Connection connection) {
         validateSelectQuery(sqlQuery);
 
         VariableBuilder root = new VariableBuilder("root");
+        Map<String, Object> sampleData = new LinkedHashMap<>();
+
         try (PreparedStatement statement = connection.prepareStatement(sqlQuery)) {
             statement.setMaxRows(1);
             try (ResultSet rs = statement.executeQuery()) {
                 ResultSetMetaData metadata = rs.getMetaData();
+                boolean hasRow = rs.next();
+
                 for (int i = 1; i <= metadata.getColumnCount(); i++) {
                     String label = metadata.getColumnLabel(i);
-                    root.appendPath(label);
+                    Object value = hasRow ? rs.getObject(i) : null;
+                    root.appendPath(label, stringifyValue(value));
+                    putPathValue(sampleData, label, value);
                 }
             }
         } catch (SQLException e) {
             throw new IllegalArgumentException("Errore esecuzione query: " + e.getMessage(), e);
         }
 
-        return root.toNodes();
+        return new QueryVariablesResult(root.toNodes(), gson.toJson(sampleData));
     }
 
     public List<TemplateSnapshot> getSavedTemplates() {
@@ -139,6 +146,38 @@ public class TemplateEditorService {
         return parsed == null ? new HashMap<>() : parsed;
     }
 
+    private void putPathValue(Map<String, Object> target, String rawPath, Object value) {
+        if (rawPath == null || rawPath.isBlank()) {
+            return;
+        }
+
+        String[] tokens = rawPath.split("\\.");
+        Map<String, Object> current = target;
+        for (int i = 0; i < tokens.length; i++) {
+            String part = tokens[i].trim();
+            if (part.isBlank()) {
+                continue;
+            }
+
+            if (i == tokens.length - 1) {
+                current.put(part, value);
+            } else {
+                Object existing = current.get(part);
+                if (!(existing instanceof Map<?, ?>)) {
+                    Map<String, Object> child = new LinkedHashMap<>();
+                    current.put(part, child);
+                    current = child;
+                } else {
+                    current = (Map<String, Object>) existing;
+                }
+            }
+        }
+    }
+
+    private String stringifyValue(Object value) {
+        return value == null ? null : value.toString();
+    }
+
     public record ValidationResult(boolean valid, String message) {
         static ValidationResult ok(String message) { return new ValidationResult(true, message); }
         static ValidationResult error(String message) { return new ValidationResult(false, message); }
@@ -154,38 +193,45 @@ public class TemplateEditorService {
         static SaveResult error(String message) { return new SaveResult(false, message); }
     }
 
-    public record VariableNode(String name, List<VariableNode> children) {}
+    public record VariableNode(String name, String sampleValue, List<VariableNode> children) {}
+
+    public record QueryVariablesResult(List<VariableNode> variables, String sampleJsonPayload) {}
 
     public record TemplateSnapshot(String name, String templateContent, String sqlQuery, String presetCode, Instant savedAt) {}
 
     private static final class VariableBuilder {
         private final String name;
+        private String sampleValue;
         private final Map<String, VariableBuilder> children = new LinkedHashMap<>();
 
         private VariableBuilder(String name) {
             this.name = name;
         }
 
-        private void appendPath(String rawPath) {
+        private void appendPath(String rawPath, String value) {
             if (rawPath == null || rawPath.isBlank()) {
                 return;
             }
 
             String[] tokens = rawPath.split("\\.");
             VariableBuilder current = this;
-            for (String token : tokens) {
-                String part = token.trim();
+            for (int i = 0; i < tokens.length; i++) {
+                String part = tokens[i].trim();
                 if (part.isBlank()) {
                     continue;
                 }
+
                 current = current.children.computeIfAbsent(part, VariableBuilder::new);
+                if (i == tokens.length - 1) {
+                    current.sampleValue = value;
+                }
             }
         }
 
         private List<VariableNode> toNodes() {
             List<VariableNode> out = new ArrayList<>();
             for (VariableBuilder child : children.values()) {
-                out.add(new VariableNode(child.name, child.toNodes()));
+                out.add(new VariableNode(child.name, child.sampleValue, child.toNodes()));
             }
             return out;
         }

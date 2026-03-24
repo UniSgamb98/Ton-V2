@@ -1,6 +1,5 @@
 package com.orodent.tonv2.features.documents.template.controller;
 
-import com.orodent.tonv2.core.ui.HtmlPreviewBrowserLauncher;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import javafx.scene.control.TreeItem;
@@ -14,7 +13,7 @@ public class TemplateEditorController {
     private final TemplateEditorView view;
     private final TemplateEditorService service;
     private final Supplier<Connection> connectionSupplier;
-    private final HtmlPreviewBrowserLauncher previewBrowserLauncher;
+    private String previewJsonPayload;
 
     public TemplateEditorController(TemplateEditorView view,
                                     TemplateEditorService service,
@@ -22,7 +21,6 @@ public class TemplateEditorController {
         this.view = view;
         this.service = service;
         this.connectionSupplier = connectionSupplier;
-        this.previewBrowserLauncher = new HtmlPreviewBrowserLauncher();
 
         setupDefaults();
         setupActions();
@@ -33,34 +31,36 @@ public class TemplateEditorController {
         view.getTemplateEditor().setValue("""
                 <html>
                   <body>
-                    <h1>${line.name!\"Documento\"}</h1>
+                    <h1>${line.name!"Documento"}</h1>
                   </body>
                 </html>
                 """);
-        view.getSampleJsonArea().setText("""
+
+        previewJsonPayload = """
                 {
                   "line": {"name": "Linea A"},
                   "composition": {"id": 10, "version": 3, "num_layers": 5},
                   "items": [{"code": "A01", "quantity": 3, "height_mm": 14.2}]
                 }
-                """);
+                """;
+
         view.setVariables(defaultVariables());
     }
 
     private List<TemplateEditorService.VariableNode> defaultVariables() {
         return List.of(
-                new TemplateEditorService.VariableNode("line", List.of(
-                        new TemplateEditorService.VariableNode("name", List.of())
+                new TemplateEditorService.VariableNode("line", null, List.of(
+                        new TemplateEditorService.VariableNode("name", "Linea A", List.of())
                 )),
-                new TemplateEditorService.VariableNode("composition", List.of(
-                        new TemplateEditorService.VariableNode("id", List.of()),
-                        new TemplateEditorService.VariableNode("version", List.of()),
-                        new TemplateEditorService.VariableNode("num_layers", List.of())
+                new TemplateEditorService.VariableNode("composition", null, List.of(
+                        new TemplateEditorService.VariableNode("id", "10", List.of()),
+                        new TemplateEditorService.VariableNode("version", "3", List.of()),
+                        new TemplateEditorService.VariableNode("num_layers", "5", List.of())
                 )),
-                new TemplateEditorService.VariableNode("items[]", List.of(
-                        new TemplateEditorService.VariableNode("code", List.of()),
-                        new TemplateEditorService.VariableNode("quantity", List.of()),
-                        new TemplateEditorService.VariableNode("height_mm", List.of())
+                new TemplateEditorService.VariableNode("items[]", null, List.of(
+                        new TemplateEditorService.VariableNode("code", "A01", List.of()),
+                        new TemplateEditorService.VariableNode("quantity", "3", List.of()),
+                        new TemplateEditorService.VariableNode("height_mm", "14.2", List.of())
                 ))
         );
     }
@@ -100,6 +100,7 @@ public class TemplateEditorController {
             String expression = buildExpression(selected);
             if (!expression.isBlank()) {
                 view.getTemplateEditor().insertSnippet("${" + expression + "}");
+                view.getTemplateEditor().focusEditor();
             }
         });
 
@@ -110,11 +111,11 @@ public class TemplateEditorController {
     }
 
     private String buildExpression(TreeItem<String> leaf) {
-        StringBuilder expression = new StringBuilder(leaf.getValue());
+        StringBuilder expression = new StringBuilder(sanitizeToken(leaf.getValue()));
         TreeItem<String> current = leaf.getParent();
 
         while (current != null && current.getParent() != null) {
-            String token = current.getValue();
+            String token = sanitizeToken(current.getValue());
             if (!"variabili".equals(token)) {
                 String normalized = token.endsWith("[]") ? token.substring(0, token.length() - 2) : token;
                 expression.insert(0, normalized + ".");
@@ -125,13 +126,22 @@ public class TemplateEditorController {
         return expression.toString();
     }
 
+    private String sanitizeToken(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        int sep = raw.indexOf(" = ");
+        return sep >= 0 ? raw.substring(0, sep).trim() : raw.trim();
+    }
+
     private void fetchVariablesFromDb() {
         try (Connection connection = connectionSupplier.get()) {
-            List<TemplateEditorService.VariableNode> variables = service.extractVariablesFromQuery(
+            TemplateEditorService.QueryVariablesResult result = service.extractVariablesFromQuery(
                     view.getSqlEditor().getValue(),
                     connection
             );
-            view.setVariables(variables);
+            view.setVariables(result.variables());
+            previewJsonPayload = result.sampleJsonPayload();
             view.setFeedback("Variabili aggiornate dalla query SQL.", false);
         } catch (Exception ex) {
             view.setFeedback(ex.getMessage(), true);
@@ -146,7 +156,7 @@ public class TemplateEditorController {
     private void previewTemplate() {
         TemplateEditorService.PreviewResult result = service.previewTemplate(
                 view.getTemplateEditor().getValue(),
-                view.getSampleJsonArea().getText()
+                previewJsonPayload
         );
 
         if (!result.success()) {
@@ -155,8 +165,7 @@ public class TemplateEditorController {
         }
 
         view.renderPreview(result.htmlOrError());
-        HtmlPreviewBrowserLauncher.LaunchResult browserResult = previewBrowserLauncher.openInBrowser(result.htmlOrError());
-        view.setFeedback(browserResult.message(), !browserResult.success());
+        view.setFeedback("Anteprima aggiornata nel pannello di destra.", false);
     }
 
     private void saveTemplate() {
