@@ -25,7 +25,7 @@ public class TemplateEditorController {
         this.view = view;
         this.service = service;
         this.connectionSupplier = connectionSupplier;
-        this.batchPresetService = new BatchProductionDocumentParamsService();
+        this.batchPresetService = new BatchProductionDocumentParamsService(connectionSupplier);
         this.presetPayloadByCode = new LinkedHashMap<>();
 
         setupDefaults();
@@ -42,15 +42,7 @@ public class TemplateEditorController {
                 </html>
                 """);
 
-        previewJsonPayload = """
-                {
-                  "line": {"name": "Linea A"},
-                  "composition": {"id": 10, "version": 3, "num_layers": 5},
-                  "items": [{"code": "A01", "quantity": 3, "height_mm": 14.2}]
-                }
-                """;
-
-        Map<String, Object> batchPreset = batchPresetService.buildSamplePreset();
+        Map<String, Object> batchPreset = batchPresetService.buildSamplePresetFromDb();
         presetPayloadByCode.put("Batch Production", batchPreset);
 
         view.getPresetSelector().setDisable(false);
