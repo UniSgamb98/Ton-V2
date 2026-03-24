@@ -65,7 +65,7 @@ public class CodeMirrorEditor extends StackPane {
                   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/sql/sql.min.js"></script>
                   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.17/mode/htmlmixed/htmlmixed.min.js"></script>
                   <style>
-                    html, body { height:100%; margin:0; background:#0f172a; }
+                    html, body { height:100%%; margin:0; background:#0f172a; }
                     .CodeMirror { height:100vh; font-size:13px; background:#0f172a; color:#e2e8f0; }
                     .CodeMirror-gutters { background:#1e293b; border-right:1px solid #334155; }
                   </style>
