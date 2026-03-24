@@ -106,23 +106,7 @@ public class BatchProductionDocumentParamsService {
     }
 
     private Map<String, Object> fetchComposition(int compositionId) {
-        try (Connection connection = connectionSupplier.get()) {
-            Map<String, Object> composition = new LinkedHashMap<>();
-            String compositionSql = "SELECT version, num_layers FROM composition WHERE id = ?";
-            try (PreparedStatement ps = connection.prepareStatement(compositionSql)) {
-                ps.setInt(1, compositionId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        composition.put("version", rs.getInt("version"));
-                        composition.put("num_layers", rs.getInt("num_layers"));
-                    }
-                }
-            }
-
-            return composition;
-        } catch (SQLException e) {
-            throw new RuntimeException("Errore lettura composition", e);
-        }
+        return Map.of();
     }
 
     private List<Map<String, Object>> fetchCompositionLayers(Connection connection, int compositionId) throws SQLException {
@@ -194,6 +178,7 @@ public class BatchProductionDocumentParamsService {
                 }
             }
 
+            result.put("version", fetchCompositionVersion(connection, compositionId));
             List<Map<String, Object>> blankModelLayers = fetchBlankModelLayers(connection, blankModelId);
             List<Map<String, Object>> compositionLayers = fetchCompositionLayers(connection, compositionId);
             result.put("layers", mergeBlankAndCompositionLayers(blankModelLayers, compositionLayers));
@@ -201,6 +186,19 @@ public class BatchProductionDocumentParamsService {
         } catch (SQLException e) {
             throw new RuntimeException("Errore lettura blank model", e);
         }
+    }
+
+    private int fetchCompositionVersion(Connection connection, int compositionId) throws SQLException {
+        String sql = "SELECT version FROM composition WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, compositionId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("version");
+                }
+            }
+        }
+        return 0;
     }
 
     private List<Map<String, Object>> fetchBlankModelLayers(Connection connection, int blankModelId) throws SQLException {
