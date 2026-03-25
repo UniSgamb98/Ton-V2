@@ -30,6 +30,7 @@ public class BatchProductionView extends VBox {
     private final ComboBox<Line> lineSelector = new ComboBox<>();
     private final Label productSelectorLabel = new Label("Prodotto");
     private final FlowPane productButtonsBox = new FlowPane();
+    private final ComboBox<String> templateSelector = new ComboBox<>();
     private final VBox rowsBox = new VBox(8);
     private final TextArea notesArea = new TextArea();
     private final Button produceButton = new Button("Produzione batch");
@@ -51,6 +52,8 @@ public class BatchProductionView extends VBox {
 
         notesArea.setPromptText("Note ordine (opzionale)");
         notesArea.setPrefRowCount(3);
+        templateSelector.setPromptText("Template documento");
+        templateSelector.setMaxWidth(Double.MAX_VALUE);
 
         feedbackLabel.setStyle("-fx-text-fill: #374151;");
         HBox actions = new HBox(10, produceButton);
@@ -65,6 +68,8 @@ public class BatchProductionView extends VBox {
                 rowsBox,
                 new Label("Note"),
                 notesArea,
+                new Label("Template documento"),
+                templateSelector,
                 actions,
                 feedbackLabel
         );
@@ -142,6 +147,21 @@ public class BatchProductionView extends VBox {
 
     public Button getProduceButton() {
         return produceButton;
+    }
+
+    public ComboBox<String> getTemplateSelector() {
+        return templateSelector;
+    }
+
+    public void setTemplateNames(List<String> names, String preselectedName) {
+        templateSelector.getItems().setAll(names);
+        if (preselectedName != null && names.contains(preselectedName)) {
+            templateSelector.setValue(preselectedName);
+            return;
+        }
+        if (!names.isEmpty()) {
+            templateSelector.setValue(names.getFirst());
+        }
     }
 
     public void setFeedback(String text, boolean error) {

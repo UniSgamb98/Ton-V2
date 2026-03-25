@@ -8,12 +8,18 @@ import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.core.database.repository.ProductRepository;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class BatchProductionController {
 
@@ -24,6 +30,8 @@ public class BatchProductionController {
     private final ProductRepository productRepo;
     private final ProductionRepository productionRepo;
     private final BatchProductionService service;
+    private final TemplateEditorService templateEditorService;
+    private final BatchProductionDocumentParamsService documentParamsService;
 
     private List<Item> filteredItems = List.of();
 
@@ -34,6 +42,8 @@ public class BatchProductionController {
                                      ProductRepository productRepo,
                                      ProductionRepository productionRepo,
                                      BatchProductionService service,
+                                     TemplateEditorService templateEditorService,
+                                     BatchProductionDocumentParamsService documentParamsService,
                                      List<Item> preselectedItems) {
         this.view = view;
         this.itemRepo = itemRepo;
@@ -42,6 +52,8 @@ public class BatchProductionController {
         this.productRepo = productRepo;
         this.productionRepo = productionRepo;
         this.service = service;
+        this.templateEditorService = templateEditorService;
+        this.documentParamsService = documentParamsService;
 
         setupActions(preselectedItems);
     }
@@ -53,6 +65,7 @@ public class BatchProductionController {
         view.getLineSelector().setOnAction(e -> onLineChanged());
         view.setProductSelectionHandler(this::onProductSelected);
         view.getProduceButton().setOnAction(e -> produceBatch());
+        refreshTemplateSelector();
 
         if (preselectedItems != null && !preselectedItems.isEmpty()) {
             int productId = preselectedItems.get(0).productId();
@@ -107,9 +120,12 @@ public class BatchProductionController {
                     view.getNotesArea().getText()
             );
 
+            String documentPath = generateDocumentIfTemplateSelected(line, plan);
+
             view.setFeedback(
                     "Batch salvato. Ordine #" + result.productionOrderId() +
-                            " con " + plan.lines().size() + " righe, quantità totale " + result.totalQuantity() + ".",
+                            " con " + plan.lines().size() + " righe, quantità totale " + result.totalQuantity() + "." +
+                            (documentPath == null ? "" : " Documento generato: " + documentPath),
                     false
             );
         } catch (IllegalArgumentException ex) {
@@ -145,5 +161,50 @@ public class BatchProductionController {
         }
 
         return lines;
+    }
+
+    private void refreshTemplateSelector() {
+        List<String> templateNames = templateEditorService.getSavedTemplates().stream()
+                .map(TemplateEditorService.TemplateSnapshot::name)
+                .collect(Collectors.toList());
+        view.setTemplateNames(templateNames, templateEditorService.getLastBatchTemplateName());
+        view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
+                templateEditorService.setLastBatchTemplateName(newValue)
+        );
+    }
+
+    private String generateDocumentIfTemplateSelected(Line line, BatchProductionService.ProductionPlan plan) {
+        String selectedTemplateName = view.getTemplateSelector().getValue();
+        if (selectedTemplateName == null || selectedTemplateName.isBlank()) {
+            return null;
+        }
+
+        String templateText = templateEditorService.getTemplateContentByName(selectedTemplateName);
+        if (templateText == null || templateText.isBlank()) {
+            throw new IllegalArgumentException("Template selezionato non trovato: " + selectedTemplateName);
+        }
+
+        templateEditorService.setLastBatchTemplateName(selectedTemplateName);
+        Map<String, Object> params = documentParamsService.buildParams(
+                BatchProductionDocumentParamsService.ParamsRequest.real(
+                        line,
+                        view.getNotesArea().getText(),
+                        plan.lines()
+                )
+        );
+
+        String payloadJson = templateEditorService.toJson(params);
+        TemplateEditorService.PreviewResult renderResult = templateEditorService.previewTemplate(templateText, payloadJson);
+        if (!renderResult.success()) {
+            throw new IllegalArgumentException("Errore generazione documento: " + renderResult.htmlOrError());
+        }
+
+        try {
+            Path outputFile = Files.createTempFile("ton-batch-document-", ".html");
+            Files.writeString(outputFile, renderResult.htmlOrError());
+            return outputFile.toAbsolutePath().toString();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Documento generato ma non salvabile su file temporaneo.");
+        }
     }
 }

@@ -153,6 +153,15 @@ public class AppController {
     public void showBatchProduction(java.util.List<com.orodent.tonv2.core.database.model.Item> preselectedItems) {
         BatchProductionView view = new BatchProductionView();
         configureHeader(view.getHeader());
+        BatchProductionDocumentParamsService batchDocumentParamsService = new BatchProductionDocumentParamsService(
+                app.compositionRepo(),
+                app.blankModelRepo(),
+                app.blankModelLayerRepo(),
+                app.compositionLayerIngredientRepo(),
+                app.powderRepo(),
+                app.itemRepo(),
+                app.lineRepo()
+        );
         new BatchProductionController(
                 view,
                 app.itemRepo(),
@@ -161,6 +170,8 @@ public class AppController {
                 app.productRepo(),
                 app.productionRepo(),
                 new BatchProductionService(),
+                templateEditorService,
+                batchDocumentParamsService,
                 preselectedItems
         );
 

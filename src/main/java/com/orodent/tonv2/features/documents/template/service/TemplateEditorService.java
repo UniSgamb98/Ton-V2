@@ -32,6 +32,7 @@ public class TemplateEditorService {
 
     private final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private final List<TemplateSnapshot> savedTemplates = new ArrayList<>();
+    private String lastBatchTemplateName;
 
     public ValidationResult validateTemplate(String templateText) {
         try {
@@ -114,6 +115,26 @@ public class TemplateEditorService {
 
     public List<TemplateSnapshot> getSavedTemplates() {
         return List.copyOf(savedTemplates);
+    }
+
+    public String getTemplateContentByName(String templateName) {
+        if (templateName == null || templateName.isBlank()) {
+            return null;
+        }
+        for (TemplateSnapshot snapshot : savedTemplates) {
+            if (snapshot.name().equals(templateName)) {
+                return snapshot.templateContent();
+            }
+        }
+        return null;
+    }
+
+    public String getLastBatchTemplateName() {
+        return lastBatchTemplateName;
+    }
+
+    public void setLastBatchTemplateName(String templateName) {
+        lastBatchTemplateName = templateName == null || templateName.isBlank() ? null : templateName.trim();
     }
 
     private void validateSelectQuery(String sqlQuery) {
