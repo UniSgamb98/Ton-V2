@@ -52,7 +52,7 @@ public class AppController {
         this.stage = stage;
         this.app = new AppContainer();
         this.cssPath = Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm();
-        this.templateEditorService = new TemplateEditorService();
+        this.templateEditorService = new TemplateEditorService(app.database::getConnection);
 
         showHome();
         stage.setOnCloseRequest(e -> shutdown());
