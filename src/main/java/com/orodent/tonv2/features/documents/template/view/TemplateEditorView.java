@@ -10,6 +10,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
@@ -47,7 +48,7 @@ public class TemplateEditorView extends VBox {
     private final Button previewPortraitButton = new Button("A4 Verticale");
     private final Button previewLandscapeButton = new Button("A4 Orizzontale");
 
-    private final Label feedbackLabel = new Label();
+    private final TextArea feedbackArea = new TextArea();
 
     private final WebView previewWebView = new WebView();
     private final StackPane previewPageFrame = new StackPane(previewWebView);
@@ -105,7 +106,13 @@ public class TemplateEditorView extends VBox {
         editorSplitPane.setDividerPositions(0.60);
         VBox.setVgrow(editorSplitPane, Priority.ALWAYS);
 
-        VBox leftPane = new VBox(10, snippetsRow, editorSplitPane, actions, feedbackLabel);
+        feedbackArea.setEditable(false);
+        feedbackArea.setWrapText(true);
+        feedbackArea.setPrefRowCount(3);
+        feedbackArea.setMinHeight(90);
+        feedbackArea.setStyle("-fx-control-inner-background: #f8fafc; -fx-text-fill: #166534;");
+
+        VBox leftPane = new VBox(10, snippetsRow, editorSplitPane, actions, feedbackArea);
         VBox.setVgrow(editorSplitPane, Priority.ALWAYS);
 
         previewPageFrame.setStyle("-fx-background-color: white; -fx-border-color: #94a3b8; -fx-border-width: 1;");
@@ -191,8 +198,10 @@ public class TemplateEditorView extends VBox {
     }
 
     public void setFeedback(String message, boolean error) {
-        feedbackLabel.setText(message);
-        feedbackLabel.setStyle(error ? "-fx-text-fill: #b91c1c;" : "-fx-text-fill: #166534;");
+        feedbackArea.setText(message == null ? "" : message);
+        feedbackArea.setStyle(error
+                ? "-fx-control-inner-background: #fff1f2; -fx-text-fill: #b91c1c;"
+                : "-fx-control-inner-background: #f0fdf4; -fx-text-fill: #166534;");
     }
 
     public AppHeader getHeader() { return header; }

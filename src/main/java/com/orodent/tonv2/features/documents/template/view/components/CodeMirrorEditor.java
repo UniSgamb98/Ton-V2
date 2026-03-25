@@ -60,6 +60,27 @@ public class CodeMirrorEditor extends StackPane {
         }
     }
 
+    public void focusLine(int lineNumber) {
+        if (lineNumber <= 0) {
+            focusEditor();
+            return;
+        }
+
+        if (!ready) {
+            return;
+        }
+
+        int zeroBasedLine = lineNumber - 1;
+        engine.executeScript("""
+                if (window.editor) {
+                  var line = %d;
+                  window.editor.focus();
+                  window.editor.setCursor({line: line, ch: 0});
+                  window.editor.scrollIntoView({line: line, ch: 0}, 120);
+                }
+                """.formatted(zeroBasedLine));
+    }
+
     private String buildHtml(String mode) {
         String safeMode = mode == null || mode.isBlank() ? "text/x-freemarker" : mode;
         return """

@@ -169,6 +169,11 @@ public class TemplateEditorController {
 
         if (!result.success()) {
             view.setFeedback(result.htmlOrError(), true);
+            if (result.errorLine() != null) {
+                view.getTemplateEditor().focusLine(result.errorLine());
+            } else {
+                view.getTemplateEditor().focusEditor();
+            }
             return;
         }
 

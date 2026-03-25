@@ -3,6 +3,7 @@ package com.orodent.tonv2.features.documents.template.service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
+import freemarker.core.ParseException;
 import freemarker.cache.StringTemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -37,7 +38,8 @@ public class TemplateEditorService {
             compileTemplate(templateText);
             return ValidationResult.ok("Template valido.");
         } catch (IOException e) {
-            return ValidationResult.error("Errore validazione: " + e.getMessage());
+            ErrorDetails details = extractErrorDetails(e, "Errore validazione");
+            return ValidationResult.error(details.message(), details.line(), details.column());
         }
     }
 
@@ -49,7 +51,8 @@ public class TemplateEditorService {
             template.process(dataModel, writer);
             return PreviewResult.ok(writer.toString());
         } catch (IOException | TemplateException e) {
-            return PreviewResult.error("Errore anteprima: " + e.getMessage());
+            ErrorDetails details = extractErrorDetails(e, "Errore anteprima");
+            return PreviewResult.error(details.message(), details.line(), details.column());
         }
     }
 
@@ -224,12 +227,16 @@ public class TemplateEditorService {
 
     public record ValidationResult(boolean valid, String message) {
         static ValidationResult ok(String message) { return new ValidationResult(true, message); }
-        static ValidationResult error(String message) { return new ValidationResult(false, message); }
+        static ValidationResult error(String message, Integer line, Integer column) {
+            return new ValidationResult(false, appendLineColumn(message, line, column));
+        }
     }
 
-    public record PreviewResult(boolean success, String htmlOrError) {
-        static PreviewResult ok(String html) { return new PreviewResult(true, html); }
-        static PreviewResult error(String error) { return new PreviewResult(false, error); }
+    public record PreviewResult(boolean success, String htmlOrError, Integer errorLine) {
+        static PreviewResult ok(String html) { return new PreviewResult(true, html, null); }
+        static PreviewResult error(String error, Integer line, Integer column) {
+            return new PreviewResult(false, appendLineColumn(error, line, column), line);
+        }
     }
 
     public record SaveResult(boolean success, String message) {
@@ -242,6 +249,40 @@ public class TemplateEditorService {
     public record QueryVariablesResult(List<VariableNode> variables, String sampleJsonPayload) {}
 
     public record TemplateSnapshot(String name, String templateContent, String sqlQuery, String presetCode, Instant savedAt) {}
+
+    private ErrorDetails extractErrorDetails(Exception exception, String prefix) {
+        if (exception instanceof ParseException parseException) {
+            String description = safeMessage(parseException.getEditorMessage(), parseException.getMessage());
+            return new ErrorDetails(prefix + ": " + description, parseException.getLineNumber(), parseException.getColumnNumber());
+        }
+
+        if (exception instanceof TemplateException templateException) {
+            String description = safeMessage(templateException.getBlamedExpressionString(), templateException.getMessage());
+            return new ErrorDetails(prefix + ": " + description, templateException.getLineNumber(), templateException.getColumnNumber());
+        }
+
+        return new ErrorDetails(prefix + ": " + safeMessage(exception.getMessage(), exception.toString()), null, null);
+    }
+
+    private String safeMessage(String preferred, String fallback) {
+        String normalizedPreferred = preferred == null ? "" : preferred.trim();
+        if (!normalizedPreferred.isBlank()) {
+            return normalizedPreferred;
+        }
+        return fallback == null ? "Errore sconosciuto." : fallback.trim();
+    }
+
+    private static String appendLineColumn(String message, Integer line, Integer column) {
+        if (line == null || line <= 0) {
+            return message;
+        }
+        if (column != null && column > 0) {
+            return message + System.lineSeparator() + "Riga: " + line + ", Colonna: " + column;
+        }
+        return message + System.lineSeparator() + "Riga: " + line;
+    }
+
+    private record ErrorDetails(String message, Integer line, Integer column) {}
 
     private static final class VariableBuilder {
         private final String name;
