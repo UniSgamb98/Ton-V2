@@ -1,26 +1,53 @@
 package com.orodent.tonv2.features.laboratory.production.service;
 
+import com.orodent.tonv2.core.database.model.BlankModel;
+import com.orodent.tonv2.core.database.model.BlankModelLayer;
+import com.orodent.tonv2.core.database.model.Composition;
+import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
+import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
+import com.orodent.tonv2.core.database.model.Powder;
+import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
+import com.orodent.tonv2.core.database.repository.BlankModelRepository;
+import com.orodent.tonv2.core.database.repository.CompositionLayerIngredientRepository;
+import com.orodent.tonv2.core.database.repository.CompositionRepository;
+import com.orodent.tonv2.core.database.repository.ItemRepository;
+import com.orodent.tonv2.core.database.repository.LineRepository;
+import com.orodent.tonv2.core.database.repository.PowderRepository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
+import java.util.Optional;
 
 /**
- * Builds document params for batch production templates.
+ * Builds document params for batch production templates using repository APIs.
  */
 public class BatchProductionDocumentParamsService {
 
-    private final Supplier<Connection> connectionSupplier;
+    private final CompositionRepository compositionRepo;
+    private final BlankModelRepository blankModelRepo;
+    private final BlankModelLayerRepository blankModelLayerRepo;
+    private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
+    private final PowderRepository powderRepo;
+    private final ItemRepository itemRepo;
+    private final LineRepository lineRepo;
 
-    public BatchProductionDocumentParamsService(Supplier<Connection> connectionSupplier) {
-        this.connectionSupplier = connectionSupplier;
+    public BatchProductionDocumentParamsService(CompositionRepository compositionRepo,
+                                                BlankModelRepository blankModelRepo,
+                                                BlankModelLayerRepository blankModelLayerRepo,
+                                                CompositionLayerIngredientRepository compositionLayerIngredientRepo,
+                                                PowderRepository powderRepo,
+                                                ItemRepository itemRepo,
+                                                LineRepository lineRepo) {
+        this.compositionRepo = compositionRepo;
+        this.blankModelRepo = blankModelRepo;
+        this.blankModelLayerRepo = blankModelLayerRepo;
+        this.compositionLayerIngredientRepo = compositionLayerIngredientRepo;
+        this.powderRepo = powderRepo;
+        this.itemRepo = itemRepo;
+        this.lineRepo = lineRepo;
     }
 
     public Map<String, Object> buildParams(Line line,
@@ -40,104 +67,82 @@ public class BatchProductionDocumentParamsService {
         int compositionId = planLines.getFirst().compositionId();
         int blankModelId = planLines.getFirst().item().blankModelId();
 
-        params.put("composition", fetchComposition(compositionId));
-        params.put("blank_model", fetchBlankModel(blankModelId, compositionId));
+        params.put("composition", Map.of());
+        params.put("blank_model", buildBlankModelPayload(blankModelId, compositionId));
         return params;
     }
 
     public Map<String, Object> buildSamplePresetFromDb() {
-        try (Connection connection = connectionSupplier.get()) {
-            SampleRow sample = findSampleRow(connection);
-            if (sample == null) {
-                return Map.of(
-                        "line", Map.of("name", ""),
-                        "notes", "",
-                        "items", List.of(),
-                        "composition", Map.of(),
-                        "blank_model", Map.of()
-                );
+        for (Item item : itemRepo.findAll()) {
+            Optional<Integer> activeCompositionId = compositionRepo.findActiveCompositionId(item.productId());
+            if (activeCompositionId.isEmpty()) {
+                continue;
             }
 
-            Map<String, Object> params = new LinkedHashMap<>();
-            params.put("line", Map.of("name", sample.lineName));
-            params.put("notes", "Preset automatico da DB");
-            params.put("items", List.of(Map.of(
-                    "code", sample.itemCode,
-                    "quantity", 1,
-                    "height_mm", sample.heightMm
-            )));
-            params.put("composition", fetchComposition(sample.compositionId));
-            params.put("blank_model", fetchBlankModel(sample.blankModelId, sample.compositionId));
-            return params;
-        } catch (SQLException e) {
-            throw new RuntimeException("Errore costruzione preset da DB", e);
-        }
-    }
+            Line line = lineRepo.findByProductId(item.productId()).stream().findFirst()
+                    .orElse(new Line(0, "Linea", item.productId()));
 
-    private SampleRow findSampleRow(Connection connection) throws SQLException {
-        String sql = """
-                SELECT i.id AS item_id,
-                       i.code AS item_code,
-                       i.height_mm,
-                       i.blank_model_id,
-                       pac.composition_id,
-                       COALESCE(l.name, 'Linea') AS line_name
-                FROM item i
-                JOIN product_active_composition pac ON pac.product_id = i.product_id
-                LEFT JOIN line l ON l.product_id = i.product_id
-                FETCH FIRST 1 ROWS ONLY
-                """;
-
-        try (PreparedStatement ps = connection.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            if (!rs.next()) {
-                return null;
-            }
-
-            return new SampleRow(
-                    rs.getInt("item_id"),
-                    rs.getString("item_code"),
-                    rs.getDouble("height_mm"),
-                    rs.getInt("blank_model_id"),
-                    rs.getInt("composition_id"),
-                    rs.getString("line_name")
+            List<BatchProductionService.ProductionPlanLine> lines = List.of(
+                    new BatchProductionService.ProductionPlanLine(item, 1, activeCompositionId.get())
             );
+            return buildParams(line, "Preset automatico da DB", lines);
         }
+
+        return Map.of(
+                "line", Map.of("name", ""),
+                "notes", "",
+                "items", List.of(),
+                "composition", Map.of(),
+                "blank_model", Map.of()
+        );
     }
 
-    private Map<String, Object> fetchComposition(int compositionId) {
-        return Map.of();
+    private Map<String, Object> buildBlankModelPayload(int blankModelId, int compositionId) {
+        BlankModel blankModel = blankModelRepo.findById(blankModelId);
+        if (blankModel == null) {
+            return Map.of();
+        }
+
+        int version = compositionRepo.findById(compositionId)
+                .map(Composition::version)
+                .orElse(0);
+
+        List<Map<String, Object>> blankLayers = blankModelLayerRepo.findByBlankModelId(blankModelId).stream()
+                .map(layer -> Map.<String, Object>of(
+                        "layer_number", layer.layerNumber(),
+                        "disk_percentage", layer.diskPercentage()
+                ))
+                .toList();
+
+        List<Map<String, Object>> compositionLayers = buildCompositionLayers(compositionId);
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("code", blankModel.code());
+        payload.put("pressure_kg_cm2", blankModel.pressureKgCm2());
+        payload.put("grams_per_mm", blankModel.gramsPerMm());
+        payload.put("diameter_mm", blankModel.diameterMm());
+        payload.put("superior_overmaterial_default_mm", blankModel.superiorOvermaterialDefaultMm());
+        payload.put("inferior_overmaterial_default_mm", blankModel.inferiorOvermaterialDefaultMm());
+        payload.put("version", version);
+        payload.put("layers", mergeBlankAndCompositionLayers(blankLayers, compositionLayers));
+        return payload;
     }
 
-    private List<Map<String, Object>> fetchCompositionLayers(Connection connection, int compositionId) throws SQLException {
-        String sql = """
-                SELECT cli.layer_number,
-                       cli.percentage,
-                       cli.powder_id,
-                       COALESCE(p.code, '') AS powder_code
-                FROM composition_layer_ingredient cli
-                LEFT JOIN powder p ON p.id = cli.powder_id
-                WHERE cli.composition_id = ?
-                ORDER BY cli.layer_number, cli.powder_id
-                """;
+    private List<Map<String, Object>> buildCompositionLayers(int compositionId) {
+        List<CompositionLayerIngredient> ingredients = compositionLayerIngredientRepo.findByCompositionId(compositionId);
 
         Map<Integer, List<Map<String, Object>>> groupedIngredients = new LinkedHashMap<>();
         Map<Integer, Double> groupedPercentages = new LinkedHashMap<>();
 
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setInt(1, compositionId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    int layer = rs.getInt("layer_number");
-                    groupedIngredients.computeIfAbsent(layer, ignored -> new ArrayList<>())
-                            .add(Map.of(
-                                    "powder", Map.of(
-                                            "code", rs.getString("powder_code")
-                                    )
-                            ));
-                    groupedPercentages.merge(layer, rs.getDouble("percentage"), Double::sum);
-                }
-            }
+        for (CompositionLayerIngredient ingredient : ingredients) {
+            Powder powder = powderRepo.findById(ingredient.powderId());
+            groupedIngredients.computeIfAbsent(ingredient.layerNumber(), ignored -> new ArrayList<>())
+                    .add(Map.of(
+                            "powder", Map.of(
+                                    "code", powder == null || powder.code() == null ? "" : powder.code()
+                            )
+                    ));
+            groupedPercentages.merge(ingredient.layerNumber(), ingredient.percentage(), Double::sum);
         }
 
         List<Map<String, Object>> layers = new ArrayList<>();
@@ -147,79 +152,6 @@ public class BatchProductionDocumentParamsService {
                     "percentage", groupedPercentages.getOrDefault(entry.getKey(), 0.0),
                     "ingredients", entry.getValue()
             ));
-        }
-        return layers;
-    }
-
-    private Map<String, Object> fetchBlankModel(int blankModelId, int compositionId) {
-        try (Connection connection = connectionSupplier.get()) {
-            Map<String, Object> result = new LinkedHashMap<>();
-            String blankSql = """
-                    SELECT code,
-                           pressure_kg_cm2,
-                           grams_per_mm,
-                           diameter_mm,
-                           superior_overmaterial_default_mm,
-                           inferior_overmaterial_default_mm
-                    FROM blank_model
-                    WHERE id = ?
-                    """;
-            try (PreparedStatement ps = connection.prepareStatement(blankSql)) {
-                ps.setInt(1, blankModelId);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        result.put("code", rs.getString("code"));
-                        result.put("pressure_kg_cm2", rs.getDouble("pressure_kg_cm2"));
-                        result.put("grams_per_mm", rs.getDouble("grams_per_mm"));
-                        result.put("diameter_mm", rs.getDouble("diameter_mm"));
-                        result.put("superior_overmaterial_default_mm", rs.getDouble("superior_overmaterial_default_mm"));
-                        result.put("inferior_overmaterial_default_mm", rs.getDouble("inferior_overmaterial_default_mm"));
-                    }
-                }
-            }
-
-            result.put("version", fetchCompositionVersion(connection, compositionId));
-            List<Map<String, Object>> blankModelLayers = fetchBlankModelLayers(connection, blankModelId);
-            List<Map<String, Object>> compositionLayers = fetchCompositionLayers(connection, compositionId);
-            result.put("layers", mergeBlankAndCompositionLayers(blankModelLayers, compositionLayers));
-            return result;
-        } catch (SQLException e) {
-            throw new RuntimeException("Errore lettura blank model", e);
-        }
-    }
-
-    private int fetchCompositionVersion(Connection connection, int compositionId) throws SQLException {
-        String sql = "SELECT version FROM composition WHERE id = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setInt(1, compositionId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("version");
-                }
-            }
-        }
-        return 0;
-    }
-
-    private List<Map<String, Object>> fetchBlankModelLayers(Connection connection, int blankModelId) throws SQLException {
-        String sql = """
-                SELECT layer_number, disk_percentage
-                FROM blank_model_layer
-                WHERE blank_model_id = ?
-                ORDER BY layer_number
-                """;
-
-        List<Map<String, Object>> layers = new ArrayList<>();
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setInt(1, blankModelId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    layers.add(Map.of(
-                            "layer_number", rs.getInt("layer_number"),
-                            "disk_percentage", rs.getDouble("disk_percentage")
-                    ));
-                }
-            }
         }
         return layers;
     }
@@ -282,13 +214,4 @@ public class BatchProductionDocumentParamsService {
         }
         return items;
     }
-
-    private record SampleRow(
-            int itemId,
-            String itemCode,
-            double heightMm,
-            int blankModelId,
-            int compositionId,
-            String lineName
-    ) {}
 }

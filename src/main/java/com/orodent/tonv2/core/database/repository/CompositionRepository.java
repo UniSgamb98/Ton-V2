@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CompositionRepository {
+    Optional<Composition> findById(int compositionId);
     Optional<Integer> findMaxVersionByProduct(int productId);
     Optional<Composition> findLatestByProduct(int productId);
     Optional<Integer> findActiveCompositionId(int productId);

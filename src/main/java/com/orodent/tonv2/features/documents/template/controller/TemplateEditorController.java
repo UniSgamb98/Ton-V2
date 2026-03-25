@@ -21,11 +21,12 @@ public class TemplateEditorController {
 
     public TemplateEditorController(TemplateEditorView view,
                                     TemplateEditorService service,
-                                    Supplier<Connection> connectionSupplier) {
+                                    Supplier<Connection> connectionSupplier,
+                                    BatchProductionDocumentParamsService batchPresetService) {
         this.view = view;
         this.service = service;
         this.connectionSupplier = connectionSupplier;
-        this.batchPresetService = new BatchProductionDocumentParamsService(connectionSupplier);
+        this.batchPresetService = batchPresetService;
         this.presetPayloadByCode = new LinkedHashMap<>();
 
         setupDefaults();
