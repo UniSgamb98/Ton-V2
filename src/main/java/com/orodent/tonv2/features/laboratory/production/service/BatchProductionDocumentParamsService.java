@@ -1,8 +1,6 @@
 package com.orodent.tonv2.features.laboratory.production.service;
 
 import com.orodent.tonv2.core.database.model.BlankModel;
-import com.orodent.tonv2.core.database.model.BlankModelLayer;
-import com.orodent.tonv2.core.database.model.Composition;
 import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
@@ -16,6 +14,7 @@ import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.PowderRepository;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,29 +49,47 @@ public class BatchProductionDocumentParamsService {
         this.lineRepo = lineRepo;
     }
 
-    public Map<String, Object> buildParams(Line line,
-                                           String notes,
-                                           List<BatchProductionService.ProductionPlanLine> planLines) {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("line", Map.of("name", line == null || line.name() == null ? "" : line.name()));
-        params.put("notes", notes == null ? "" : notes);
-        params.put("items", buildItems(planLines));
+    public Map<String, Object> buildParams(ParamsRequest request) {
+        ResolvedContext context = resolveContext(request);
 
-        if (planLines == null || planLines.isEmpty()) {
-            params.put("composition", Map.of());
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("line", Map.of("name", context.line() == null || context.line().name() == null ? "" : context.line().name()));
+        params.put("notes", context.notes() == null ? "" : context.notes());
+        params.put("items", buildItems(context.planLines()));
+
+        if (context.planLines().isEmpty()) {
             params.put("blank_model", Map.of());
             return params;
         }
 
-        int compositionId = planLines.getFirst().compositionId();
-        int blankModelId = planLines.getFirst().item().blankModelId();
-
-        params.put("composition", Map.of());
+        int compositionId = context.planLines().getFirst().compositionId();
+        int blankModelId = context.planLines().getFirst().item().blankModelId();
         params.put("blank_model", buildBlankModelPayload(blankModelId, compositionId));
         return params;
     }
 
-    public Map<String, Object> buildSamplePresetFromDb() {
+    private ResolvedContext resolveContext(ParamsRequest request) {
+        if (request != null && request.presetMode()) {
+            ResolvedContext presetContext = buildPresetContextFromDb(request.presetNotes(), request.presetQuantity());
+            if (!presetContext.planLines().isEmpty()) {
+                return presetContext;
+            }
+            return new ResolvedContext(new Line(0, "", 0), "", List.of());
+        }
+
+        if (request == null) {
+            return new ResolvedContext(new Line(0, "", 0), "", List.of());
+        }
+
+        return new ResolvedContext(
+                request.line() == null ? new Line(0, "", 0) : request.line(),
+                request.notes() == null ? "" : request.notes(),
+                request.planLines() == null ? List.of() : request.planLines()
+        );
+    }
+
+    private ResolvedContext buildPresetContextFromDb(String notes, int quantity) {
+        int safeQuantity = Math.max(1, quantity);
         for (Item item : itemRepo.findAll()) {
             Optional<Integer> activeCompositionId = compositionRepo.findActiveCompositionId(item.productId());
             if (activeCompositionId.isEmpty()) {
@@ -83,18 +100,11 @@ public class BatchProductionDocumentParamsService {
                     .orElse(new Line(0, "Linea", item.productId()));
 
             List<BatchProductionService.ProductionPlanLine> lines = List.of(
-                    new BatchProductionService.ProductionPlanLine(item, 1, activeCompositionId.get())
+                    new BatchProductionService.ProductionPlanLine(item, safeQuantity, activeCompositionId.get())
             );
-            return buildParams(line, "Preset automatico da DB", lines);
+            return new ResolvedContext(line, notes == null ? "" : notes, lines);
         }
-
-        return Map.of(
-                "line", Map.of("name", ""),
-                "notes", "",
-                "items", List.of(),
-                "composition", Map.of(),
-                "blank_model", Map.of()
-        );
+        return new ResolvedContext(new Line(0, "", 0), "", List.of());
     }
 
     private Map<String, Object> buildBlankModelPayload(int blankModelId, int compositionId) {
@@ -104,7 +114,7 @@ public class BatchProductionDocumentParamsService {
         }
 
         int version = compositionRepo.findById(compositionId)
-                .map(Composition::version)
+                .map(composition -> composition.version())
                 .orElse(0);
 
         List<Map<String, Object>> blankLayers = blankModelLayerRepo.findByBlankModelId(blankModelId).stream()
@@ -214,4 +224,22 @@ public class BatchProductionDocumentParamsService {
         }
         return items;
     }
+
+    public record ParamsRequest(Line line,
+                                String notes,
+                                List<BatchProductionService.ProductionPlanLine> planLines,
+                                boolean presetMode,
+                                String presetNotes,
+                                int presetQuantity) {
+
+        public static ParamsRequest real(Line line, String notes, List<BatchProductionService.ProductionPlanLine> planLines) {
+            return new ParamsRequest(line, notes, planLines, false, "", 1);
+        }
+
+        public static ParamsRequest preset(String notes, int quantity) {
+            return new ParamsRequest(null, "", Collections.emptyList(), true, notes, quantity);
+        }
+    }
+
+    private record ResolvedContext(Line line, String notes, List<BatchProductionService.ProductionPlanLine> planLines) {}
 }

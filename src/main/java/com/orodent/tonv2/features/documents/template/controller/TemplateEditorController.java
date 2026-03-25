@@ -43,7 +43,9 @@ public class TemplateEditorController {
                 </html>
                 """);
 
-        Map<String, Object> batchPreset = batchPresetService.buildSamplePresetFromDb();
+        Map<String, Object> batchPreset = batchPresetService.buildParams(
+                BatchProductionDocumentParamsService.ParamsRequest.preset("Preset automatico da DB", 1)
+        );
         presetPayloadByCode.put("Batch Production", batchPreset);
 
         view.getPresetSelector().setDisable(false);
