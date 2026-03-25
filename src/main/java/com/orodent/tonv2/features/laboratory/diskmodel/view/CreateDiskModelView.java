@@ -12,7 +12,7 @@ import java.util.List;
 
 public class CreateDiskModelView extends VBox {
 
-    private final AppHeader header = new AppHeader("Nuovo modello disco");
+    private final AppHeader header = new AppHeader("Laboratorio - Nuovo Modello Disco");
     private final BorderPane content = new BorderPane();
 
     private final TextField codeField = new TextField();

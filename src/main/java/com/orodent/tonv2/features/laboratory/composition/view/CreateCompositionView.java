@@ -18,7 +18,7 @@ import java.util.List;
 
 public class CreateCompositionView extends VBox {
 
-    private final AppHeader header = new AppHeader("Nuova composizione");
+    private final AppHeader header = new AppHeader("Laboratorio - Nuova Composizione");
     private final BorderPane content = new BorderPane();
 
     private final ComboBox<Product> productSelector = new ComboBox<>();
