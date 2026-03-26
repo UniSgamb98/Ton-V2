@@ -2,22 +2,15 @@ package com.orodent.tonv2.features.laboratory.composition.controller;
 
 import com.orodent.tonv2.app.AppController;
 import com.orodent.tonv2.core.database.model.BlankModel;
-import com.orodent.tonv2.core.database.model.Composition;
-import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
 import com.orodent.tonv2.core.database.model.Product;
-import com.orodent.tonv2.core.database.repository.*;
-import com.orodent.tonv2.core.ui.draft.IngredientDraft;
-import com.orodent.tonv2.core.ui.draft.LayerDraft;
+import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 
 import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
 
 public class CreateCompositionController {
 
@@ -25,20 +18,14 @@ public class CreateCompositionController {
 
     private final CreateCompositionView view;
     private final AppController app;
-    private final PowderRepository powderRepo;
-    private final CompositionRepository compositionRepo;
-    private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
-    private final ProductRepository productRepo;
-    private final BlankModelRepository blankModelRepo;
+    private final CreateCompositionService service;
 
-    public CreateCompositionController(CreateCompositionView view, AppController app, PowderRepository powderRepo, CompositionRepository compositionRepo, CompositionLayerIngredientRepository compositionLayerIngredientRepo, ProductRepository productRepo, BlankModelRepository blankModelRepo) {
+    public CreateCompositionController(CreateCompositionView view,
+                                       AppController app,
+                                       CreateCompositionService service) {
         this.view = view;
         this.app = app;
-        this.powderRepo = powderRepo;
-        this.compositionRepo = compositionRepo;
-        this.compositionLayerIngredientRepo = compositionLayerIngredientRepo;
-        this.productRepo = productRepo;
-        this.blankModelRepo = blankModelRepo;
+        this.service = service;
 
         loadProducts();
         loadBlankModels();
@@ -47,18 +34,18 @@ public class CreateCompositionController {
     }
 
     private void loadProducts() {
-        view.getProductSelector().getItems().setAll(productRepo.findAll());
+        view.getProductSelector().getItems().setAll(service.findAllProducts());
         if (!view.getProductSelector().getItems().contains(NEW_PRODUCT_OPTION)) {
             view.getProductSelector().getItems().addFirst(NEW_PRODUCT_OPTION);
         }
     }
 
     private void loadPowders() {
-        view.setAvailablePowders(powderRepo.findAll());
+        view.setAvailablePowders(service.findAllPowders());
     }
 
     private void loadBlankModels() {
-        view.getBlankModelSelector().getItems().setAll(blankModelRepo.findAll());
+        view.getBlankModelSelector().getItems().setAll(service.findAllBlankModels());
     }
 
     private void setupActions() {
@@ -73,7 +60,6 @@ public class CreateCompositionController {
         });
         view.getLoadLatestVersionButton().setOnAction(e -> loadLatestVersion());
         view.setLoadLatestVersionVisible(false);
-
     }
 
     private void loadLatestVersion() {
@@ -83,97 +69,40 @@ public class CreateCompositionController {
             return;
         }
 
-        Optional<Composition> latestComposition = compositionRepo.findLatestByProduct(selectedProduct.id());
-        if (latestComposition.isEmpty()) {
+        Optional<CreateCompositionService.LatestCompositionData> latest = service.loadLatestComposition(selectedProduct.id());
+        if (latest.isEmpty()) {
             showWarning("Nessuna versione trovata", "Non esiste ancora una composizione da caricare per questo prodotto.");
             return;
         }
 
-        Composition composition = latestComposition.get();
-
-        compositionRepo.findBlankModelIdByCompositionId(composition.id()).ifPresent(blankModelId -> {
+        CreateCompositionService.LatestCompositionData data = latest.get();
+        if (data.blankModelId() != null) {
             view.getBlankModelSelector().getItems().stream()
-                    .filter(model -> model.id() == blankModelId)
+                    .filter(model -> model.id() == data.blankModelId())
                     .findFirst()
                     .ifPresent(view.getBlankModelSelector()::setValue);
-        });
-
-        List<LayerDraft> layerDrafts = new ArrayList<>();
-        Map<Integer, LayerDraft> byLayer = new TreeMap<>();
-
-        for (CompositionLayerIngredient ingredient : compositionLayerIngredientRepo.findByCompositionId(composition.id())) {
-            LayerDraft draft = byLayer.computeIfAbsent(ingredient.layerNumber(), LayerDraft::new);
-            draft.ingredients().add(new IngredientDraft(
-                    ingredient.powderId(),
-                    ingredient.percentage()
-            ));
         }
 
-        layerDrafts.addAll(byLayer.values());
-        view.setNotes(composition.notes());
-        view.replaceLayers(layerDrafts);
+        view.setNotes(data.notes());
+        view.replaceLayers(data.layerDrafts());
     }
 
     private void saveComposition() {
-        Product product = view.getProductSelector().getValue();
-
-        if (product == null || isNewProductOption(product)) {
-            Optional<Product> maybeNewProduct = showMissingProductDialog();
-            if (maybeNewProduct.isEmpty()) {
-                return;
-            }
-            product = maybeNewProduct.get();
+        Product product = resolveProduct();
+        if (product == null) {
+            return;
         }
 
         BlankModel blankModel = view.getBlankModelSelector().getValue();
-        if (blankModel == null) {
-            showWarning("Modello blank mancante", "Seleziona un modello blank prima di salvare la composizione.");
-            return;
-        }
-
         view.renumberLayers();
-        int numLayers = view.getLayers().size();
-        if (numLayers == 0) {
-            showWarning("Layer mancanti", "Aggiungi almeno uno strato alla composizione.");
-            return;
-        }
-        if (numLayers != blankModel.numLayers()) {
-            showWarning(
-                    "Numero layer non coerente",
-                    "La composizione ha " + numLayers + " layer, ma il modello blank selezionato richiede "
-                            + blankModel.numLayers() + " layer."
-            );
-            return;
-        }
-
-        int newVersion = compositionRepo
-                .findMaxVersionByProduct(product.id())
-                .map(v -> v + 1)
-                .orElse(1);
-
-        Composition composition = new Composition(
-                0,
-                product.id(),
-                newVersion,
-                numLayers,
-                LocalDateTime.now(),
-                view.getNotes()
-        );
 
         try {
-            List<CompositionLayerIngredient> ingredients = new ArrayList<>();
-            for (LayerDraft layerDraft : view.getLayers()) {
-                for (IngredientDraft ing : layerDraft.ingredients()) {
-                    ingredients.add(new CompositionLayerIngredient(
-                            0,
-                            layerDraft.layerNumber(),
-                            ing.powderId(),
-                            ing.percentage()
-                    ));
-                }
-            }
-
-            compositionRepo.createVersionWithModelAndActivate(composition, blankModel.id(), ingredients);
+            service.saveComposition(new CreateCompositionService.SaveCompositionRequest(
+                    product,
+                    blankModel,
+                    view.getLayers(),
+                    view.getNotes()
+            ));
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setHeaderText("Composizione Salvata");
@@ -181,9 +110,21 @@ public class CreateCompositionController {
             alert.showAndWait();
 
             app.showLaboratory();
+        } catch (IllegalArgumentException ex) {
+            showWarning("Validazione dati", ex.getMessage());
         } catch (RuntimeException ex) {
             showDbError("Errore salvataggio composizione", ex);
         }
+    }
+
+    private Product resolveProduct() {
+        Product selected = view.getProductSelector().getValue();
+
+        if (selected != null && !isNewProductOption(selected)) {
+            return selected;
+        }
+
+        return showMissingProductDialog().orElse(null);
     }
 
     private boolean isNewProductOption(Product product) {
@@ -212,22 +153,16 @@ public class CreateCompositionController {
             return Optional.empty();
         }
 
-        String newProductCode = result.get().trim();
-        if (newProductCode.isEmpty()) {
-            Alert warning = new Alert(Alert.AlertType.WARNING);
-            warning.setHeaderText("Codice prodotto mancante");
-            warning.setContentText("Inserisci un codice prodotto valido per continuare.");
-            warning.showAndWait();
-            return Optional.empty();
-        }
-
         try {
-            Product newProduct = productRepo.insert(newProductCode, null);
+            Product newProduct = service.createProduct(result.get());
             view.getProductSelector().getItems().add(newProduct);
             view.getProductSelector().getItems().remove(NEW_PRODUCT_OPTION);
             view.getProductSelector().getItems().addFirst(NEW_PRODUCT_OPTION);
             view.getProductSelector().setValue(newProduct);
             return Optional.of(newProduct);
+        } catch (IllegalArgumentException ex) {
+            showWarning("Codice prodotto mancante", ex.getMessage());
+            return Optional.empty();
         } catch (RuntimeException e) {
             showDbError("Errore creazione prodotto", e);
             return Optional.empty();

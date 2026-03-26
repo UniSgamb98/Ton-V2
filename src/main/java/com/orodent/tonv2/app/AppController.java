@@ -9,6 +9,7 @@ import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
+import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
 import com.orodent.tonv2.features.laboratory.home.controller.LaboratoryController;
@@ -115,11 +116,13 @@ public class AppController {
         new CreateCompositionController(
                 view,
                 this,
-                app.powderRepo(),
-                app.compositionRepo(),
-                app.compositionLayerIngredientRepo(),
-                app.productRepo(),
-                app.blankModelRepo()
+                new CreateCompositionService(
+                        app.powderRepo(),
+                        app.compositionRepo(),
+                        app.compositionLayerIngredientRepo(),
+                        app.productRepo(),
+                        app.blankModelRepo()
+                )
         );
 
         stage.setScene(createSceneWithCSS(view));
