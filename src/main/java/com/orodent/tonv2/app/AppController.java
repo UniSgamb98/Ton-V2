@@ -51,7 +51,7 @@ public class AppController {
     public AppController(Stage stage) {
         this.stage = stage;
         this.app = new AppContainer();
-        this.cssPath = Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm();
+        this.cssPath = Objects.requireNonNull(getClass().getResource("/css/global.css")).toExternalForm();
         this.templateEditorService = new TemplateEditorService(app.database::getConnection);
 
         showHome();
@@ -184,13 +184,10 @@ public class AppController {
         configureHeader(view.getHeader());
         new ItemSetupController(
                 view,
-                app.productRepo(),
-                app.itemRepo(),
-                app.compositionRepo(),
-                new ItemSetupService()
+                new ItemSetupService(app.itemRepo(), app.compositionRepo(), app.productRepo())
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        stage.setScene(createSceneWithCSS(view, "/css/item-setup.css"));
         stage.setTitle("TON - Setup Item");
     }
 
@@ -219,9 +216,17 @@ public class AppController {
     /*
     Creando le Scenes con questo metodo vengono collegate al CSS che può essere scritto tutto in un unico file.
      */
-    private Scene createSceneWithCSS(Object root) {
+    private Scene createSceneWithCSS(Object root, String... extraCss) {
         Scene scene = new Scene((javafx.scene.Parent) root, 900, 700);
         scene.getStylesheets().add(cssPath);
+
+        for (String css : extraCss) {
+            String path = Objects.requireNonNull(
+                    getClass().getResource(css)
+            ).toExternalForm();
+
+            scene.getStylesheets().add(path);
+        }
         return scene;
     }
 

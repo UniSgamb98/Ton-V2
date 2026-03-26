@@ -37,7 +37,7 @@ public class HoverPopup {
         scene.setFill(Color.TRANSPARENT);
 
         scene.getStylesheets().add(
-                Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm()
+                Objects.requireNonNull(getClass().getResource("/css/global.css")).toExternalForm()
         );
 
         stage.setScene(scene);

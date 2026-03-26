@@ -14,10 +14,12 @@ import javafx.scene.layout.VBox;
 public class ItemSetupView extends VBox {
 
     private final AppHeader header = new AppHeader("Laboratorio - Nuovo Articolo");
+
+    private final Label productLabel = new Label("Prodotto");
     private final ComboBox<Product> productSelector = new ComboBox<>();
-    private final Label activeCompositionLabel = new Label("Composizione attiva: -");
     private final Button activateLatestCompositionButton = new Button("Imposta ultima composizione come attiva");
 
+    private final Label newItemLabel = new Label("Nuovo item");
     private final TextField itemCodeField = new TextField();
     private final TextField heightField = new TextField();
     private final Button createItemButton = new Button("Crea item");
@@ -25,25 +27,34 @@ public class ItemSetupView extends VBox {
     private final Label feedbackLabel = new Label();
 
     public ItemSetupView() {
+        getStyleClass().add("item-setup-view");
+
         setSpacing(16);
         setPadding(new Insets(20));
+
+        productLabel.getStyleClass().add("section-label");
+        newItemLabel.getStyleClass().add("section-label");
 
         productSelector.setPromptText("Seleziona prodotto");
         productSelector.setMaxWidth(Double.MAX_VALUE);
 
+        activateLatestCompositionButton.getStyleClass().add("secondary-button");
+
         itemCodeField.setPromptText("Codice item (es. ZRA2-H18)");
         heightField.setPromptText("Altezza mm (es. 12.5)");
 
+        feedbackLabel.getStyleClass().add("feedback-label");
+
         HBox createRow = new HBox(10, itemCodeField, heightField, createItemButton);
         createRow.setAlignment(Pos.CENTER_LEFT);
+        createRow.getStyleClass().add("create-row");
 
         getChildren().addAll(
                 header,
-                new Label("Prodotto"),
+                productLabel,
                 productSelector,
-                activeCompositionLabel,
                 activateLatestCompositionButton,
-                new Label("Nuovo item"),
+                newItemLabel,
                 createRow,
                 feedbackLabel
         );
@@ -73,12 +84,9 @@ public class ItemSetupView extends VBox {
         return createItemButton;
     }
 
-    public void setActiveCompositionText(String text) {
-        activeCompositionLabel.setText(text);
-    }
-
     public void setFeedback(String text, boolean error) {
         feedbackLabel.setText(text);
-        feedbackLabel.setStyle(error ? "-fx-text-fill: #b91c1c;" : "-fx-text-fill: #166534;");
+        feedbackLabel.getStyleClass().removeAll("feedback-success", "feedback-error");
+        feedbackLabel.getStyleClass().add(error ? "feedback-error" : "feedback-success");
     }
 }
