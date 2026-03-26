@@ -31,13 +31,13 @@ public class CreateDiskModelController {
     private void save() {
         try {
             CreateDiskModelService.CreateDiskModelData modelData = new CreateDiskModelService.CreateDiskModelData(
-                    requireText(view.getCode(), "Codice modello"),
-                    parsePositive(view.getDiameter(), "Diametro"),
-                    parseNonNegative(view.getSuperiorOvermaterial(), "Overmaterial superiore default"),
-                    parseNonNegative(view.getInferiorOvermaterial(), "Overmaterial inferiore default"),
-                    parsePositive(view.getPressure(), "Pressione"),
-                    parsePositive(view.getGramsPerMm(), "Grammi per mm"),
-                    parsePositiveInt(view.getNumLayers(), "Numero strati")
+                    trimToNull(view.getCode()),
+                    parseDouble(view.getDiameter(), "Diametro"),
+                    parseDouble(view.getSuperiorOvermaterial(), "Overmaterial superiore default"),
+                    parseDouble(view.getInferiorOvermaterial(), "Overmaterial inferiore default"),
+                    parseDouble(view.getPressure(), "Pressione"),
+                    parseDouble(view.getGramsPerMm(), "Grammi per mm"),
+                    parseInteger(view.getNumLayers(), "Numero strati")
             );
 
             List<CreateDiskModelService.LayerData> layers = parseLayers();
@@ -62,7 +62,7 @@ public class CreateDiskModelController {
         List<CreateDiskModelService.LayerData> layers = new ArrayList<>();
 
         for (CreateDiskModelView.LayerPercentageDraft draft : view.getLayerPercentageDrafts()) {
-            double percentage = parsePositive(draft.percentage(), "Percentuale layer " + draft.layerNumber());
+            Double percentage = parseDouble(draft.percentage(), "Percentuale layer " + draft.layerNumber());
             layers.add(new CreateDiskModelService.LayerData(draft.layerNumber(), percentage));
         }
 
@@ -73,82 +73,50 @@ public class CreateDiskModelController {
         List<CreateDiskModelService.HeightRangeData> ranges = new ArrayList<>();
 
         for (CreateDiskModelView.HeightRangeDraft draft : view.getRangeDrafts()) {
-            if (isEmptyRange(draft)) {
-                continue;
-            }
-
-            double min = parseNonNegative(draft.minHeight(), "Min altezza fascia");
-            double max = parsePositive(draft.maxHeight(), "Max altezza fascia");
-            double superior = parseNonNegative(draft.superiorOvermaterial(), "Overmaterial superiore fascia");
-            double inferior = parseNonNegative(draft.inferiorOvermaterial(), "Overmaterial inferiore fascia");
-
-            ranges.add(new CreateDiskModelService.HeightRangeData(min, max, superior, inferior));
+            ranges.add(new CreateDiskModelService.HeightRangeData(
+                    parseDouble(draft.minHeight(), "Min altezza fascia"),
+                    parseDouble(draft.maxHeight(), "Max altezza fascia"),
+                    parseDouble(draft.superiorOvermaterial(), "Overmaterial superiore fascia"),
+                    parseDouble(draft.inferiorOvermaterial(), "Overmaterial inferiore fascia")
+            ));
         }
 
         return ranges;
     }
 
-    private boolean isEmptyRange(CreateDiskModelView.HeightRangeDraft draft) {
-        return isBlank(draft.minHeight())
-                && isBlank(draft.maxHeight())
-                && isBlank(draft.superiorOvermaterial())
-                && isBlank(draft.inferiorOvermaterial());
-    }
-
-    private String requireText(String value, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
+    private Integer parseInteger(String raw, String fieldName) {
+        String value = trimToNull(raw);
+        if (value == null) {
+            return null;
         }
-        return value.trim();
-    }
 
-    private double parsePositive(String raw, String fieldName) {
-        double value = parseDouble(raw, fieldName);
-        if (value <= 0) {
-            throw new IllegalArgumentException(fieldName + " deve essere maggiore di 0.");
-        }
-        return value;
-    }
-
-    private double parseNonNegative(String raw, String fieldName) {
-        double value = parseDouble(raw, fieldName);
-        if (value < 0) {
-            throw new IllegalArgumentException(fieldName + " non può essere negativo.");
-        }
-        return value;
-    }
-
-
-    private int parsePositiveInt(String raw, String fieldName) {
-        if (raw == null || raw.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
-        }
         try {
-            int value = Integer.parseInt(raw.trim());
-            if (value <= 0) {
-                throw new IllegalArgumentException(fieldName + " deve essere maggiore di 0.");
-            }
-            return value;
+            return Integer.parseInt(value);
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException(fieldName + " deve essere un intero valido.");
         }
     }
 
-    private double parseDouble(String raw, String fieldName) {
-        if (raw == null || raw.isBlank()) {
-            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
+    private Double parseDouble(String raw, String fieldName) {
+        String value = trimToNull(raw);
+        if (value == null) {
+            return null;
         }
 
         try {
-            String normalized = raw.trim().replace(',', '.');
-            return Double.parseDouble(normalized);
+            return Double.parseDouble(value.replace(',', '.'));
         } catch (NumberFormatException ex) {
             throw new IllegalArgumentException(fieldName + " deve essere un numero valido.");
         }
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void showError(String header, String content) {
