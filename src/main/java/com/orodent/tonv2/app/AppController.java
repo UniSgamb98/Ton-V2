@@ -10,6 +10,7 @@ import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
+import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
 import com.orodent.tonv2.features.laboratory.home.controller.LaboratoryController;
 import com.orodent.tonv2.features.laboratory.itemsetup.controller.ItemSetupController;
 import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
@@ -206,7 +207,11 @@ public class AppController {
     public void showCreateDiskModel() {
         CreateDiskModelView view = new CreateDiskModelView();
         configureHeader(view.getHeader());
-        new CreateDiskModelController(view, this, app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo());
+        new CreateDiskModelController(
+                view,
+                this,
+                new CreateDiskModelService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo())
+        );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuovo modello disco");

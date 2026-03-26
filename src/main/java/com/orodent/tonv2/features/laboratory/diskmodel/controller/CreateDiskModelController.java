@@ -1,12 +1,7 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.controller;
 
 import com.orodent.tonv2.app.AppController;
-import com.orodent.tonv2.core.database.model.BlankModel;
-import com.orodent.tonv2.core.database.model.BlankModelHeightOvermaterial;
-import com.orodent.tonv2.core.database.model.BlankModelLayer;
-import com.orodent.tonv2.core.database.repository.BlankModelHeightOvermaterialRepository;
-import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
-import com.orodent.tonv2.core.database.repository.BlankModelRepository;
+import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import javafx.scene.control.Alert;
 
@@ -17,20 +12,14 @@ public class CreateDiskModelController {
 
     private final CreateDiskModelView view;
     private final AppController app;
-    private final BlankModelRepository blankModelRepo;
-    private final BlankModelLayerRepository blankModelLayerRepo;
-    private final BlankModelHeightOvermaterialRepository overmaterialRepo;
+    private final CreateDiskModelService service;
 
     public CreateDiskModelController(CreateDiskModelView view,
                                      AppController app,
-                                     BlankModelRepository blankModelRepo,
-                                     BlankModelLayerRepository blankModelLayerRepo,
-                                     BlankModelHeightOvermaterialRepository overmaterialRepo) {
+                                     CreateDiskModelService service) {
         this.view = view;
         this.app = app;
-        this.blankModelRepo = blankModelRepo;
-        this.blankModelLayerRepo = blankModelLayerRepo;
-        this.overmaterialRepo = overmaterialRepo;
+        this.service = service;
 
         setupActions();
     }
@@ -40,79 +29,21 @@ public class CreateDiskModelController {
     }
 
     private void save() {
-        String code = requireText(view.getCode(), "Codice modello");
-        if (code == null) return;
-
-        Double diameter = parsePositive(view.getDiameter(), "Diametro");
-        Double superior = parseNonNegative(view.getSuperiorOvermaterial(), "Overmaterial superiore default");
-        Double inferior = parseNonNegative(view.getInferiorOvermaterial(), "Overmaterial inferiore default");
-        Double pressure = parsePositive(view.getPressure(), "Pressione");
-        Double gramsPerMm = parsePositive(view.getGramsPerMm(), "Grammi per mm");
-        Integer numLayers = parsePositiveInt(view.getNumLayers(), "Numero strati");
-
-        if (diameter == null || superior == null || inferior == null || pressure == null || gramsPerMm == null || numLayers == null) {
-            return;
-        }
-
-        List<BlankModelLayer> layers = new ArrayList<>();
-        double sum = 0;
-        for (CreateDiskModelView.LayerPercentageDraft draft : view.getLayerPercentageDrafts()) {
-            Double pct = parsePositive(draft.percentage(), "Percentuale layer " + draft.layerNumber());
-            if (pct == null) {
-                return;
-            }
-            layers.add(new BlankModelLayer(0, draft.layerNumber(), pct));
-            sum += pct;
-        }
-
-        if (layers.size() != numLayers) {
-            showError("Layer mancanti", "Inserisci la percentuale per tutti i layer del modello.");
-            return;
-        }
-
-        if (Math.abs(sum - 100.0) > 0.0001) {
-            showError("Somma layer non valida", "La somma delle percentuali layer deve essere esattamente 100%.");
-            return;
-        }
-
-        List<BlankModelHeightOvermaterial> ranges = new ArrayList<>();
-        for (CreateDiskModelView.HeightRangeDraft draft : view.getRangeDrafts()) {
-            if (isEmptyRange(draft)) {
-                continue;
-            }
-
-            Double min = parseNonNegative(draft.minHeight(), "Min altezza fascia");
-            Double max = parsePositive(draft.maxHeight(), "Max altezza fascia");
-            Double sup = parseNonNegative(draft.superiorOvermaterial(), "Overmaterial superiore fascia");
-            Double inf = parseNonNegative(draft.inferiorOvermaterial(), "Overmaterial inferiore fascia");
-            if (min == null || max == null || sup == null || inf == null) {
-                return;
-            }
-            if (max <= min) {
-                showError("Intervallo altezza non valido", "Ogni fascia deve avere max altezza maggiore della min altezza.");
-                return;
-            }
-
-            ranges.add(new BlankModelHeightOvermaterial(0, 0, min, max, sup, inf));
-        }
-
         try {
-            BlankModel model = blankModelRepo.insert(code, diameter, superior, inferior, pressure, gramsPerMm, numLayers);
+            CreateDiskModelService.CreateDiskModelData modelData = new CreateDiskModelService.CreateDiskModelData(
+                    requireText(view.getCode(), "Codice modello"),
+                    parsePositive(view.getDiameter(), "Diametro"),
+                    parseNonNegative(view.getSuperiorOvermaterial(), "Overmaterial superiore default"),
+                    parseNonNegative(view.getInferiorOvermaterial(), "Overmaterial inferiore default"),
+                    parsePositive(view.getPressure(), "Pressione"),
+                    parsePositive(view.getGramsPerMm(), "Grammi per mm"),
+                    parsePositiveInt(view.getNumLayers(), "Numero strati")
+            );
 
-            for (BlankModelLayer layer : layers) {
-                blankModelLayerRepo.insert(new BlankModelLayer(model.id(), layer.layerNumber(), layer.diskPercentage()));
-            }
+            List<CreateDiskModelService.LayerData> layers = parseLayers();
+            List<CreateDiskModelService.HeightRangeData> ranges = parseRanges();
 
-            for (BlankModelHeightOvermaterial range : ranges) {
-                overmaterialRepo.insert(new BlankModelHeightOvermaterial(
-                        0,
-                        model.id(),
-                        range.minHeightMm(),
-                        range.maxHeightMm(),
-                        range.superiorOvermaterialMm(),
-                        range.inferiorOvermaterialMm()
-                ));
-            }
+            service.createDiskModel(modelData, layers, ranges);
 
             Alert ok = new Alert(Alert.AlertType.INFORMATION);
             ok.setHeaderText("Modello disco salvato");
@@ -120,9 +51,41 @@ public class CreateDiskModelController {
             ok.showAndWait();
 
             app.showLaboratory();
+        } catch (IllegalArgumentException ex) {
+            showError("Validazione dati", ex.getMessage());
         } catch (RuntimeException ex) {
             showError("Errore salvataggio modello", "Non è stato possibile salvare il modello disco: " + ex.getMessage());
         }
+    }
+
+    private List<CreateDiskModelService.LayerData> parseLayers() {
+        List<CreateDiskModelService.LayerData> layers = new ArrayList<>();
+
+        for (CreateDiskModelView.LayerPercentageDraft draft : view.getLayerPercentageDrafts()) {
+            double percentage = parsePositive(draft.percentage(), "Percentuale layer " + draft.layerNumber());
+            layers.add(new CreateDiskModelService.LayerData(draft.layerNumber(), percentage));
+        }
+
+        return layers;
+    }
+
+    private List<CreateDiskModelService.HeightRangeData> parseRanges() {
+        List<CreateDiskModelService.HeightRangeData> ranges = new ArrayList<>();
+
+        for (CreateDiskModelView.HeightRangeDraft draft : view.getRangeDrafts()) {
+            if (isEmptyRange(draft)) {
+                continue;
+            }
+
+            double min = parseNonNegative(draft.minHeight(), "Min altezza fascia");
+            double max = parsePositive(draft.maxHeight(), "Max altezza fascia");
+            double superior = parseNonNegative(draft.superiorOvermaterial(), "Overmaterial superiore fascia");
+            double inferior = parseNonNegative(draft.inferiorOvermaterial(), "Overmaterial inferiore fascia");
+
+            ranges.add(new CreateDiskModelService.HeightRangeData(min, max, superior, inferior));
+        }
+
+        return ranges;
     }
 
     private boolean isEmptyRange(CreateDiskModelView.HeightRangeDraft draft) {
@@ -134,63 +97,53 @@ public class CreateDiskModelController {
 
     private String requireText(String value, String fieldName) {
         if (value == null || value.isBlank()) {
-            showError("Campo obbligatorio mancante", fieldName + " è obbligatorio.");
-            return null;
+            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
         }
         return value.trim();
     }
 
-    private Double parsePositive(String raw, String fieldName) {
-        Double value = parseDouble(raw, fieldName);
-        if (value == null) return null;
+    private double parsePositive(String raw, String fieldName) {
+        double value = parseDouble(raw, fieldName);
         if (value <= 0) {
-            showError("Valore non valido", fieldName + " deve essere maggiore di 0.");
-            return null;
+            throw new IllegalArgumentException(fieldName + " deve essere maggiore di 0.");
         }
         return value;
     }
 
-    private Double parseNonNegative(String raw, String fieldName) {
-        Double value = parseDouble(raw, fieldName);
-        if (value == null) return null;
+    private double parseNonNegative(String raw, String fieldName) {
+        double value = parseDouble(raw, fieldName);
         if (value < 0) {
-            showError("Valore non valido", fieldName + " non può essere negativo.");
-            return null;
+            throw new IllegalArgumentException(fieldName + " non può essere negativo.");
         }
         return value;
     }
 
 
-    private Integer parsePositiveInt(String raw, String fieldName) {
+    private int parsePositiveInt(String raw, String fieldName) {
         if (raw == null || raw.isBlank()) {
-            showError("Campo obbligatorio mancante", fieldName + " è obbligatorio.");
-            return null;
+            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
         }
         try {
             int value = Integer.parseInt(raw.trim());
             if (value <= 0) {
-                showError("Valore non valido", fieldName + " deve essere maggiore di 0.");
-                return null;
+                throw new IllegalArgumentException(fieldName + " deve essere maggiore di 0.");
             }
             return value;
         } catch (NumberFormatException ex) {
-            showError("Formato numerico non valido", fieldName + " deve essere un intero valido.");
-            return null;
+            throw new IllegalArgumentException(fieldName + " deve essere un intero valido.");
         }
     }
 
-    private Double parseDouble(String raw, String fieldName) {
+    private double parseDouble(String raw, String fieldName) {
         if (raw == null || raw.isBlank()) {
-            showError("Campo obbligatorio mancante", fieldName + " è obbligatorio.");
-            return null;
+            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
         }
 
         try {
             String normalized = raw.trim().replace(',', '.');
             return Double.parseDouble(normalized);
         } catch (NumberFormatException ex) {
-            showError("Formato numerico non valido", fieldName + " deve essere un numero valido.");
-            return null;
+            throw new IllegalArgumentException(fieldName + " deve essere un numero valido.");
         }
     }
 
