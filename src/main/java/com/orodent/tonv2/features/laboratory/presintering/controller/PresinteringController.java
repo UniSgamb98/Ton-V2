@@ -9,14 +9,12 @@ import java.util.List;
 public class PresinteringController {
 
     private final PresinteringView view;
-    private final ProductionRepository productionRepo;
+
     private final PresinteringService service;
 
     public PresinteringController(PresinteringView view,
-                                  ProductionRepository productionRepo,
                                   PresinteringService service) {
         this.view = view;
-        this.productionRepo = productionRepo;
         this.service = service;
 
         loadProducedDisks();
@@ -24,7 +22,7 @@ public class PresinteringController {
 
     private void loadProducedDisks() {
         try {
-            List<ProductionRepository.ProducedDiskRow> rows = service.loadProducedDisks(productionRepo);
+            List<ProductionRepository.ProducedDiskRow> rows = service.loadProducedDisks();
             view.setProducedDisks(rows);
             view.setFeedback("", false);
         } catch (Exception e) {

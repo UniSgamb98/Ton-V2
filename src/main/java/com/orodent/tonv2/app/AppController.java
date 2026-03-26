@@ -187,7 +187,7 @@ public class AppController {
                 new ItemSetupService(app.itemRepo(), app.compositionRepo(), app.productRepo())
         );
 
-        stage.setScene(createSceneWithCSS(view, "/css/item-setup.css"));
+        stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Setup Item");
     }
 
@@ -196,8 +196,7 @@ public class AppController {
         configureHeader(view.getHeader());
         new PresinteringController(
                 view,
-                app.productionRepo(),
-                new PresinteringService()
+                new PresinteringService(app.productionRepo())
         );
 
         stage.setScene(createSceneWithCSS(view));
