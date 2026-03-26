@@ -168,14 +168,15 @@ public class AppController {
         );
         new BatchProductionController(
                 view,
-                app.itemRepo(),
-                app.lineRepo(),
-                app.compositionRepo(),
-                app.productRepo(),
-                app.productionRepo(),
-                new BatchProductionService(),
-                templateEditorService,
-                batchDocumentParamsService,
+                new BatchProductionService(
+                        app.itemRepo(),
+                        app.lineRepo(),
+                        app.compositionRepo(),
+                        app.productRepo(),
+                        app.productionRepo(),
+                        templateEditorService,
+                        batchDocumentParamsService
+                ),
                 preselectedItems
         );
 

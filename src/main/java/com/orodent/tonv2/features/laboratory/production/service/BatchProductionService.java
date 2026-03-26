@@ -2,10 +2,16 @@ package com.orodent.tonv2.features.laboratory.production.service;
 
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
+import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
+import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
+import com.orodent.tonv2.core.database.repository.ProductRepository;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,10 +21,122 @@ import java.util.Optional;
 
 public class BatchProductionService {
 
-    public ProductionPlan buildPlan(List<ProductionRequestLine> requestLines,
-                                    ItemRepository itemRepo,
-                                    CompositionRepository compositionRepo,
-                                    Line line) {
+    private final ItemRepository itemRepo;
+    private final LineRepository lineRepo;
+    private final CompositionRepository compositionRepo;
+    private final ProductRepository productRepo;
+    private final ProductionRepository productionRepo;
+    private final TemplateEditorService templateEditorService;
+    private final BatchProductionDocumentParamsService documentParamsService;
+
+    public BatchProductionService(ItemRepository itemRepo,
+                                  LineRepository lineRepo,
+                                  CompositionRepository compositionRepo,
+                                  ProductRepository productRepo,
+                                  ProductionRepository productionRepo,
+                                  TemplateEditorService templateEditorService,
+                                  BatchProductionDocumentParamsService documentParamsService) {
+        this.itemRepo = itemRepo;
+        this.lineRepo = lineRepo;
+        this.compositionRepo = compositionRepo;
+        this.productRepo = productRepo;
+        this.productionRepo = productionRepo;
+        this.templateEditorService = templateEditorService;
+        this.documentParamsService = documentParamsService;
+    }
+
+    public List<Line> findAllLines() {
+        return lineRepo.findAll();
+    }
+
+    public Product findProductById(int productId) {
+        return productRepo.findById(productId);
+    }
+
+    public List<Item> findItemsByProduct(int productId) {
+        return itemRepo.findByProduct(productId);
+    }
+
+    public Optional<PreselectionData> resolvePreselection(List<Item> preselectedItems) {
+        if (preselectedItems == null || preselectedItems.isEmpty()) {
+            return Optional.empty();
+        }
+
+        int productId = preselectedItems.getFirst().productId();
+        Optional<Line> line = lineRepo.findAll().stream()
+                .filter(l -> l.productId() == productId)
+                .findFirst();
+
+        if (line.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Product preselectedProduct = productRepo.findById(productId);
+        List<Product> selectableProducts = preselectedProduct == null ? List.of() : List.of(preselectedProduct);
+        List<Item> items = itemRepo.findByProduct(productId);
+
+        return Optional.of(new PreselectionData(line.get(), selectableProducts, preselectedProduct, items));
+    }
+
+    public BatchResult produce(Line line, List<ProductionRequestLine> requestLines, String notes) {
+        ProductionPlan plan = buildPlan(requestLines, line);
+        PersistResult persistResult = persistPlan(plan, LocalDate.now(), notes);
+        return new BatchResult(plan, persistResult);
+    }
+
+    public String generateDocumentIfTemplateSelected(String selectedTemplateName,
+                                                     Line line,
+                                                     String notes,
+                                                     ProductionPlan plan) {
+        if (selectedTemplateName == null || selectedTemplateName.isBlank()) {
+            return null;
+        }
+
+        String templateText = templateEditorService.getTemplateContentByName(selectedTemplateName);
+        if (templateText == null || templateText.isBlank()) {
+            throw new IllegalArgumentException("Template selezionato non trovato: " + selectedTemplateName);
+        }
+
+        templateEditorService.setLastBatchTemplateName(selectedTemplateName);
+        Map<String, Object> params = documentParamsService.buildParams(
+                BatchProductionDocumentParamsService.ParamsRequest.real(
+                        line,
+                        notes,
+                        plan.lines()
+                )
+        );
+
+        String payloadJson = templateEditorService.toJson(params);
+        TemplateEditorService.PreviewResult renderResult = templateEditorService.previewTemplate(templateText, payloadJson);
+        if (!renderResult.success()) {
+            throw new IllegalArgumentException("Errore generazione documento: " + renderResult.htmlOrError());
+        }
+
+        try {
+            Path outputFile = Files.createTempFile("ton-batch-document-", ".html");
+            Files.writeString(outputFile, renderResult.htmlOrError());
+            return outputFile.toAbsolutePath().toString();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Documento generato ma non salvabile su file temporaneo.");
+        }
+    }
+
+    public List<String> findTemplateNames() {
+        return templateEditorService.getSavedTemplates().stream()
+                .map(TemplateEditorService.TemplateSnapshot::name)
+                .toList();
+    }
+
+    public String getLastTemplateName() {
+        return templateEditorService.getLastBatchTemplateName();
+    }
+
+    public void setLastTemplateName(String templateName) {
+        templateEditorService.setLastBatchTemplateName(templateName);
+    }
+
+    private ProductionPlan buildPlan(List<ProductionRequestLine> requestLines,
+                                     Line line) {
         if (line == null) {
             throw new IllegalArgumentException("Linea di produzione non selezionata.");
         }
@@ -79,10 +197,9 @@ public class BatchProductionService {
         return new ProductionPlan(line, compositionId, blankModelId, planLines);
     }
 
-    public PersistResult persistPlan(ProductionPlan plan,
-                                     ProductionRepository productionRepo,
-                                     LocalDate productionDate,
-                                     String notes) {
+    private PersistResult persistPlan(ProductionPlan plan,
+                                      LocalDate productionDate,
+                                      String notes) {
         int orderId = productionRepo.insertProductionOrder(
                 plan.line().productId(),
                 plan.compositionId(),
@@ -100,6 +217,11 @@ public class BatchProductionService {
         return new PersistResult(orderId, totalQty);
     }
 
+    public record PreselectionData(Line line,
+                                   List<Product> selectableProducts,
+                                   Product preselectedProduct,
+                                   List<Item> items) {}
+
     public record ProductionRequestLine(int itemId, int quantity) {}
 
     public record ProductionPlan(Line line, int compositionId, int blankModelId, List<ProductionPlanLine> lines) {}
@@ -107,4 +229,6 @@ public class BatchProductionService {
     public record ProductionPlanLine(Item item, int quantity, int compositionId) {}
 
     public record PersistResult(int productionOrderId, int totalQuantity) {}
+
+    public record BatchResult(ProductionPlan plan, PersistResult persistResult) {}
 }
