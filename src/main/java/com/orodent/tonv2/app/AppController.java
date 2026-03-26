@@ -3,10 +3,9 @@ package com.orodent.tonv2.app;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
 import com.orodent.tonv2.features.documents.home.view.DocumentsView;
-import com.orodent.tonv2.features.documents.template.controller.DocumentsTemplateBuilderController;
-import com.orodent.tonv2.core.documents.template.DocumentTemplateService;
-import com.orodent.tonv2.features.documents.template.view.DocumentsTemplateBuilderView;
-import com.orodent.tonv2.core.documents.template.TemplateStorageService;
+import com.orodent.tonv2.features.documents.template.controller.TemplateEditorController;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
@@ -16,6 +15,7 @@ import com.orodent.tonv2.features.laboratory.itemsetup.controller.ItemSetupContr
 import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
 import com.orodent.tonv2.features.laboratory.itemsetup.view.ItemSetupView;
 import com.orodent.tonv2.features.laboratory.production.controller.BatchProductionController;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 import com.orodent.tonv2.features.laboratory.presintering.controller.PresinteringController;
@@ -37,6 +37,7 @@ public class AppController {
     private final Stage stage;
     private final AppContainer app;
     private final String cssPath;
+    private final TemplateEditorService templateEditorService;
 
     /*
     In questo progetto l'applicazione è state-less. Che significa che tutte le View vengono create da zero sempre.
@@ -50,7 +51,8 @@ public class AppController {
     public AppController(Stage stage) {
         this.stage = stage;
         this.app = new AppContainer();
-        this.cssPath = Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm();
+        this.cssPath = Objects.requireNonNull(getClass().getResource("/css/global.css")).toExternalForm();
+        this.templateEditorService = new TemplateEditorService(app.database::getConnection);
 
         showHome();
         stage.setOnCloseRequest(e -> shutdown());
@@ -72,7 +74,21 @@ public class AppController {
     }
 
     public void showDocumentsCreate() {
-        showDocumentsTemplateBuilder();
+        TemplateEditorView view = new TemplateEditorView();
+        configureHeader(view.getHeader());
+        BatchProductionDocumentParamsService batchPresetService = new BatchProductionDocumentParamsService(
+                app.compositionRepo(),
+                app.blankModelRepo(),
+                app.blankModelLayerRepo(),
+                app.compositionLayerIngredientRepo(),
+                app.powderRepo(),
+                app.itemRepo(),
+                app.lineRepo()
+        );
+        new TemplateEditorController(view, templateEditorService, app.database::getConnection, batchPresetService);
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Nuovo documento");
     }
 
     public void showDocumentsArchive() {
@@ -110,20 +126,6 @@ public class AppController {
     }
 
 
-
-    public void showDocumentsTemplateBuilder() {
-        DocumentsTemplateBuilderView view = new DocumentsTemplateBuilderView();
-        configureHeader(view.getHeader());
-        new DocumentsTemplateBuilderController(
-                view,
-                new DocumentTemplateService(),
-                new TemplateStorageService(app.database.getConnection())
-        );
-
-        stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Builder Template Documenti");
-    }
-
     public void showDocuments() {
         DocumentsView view = new DocumentsView();
         configureHeader(view.getHeader());
@@ -151,14 +153,25 @@ public class AppController {
     public void showBatchProduction(java.util.List<com.orodent.tonv2.core.database.model.Item> preselectedItems) {
         BatchProductionView view = new BatchProductionView();
         configureHeader(view.getHeader());
+        BatchProductionDocumentParamsService batchDocumentParamsService = new BatchProductionDocumentParamsService(
+                app.compositionRepo(),
+                app.blankModelRepo(),
+                app.blankModelLayerRepo(),
+                app.compositionLayerIngredientRepo(),
+                app.powderRepo(),
+                app.itemRepo(),
+                app.lineRepo()
+        );
         new BatchProductionController(
                 view,
                 app.itemRepo(),
                 app.lineRepo(),
                 app.compositionRepo(),
+                app.productRepo(),
                 app.productionRepo(),
                 new BatchProductionService(),
-                new TemplateStorageService(app.database.getConnection()),
+                templateEditorService,
+                batchDocumentParamsService,
                 preselectedItems
         );
 
@@ -171,13 +184,10 @@ public class AppController {
         configureHeader(view.getHeader());
         new ItemSetupController(
                 view,
-                app.productRepo(),
-                app.itemRepo(),
-                app.compositionRepo(),
-                new ItemSetupService()
+                new ItemSetupService(app.itemRepo(), app.compositionRepo(), app.productRepo())
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        stage.setScene(createSceneWithCSS(view, "/css/item-setup.css"));
         stage.setTitle("TON - Setup Item");
     }
 
@@ -206,9 +216,17 @@ public class AppController {
     /*
     Creando le Scenes con questo metodo vengono collegate al CSS che può essere scritto tutto in un unico file.
      */
-    private Scene createSceneWithCSS(Object root) {
+    private Scene createSceneWithCSS(Object root, String... extraCss) {
         Scene scene = new Scene((javafx.scene.Parent) root, 900, 700);
         scene.getStylesheets().add(cssPath);
+
+        for (String css : extraCss) {
+            String path = Objects.requireNonNull(
+                    getClass().getResource(css)
+            ).toExternalForm();
+
+            scene.getStylesheets().add(path);
+        }
         return scene;
     }
 

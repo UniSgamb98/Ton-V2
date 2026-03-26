@@ -2,19 +2,24 @@ package com.orodent.tonv2.features.laboratory.production.controller;
 
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
+import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
-import com.orodent.tonv2.core.documents.template.DocumentGenerationService;
-import com.orodent.tonv2.core.documents.template.DocumentTemplateService;
-import com.orodent.tonv2.core.documents.template.TemplateStorageService;
+import com.orodent.tonv2.core.database.repository.ProductRepository;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class BatchProductionController {
 
@@ -22,10 +27,11 @@ public class BatchProductionController {
     private final ItemRepository itemRepo;
     private final LineRepository lineRepo;
     private final CompositionRepository compositionRepo;
+    private final ProductRepository productRepo;
     private final ProductionRepository productionRepo;
     private final BatchProductionService service;
-    private final TemplateStorageService templateStorageService;
-    private final DocumentGenerationService documentGenerationService;
+    private final TemplateEditorService templateEditorService;
+    private final BatchProductionDocumentParamsService documentParamsService;
 
     private List<Item> filteredItems = List.of();
 
@@ -33,22 +39,21 @@ public class BatchProductionController {
                                      ItemRepository itemRepo,
                                      LineRepository lineRepo,
                                      CompositionRepository compositionRepo,
+                                     ProductRepository productRepo,
                                      ProductionRepository productionRepo,
                                      BatchProductionService service,
-                                     TemplateStorageService templateStorageService,
+                                     TemplateEditorService templateEditorService,
+                                     BatchProductionDocumentParamsService documentParamsService,
                                      List<Item> preselectedItems) {
         this.view = view;
         this.itemRepo = itemRepo;
         this.lineRepo = lineRepo;
         this.compositionRepo = compositionRepo;
+        this.productRepo = productRepo;
         this.productionRepo = productionRepo;
         this.service = service;
-        this.templateStorageService = templateStorageService;
-        this.documentGenerationService = new DocumentGenerationService(
-                new DocumentTemplateService(),
-                templateStorageService,
-                java.nio.file.Path.of("generated-documents")
-        );
+        this.templateEditorService = templateEditorService;
+        this.documentParamsService = documentParamsService;
 
         setupActions(preselectedItems);
     }
@@ -56,39 +61,23 @@ public class BatchProductionController {
     private void setupActions(List<Item> preselectedItems) {
         List<Line> lines = lineRepo.findAll();
         view.setLines(lines);
-        view.setTemplates(templateStorageService.listTemplates());
-        templateStorageService.findLastUsedTemplate().ifPresent(lastUsed -> {
-            view.getTemplateSelector().getItems().stream()
-                    .filter(t -> t.id() == lastUsed.id())
-                    .findFirst()
-                    .ifPresent(view.getTemplateSelector()::setValue);
-        });
 
         view.getLineSelector().setOnAction(e -> onLineChanged());
-        view.getAddRowButton().setOnAction(e -> {
-            if (filteredItems.isEmpty()) {
-                view.setFeedback("Seleziona prima una linea con item disponibili.", true);
-                return;
-            }
-            view.addRow(filteredItems, null);
-        });
+        view.setProductSelectionHandler(this::onProductSelected);
         view.getProduceButton().setOnAction(e -> produceBatch());
+        refreshTemplateSelector();
 
         if (preselectedItems != null && !preselectedItems.isEmpty()) {
-            int productId = preselectedItems.getFirst().productId();
+            int productId = preselectedItems.get(0).productId();
             lines.stream()
                     .filter(l -> l.productId() == productId)
                     .findFirst()
                     .ifPresent(line -> {
                         view.getLineSelector().setValue(line);
                         filteredItems = itemRepo.findByProduct(line.productId());
-                        view.replaceRows(filteredItems);
-                        if (!view.getRows().isEmpty()) {
-                            view.getRows().getFirst().getItemSelector().setValue(preselectedItems.getFirst());
-                        }
-                        for (int i = 1; i < preselectedItems.size(); i++) {
-                            view.addRow(filteredItems, preselectedItems.get(i));
-                        }
+                        Product preselectedProduct = productRepo.findById(line.productId());
+                        view.setSelectableProducts(preselectedProduct == null ? List.of() : List.of(preselectedProduct), preselectedProduct);
+                        view.setItemRows(filteredItems);
                     });
         }
     }
@@ -97,13 +86,21 @@ public class BatchProductionController {
         Line selected = view.getLineSelector().getValue();
         if (selected == null) {
             filteredItems = List.of();
-            view.getRows().clear();
-            view.replaceRows(List.of());
+            view.clearProducts();
+            view.setItemRows(List.of());
             return;
         }
 
-        filteredItems = itemRepo.findByProduct(selected.productId());
-        view.replaceRows(filteredItems);
+        Product lineProduct = productRepo.findById(selected.productId());
+        view.setSelectableProducts(lineProduct == null ? List.of() : List.of(lineProduct), null);
+        filteredItems = List.of();
+        view.setItemRows(List.of());
+        view.setFeedback("", false);
+    }
+
+    private void onProductSelected(Product product) {
+        filteredItems = itemRepo.findByProduct(product.id());
+        view.setItemRows(filteredItems);
         view.setFeedback("", false);
     }
 
@@ -112,11 +109,6 @@ public class BatchProductionController {
             Line line = view.getLineSelector().getValue();
             if (line == null) {
                 throw new IllegalArgumentException("Seleziona una linea di produzione.");
-            }
-
-            TemplateStorageService.SavedTemplateRef selectedTemplate = view.getTemplateSelector().getValue();
-            if (selectedTemplate == null) {
-                throw new IllegalArgumentException("Seleziona un template documento prima di produrre batch.");
             }
 
             List<BatchProductionService.ProductionRequestLine> requestLines = collectLines();
@@ -128,18 +120,12 @@ public class BatchProductionController {
                     view.getNotesArea().getText()
             );
 
-            String generatedDocumentPath = documentGenerationService.generateForBatchProduction(
-                    selectedTemplate,
-                    line.name(),
-                    view.getNotesArea().getText(),
-                    toBatchItemParams(plan.lines()),
-                    result.productionOrderId()
-            ).toAbsolutePath().toString();
+            String documentPath = generateDocumentIfTemplateSelected(line, plan);
 
             view.setFeedback(
                     "Batch salvato. Ordine #" + result.productionOrderId() +
-                            " con " + plan.lines().size() + " righe, quantità totale " + result.totalQuantity() +
-                            ". Documento: " + generatedDocumentPath,
+                            " con " + plan.lines().size() + " righe, quantità totale " + result.totalQuantity() + "." +
+                            (documentPath == null ? "" : " Documento generato: " + documentPath),
                     false
             );
         } catch (IllegalArgumentException ex) {
@@ -149,42 +135,76 @@ public class BatchProductionController {
         }
     }
 
-    private List<DocumentGenerationService.BatchItemParam> toBatchItemParams(List<BatchProductionService.ProductionPlanLine> planLines) {
-        List<DocumentGenerationService.BatchItemParam> items = new ArrayList<>();
-        for (BatchProductionService.ProductionPlanLine line : planLines) {
-            items.add(new DocumentGenerationService.BatchItemParam(line.item().code(), line.quantity()));
-        }
-        return items;
-    }
-
     private List<BatchProductionService.ProductionRequestLine> collectLines() {
         List<BatchProductionService.ProductionRequestLine> lines = new ArrayList<>();
 
         for (BatchProductionView.BatchRow row : view.getRows()) {
-            Item item = row.getItemSelector().getValue();
+            Item item = row.getItem();
             String qtyRaw = row.getQuantityField().getText();
 
-            if (item == null && (qtyRaw == null || qtyRaw.isBlank())) {
-                continue;
-            }
-            if (item == null) {
-                throw new IllegalArgumentException("Seleziona un item in tutte le righe compilate.");
-            }
-
             int qty;
-            try {
-                qty = Integer.parseInt((qtyRaw == null ? "" : qtyRaw).trim());
-            } catch (NumberFormatException e) {
-                throw new IllegalArgumentException("Quantità non valida per l'item " + item.code() + ".");
+            if (qtyRaw == null || qtyRaw.isBlank()) {
+                qty = 0;
+            } else {
+                try {
+                    qty = Integer.parseInt(qtyRaw.trim());
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Quantità non valida per l'item " + item.code() + ".");
+                }
             }
 
             lines.add(new BatchProductionService.ProductionRequestLine(item.id(), qty));
         }
 
         if (lines.isEmpty()) {
-            throw new IllegalArgumentException("Inserisci almeno una riga valida per produrre.");
+            throw new IllegalArgumentException("Seleziona un prodotto con item disponibili prima di produrre.");
         }
 
         return lines;
+    }
+
+    private void refreshTemplateSelector() {
+        List<String> templateNames = templateEditorService.getSavedTemplates().stream()
+                .map(TemplateEditorService.TemplateSnapshot::name)
+                .collect(Collectors.toList());
+        view.setTemplateNames(templateNames, templateEditorService.getLastBatchTemplateName());
+        view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
+                templateEditorService.setLastBatchTemplateName(newValue)
+        );
+    }
+
+    private String generateDocumentIfTemplateSelected(Line line, BatchProductionService.ProductionPlan plan) {
+        String selectedTemplateName = view.getTemplateSelector().getValue();
+        if (selectedTemplateName == null || selectedTemplateName.isBlank()) {
+            return null;
+        }
+
+        String templateText = templateEditorService.getTemplateContentByName(selectedTemplateName);
+        if (templateText == null || templateText.isBlank()) {
+            throw new IllegalArgumentException("Template selezionato non trovato: " + selectedTemplateName);
+        }
+
+        templateEditorService.setLastBatchTemplateName(selectedTemplateName);
+        Map<String, Object> params = documentParamsService.buildParams(
+                BatchProductionDocumentParamsService.ParamsRequest.real(
+                        line,
+                        view.getNotesArea().getText(),
+                        plan.lines()
+                )
+        );
+
+        String payloadJson = templateEditorService.toJson(params);
+        TemplateEditorService.PreviewResult renderResult = templateEditorService.previewTemplate(templateText, payloadJson);
+        if (!renderResult.success()) {
+            throw new IllegalArgumentException("Errore generazione documento: " + renderResult.htmlOrError());
+        }
+
+        try {
+            Path outputFile = Files.createTempFile("ton-batch-document-", ".html");
+            Files.writeString(outputFile, renderResult.htmlOrError());
+            return outputFile.toAbsolutePath().toString();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Documento generato ma non salvabile su file temporaneo.");
+        }
     }
 }

@@ -1,0 +1,79 @@
+.root {
+    -fx-font-family: "Segoe UI", "Arial", sans-serif;
+    -fx-background-color: #f8fafc;
+}
+
+.item-setup-view {
+    -fx-spacing: 16;
+    -fx-padding: 20;
+    -fx-background-color: #f8fafc;
+}
+
+.section-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #334155;
+}
+
+.combo-box,
+.text-field {
+    -fx-background-color: white;
+    -fx-border-color: #cbd5e1;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 10 8 10;
+    -fx-font-size: 13px;
+}
+
+.combo-box:focused,
+.text-field:focused {
+    -fx-border-color: #2563eb;
+    -fx-background-color: white;
+}
+
+.button {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 10 14 10 14;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: #1d4ed8;
+}
+
+.button:pressed {
+    -fx-background-color: #1e40af;
+}
+
+.secondary-button {
+    -fx-background-color: #e2e8f0;
+    -fx-text-fill: #0f172a;
+}
+
+.secondary-button:hover {
+    -fx-background-color: #cbd5e1;
+}
+
+.feedback-label {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 6 0 0 0;
+}
+
+.feedback-success {
+    -fx-text-fill: #166534;
+}
+
+.feedback-error {
+    -fx-text-fill: #b91c1c;
+}
+
+.create-row {
+    -fx-spacing: 10;
+    -fx-alignment: center-left;
+}

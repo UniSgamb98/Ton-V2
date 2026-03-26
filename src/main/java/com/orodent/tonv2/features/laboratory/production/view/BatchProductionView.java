@@ -3,7 +3,7 @@ package com.orodent.tonv2.features.laboratory.production.view;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
-import com.orodent.tonv2.core.documents.template.TemplateStorageService;
+import com.orodent.tonv2.core.database.model.Product;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -12,32 +12,33 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class BatchProductionView extends VBox {
 
-    private final AppHeader header = new AppHeader("Produzione batch");
+    private static final String PRODUCT_BUTTON_BASE_STYLE = "-fx-background-color: #e5e7eb; -fx-text-fill: #111827;";
+    private static final String PRODUCT_BUTTON_SELECTED_STYLE = "-fx-background-color: #2563eb; -fx-text-fill: white;";
+
+    private final AppHeader header = new AppHeader("Laboratorio - Produzione");
     private final ComboBox<Line> lineSelector = new ComboBox<>();
+    private final Label productSelectorLabel = new Label("Prodotto");
+    private final FlowPane productButtonsBox = new FlowPane();
+    private final ComboBox<String> templateSelector = new ComboBox<>();
     private final VBox rowsBox = new VBox(8);
     private final TextArea notesArea = new TextArea();
-    private final ComboBox<TemplateStorageService.SavedTemplateRef> templateSelector = new ComboBox<>();
-    private final Button addRowButton = new Button("Aggiungi riga");
     private final Button produceButton = new Button("Produzione batch");
     private final Label feedbackLabel = new Label();
-    private final Label templateParamsHelpLabel = new Label(
-            """
-                    Parametri template disponibili (demo batch):
-                    - {{line.name}}
-                    - {{notes}}
-                    - {{#each items}} ... {{code}} ... {{quantity}} ... {{/each}}"""
-    );
 
     private final List<BatchRow> rows = new ArrayList<>();
+    private Product selectedProduct;
+    private Consumer<Product> productSelectionHandler = product -> {};
 
     public BatchProductionView() {
         setSpacing(16);
@@ -46,29 +47,30 @@ public class BatchProductionView extends VBox {
         lineSelector.setPromptText("Seleziona linea di produzione");
         lineSelector.setMaxWidth(Double.MAX_VALUE);
 
+        productSelectorLabel.setStyle("-fx-font-weight: bold;");
+        productButtonsBox.setHgap(8);
+        productButtonsBox.setVgap(8);
+
         notesArea.setPromptText("Note ordine (opzionale)");
         notesArea.setPrefRowCount(3);
-
-        templateSelector.setPromptText("Seleziona template documento");
+        templateSelector.setPromptText("Template documento");
         templateSelector.setMaxWidth(Double.MAX_VALUE);
 
         feedbackLabel.setStyle("-fx-text-fill: #374151;");
-        templateParamsHelpLabel.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px;");
-
-        HBox actions = new HBox(10, addRowButton, produceButton);
-        actions.setAlignment(Pos.CENTER_LEFT);
+        HBox actions = new HBox(10, produceButton);
 
         getChildren().addAll(
                 header,
                 new Label("Linea"),
                 lineSelector,
+                productSelectorLabel,
+                productButtonsBox,
                 new Separator(),
                 rowsBox,
                 new Label("Note"),
                 notesArea,
                 new Label("Template documento"),
                 templateSelector,
-                templateParamsHelpLabel,
                 actions,
                 feedbackLabel
         );
@@ -78,26 +80,14 @@ public class BatchProductionView extends VBox {
         lineSelector.getItems().setAll(lines);
     }
 
-    public void setTemplates(List<TemplateStorageService.SavedTemplateRef> templates) {
-        templateSelector.getItems().setAll(templates);
-    }
-
-    public void addRow(List<Item> items, Item preselectedItem) {
-        BatchRow row = new BatchRow(items, preselectedItem);
-        rows.add(row);
-        rowsBox.getChildren().add(row.container);
-
-        row.removeButton.setOnAction(e -> {
-            rows.remove(row);
-            rowsBox.getChildren().remove(row.container);
-        });
-
-    }
-
-    public void replaceRows(List<Item> items) {
+    public void setItemRows(List<Item> items) {
         rows.clear();
         rowsBox.getChildren().clear();
-        addRow(items, null);
+        for (Item item : items) {
+            BatchRow row = new BatchRow(item);
+            rows.add(row);
+            rowsBox.getChildren().add(row.container);
+        }
     }
 
     public List<BatchRow> getRows() {
@@ -116,16 +106,63 @@ public class BatchProductionView extends VBox {
         return notesArea;
     }
 
-    public ComboBox<TemplateStorageService.SavedTemplateRef> getTemplateSelector() {
-        return templateSelector;
+    public void setProductSelectionHandler(Consumer<Product> productSelectionHandler) {
+        this.productSelectionHandler = productSelectionHandler == null ? product -> {} : productSelectionHandler;
     }
 
-    public Button getAddRowButton() {
-        return addRowButton;
+    public void setSelectableProducts(List<Product> products, Product preselectedProduct) {
+        selectedProduct = null;
+        productButtonsBox.getChildren().clear();
+
+        for (Product product : products) {
+            Button productButton = new Button(product.code());
+            productButton.setStyle(PRODUCT_BUTTON_BASE_STYLE);
+            productButton.setOnAction(e -> {
+                if (selectedProduct != null && selectedProduct.id() == product.id()) {
+                    return;
+                }
+                highlightSelectedProduct(product);
+                productSelectionHandler.accept(product);
+            });
+            productButtonsBox.getChildren().add(productButton);
+        }
+
+        if (preselectedProduct != null) {
+            highlightSelectedProduct(preselectedProduct);
+        }
+    }
+
+    public void clearProducts() {
+        selectedProduct = null;
+        productButtonsBox.getChildren().clear();
+    }
+
+    private void highlightSelectedProduct(Product product) {
+        selectedProduct = product;
+        for (int i = 0; i < productButtonsBox.getChildren().size(); i++) {
+            Button button = (Button) productButtonsBox.getChildren().get(i);
+            boolean isSelected = button.getText().equals(product.code());
+            button.setStyle(isSelected ? PRODUCT_BUTTON_SELECTED_STYLE : PRODUCT_BUTTON_BASE_STYLE);
+        }
     }
 
     public Button getProduceButton() {
         return produceButton;
+    }
+
+    public ComboBox<String> getTemplateSelector() {
+        return templateSelector;
+    }
+
+    public void setTemplateNames(List<String> names, String preselectedName) {
+        templateSelector.getItems().setAll(names);
+        if (preselectedName != null && names.contains(preselectedName)) {
+            templateSelector.setValue(preselectedName);
+            return;
+        }
+        if (!names.isEmpty()) {
+            templateSelector.setValue(names.getFirst());
+        }
     }
 
     public void setFeedback(String text, boolean error) {
@@ -135,32 +172,25 @@ public class BatchProductionView extends VBox {
 
     public static class BatchRow {
         private final HBox container;
-        private final ComboBox<Item> itemSelector;
+        private final Item item;
         private final TextField quantityField;
-        private final Button removeButton;
 
-        private BatchRow(List<Item> items, Item preselectedItem) {
-            itemSelector = new ComboBox<>();
-            itemSelector.getItems().setAll(items);
-            itemSelector.setPromptText("Seleziona item");
-            itemSelector.setMaxWidth(Double.MAX_VALUE);
-            if (preselectedItem != null) {
-                itemSelector.setValue(preselectedItem);
-            }
+        private BatchRow(Item item) {
+            this.item = item;
+            Label itemCodeLabel = new Label(item.code());
+            itemCodeLabel.setMinWidth(180);
 
             quantityField = new TextField();
             quantityField.setPromptText("Quantità");
             quantityField.setPrefWidth(120);
 
-            removeButton = new Button("✕");
-
-            container = new HBox(10, itemSelector, quantityField, removeButton);
-            HBox.setHgrow(itemSelector, Priority.ALWAYS);
+            container = new HBox(10, itemCodeLabel, quantityField);
+            HBox.setHgrow(itemCodeLabel, Priority.ALWAYS);
             container.setAlignment(Pos.CENTER_LEFT);
         }
 
-        public ComboBox<Item> getItemSelector() {
-            return itemSelector;
+        public Item getItem() {
+            return item;
         }
 
         public TextField getQuantityField() {

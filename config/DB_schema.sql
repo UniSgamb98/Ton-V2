@@ -314,3 +314,26 @@ CREATE TABLE production_order_firing (
         FOREIGN KEY (firing_id)
         REFERENCES firing(id)
 );
+
+------------------------------------------------------------
+-- TABLE: document_template
+------------------------------------------------------------
+CREATE TABLE document_template (
+  id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name VARCHAR(120) NOT NULL UNIQUE,
+  template_content CLOB NOT NULL,
+  sql_query CLOB,
+  preset_code VARCHAR(120),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+------------------------------------------------------------
+-- TABLE: document_template_usage
+------------------------------------------------------------
+CREATE TABLE document_template_usage (
+    template_id INTEGER NOT NULL PRIMARY KEY,
+    last_used_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_dtu_template
+        FOREIGN KEY (template_id) REFERENCES document_template(id)
+);

@@ -2,11 +2,13 @@ module com.orodent.tonv2 {
 
     requires javafx.controls;
     requires javafx.fxml;
+    requires javafx.web;
     requires com.google.gson;
     requires org.apache.derby.server;
     requires org.apache.derby.tools;
     requires java.sql;
     requires java.desktop;
+    requires freemarker;
 
     // Core
     exports com.orodent.tonv2.core.csv;
