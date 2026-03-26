@@ -1,0 +1,109 @@
+package com.orodent.tonv2.features.documents.template.service;
+
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
+
+import java.sql.Connection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+
+public class TemplateEditorWorkflowService {
+
+    private static final String DEFAULT_TEMPLATE_NAME = "NuovoTemplate";
+    private static final String DEFAULT_PRESET_CODE = "Batch Production";
+    private static final String DEFAULT_TEMPLATE_CONTENT = """
+            <html>
+              <body>
+                <h1>${line.name!\"Documento\"}</h1>
+              </body>
+            </html>
+            """;
+
+    private final TemplateEditorService templateEditorService;
+    private final Supplier<Connection> connectionSupplier;
+    private final BatchProductionDocumentParamsService batchPresetService;
+    private final Map<String, Map<String, Object>> presetPayloadByCode = new LinkedHashMap<>();
+
+    public TemplateEditorWorkflowService(TemplateEditorService templateEditorService,
+                                         Supplier<Connection> connectionSupplier,
+                                         BatchProductionDocumentParamsService batchPresetService) {
+        this.templateEditorService = templateEditorService;
+        this.connectionSupplier = connectionSupplier;
+        this.batchPresetService = batchPresetService;
+
+        loadPresets();
+    }
+
+    public EditorState initializeEditorState() {
+        Map<String, Object> defaultPayload = presetPayloadByCode.getOrDefault(DEFAULT_PRESET_CODE, Map.of());
+        return new EditorState(
+                DEFAULT_TEMPLATE_NAME,
+                DEFAULT_TEMPLATE_CONTENT,
+                List.copyOf(presetPayloadByCode.keySet()),
+                DEFAULT_PRESET_CODE,
+                templateEditorService.toJson(defaultPayload),
+                templateEditorService.extractVariablesFromParamsMap(defaultPayload)
+        );
+    }
+
+    public PresetState applyPreset(String presetCode) {
+        if (presetCode == null || presetCode.isBlank()) {
+            throw new IllegalArgumentException("Preset non valido.");
+        }
+
+        Map<String, Object> payload = presetPayloadByCode.get(presetCode);
+        if (payload == null) {
+            throw new IllegalArgumentException("Preset non trovato: " + presetCode);
+        }
+
+        return new PresetState(
+                presetCode,
+                templateEditorService.toJson(payload),
+                templateEditorService.extractVariablesFromParamsMap(payload)
+        );
+    }
+
+    public TemplateEditorService.QueryVariablesResult fetchVariablesFromDb(String sqlQuery) {
+        try (Connection connection = connectionSupplier.get()) {
+            return templateEditorService.extractVariablesFromQuery(sqlQuery, connection);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(ex.getMessage(), ex);
+        }
+    }
+
+    public TemplateEditorService.ValidationResult validateTemplate(String templateText) {
+        return templateEditorService.validateTemplate(templateText);
+    }
+
+    public TemplateEditorService.PreviewResult previewTemplate(String templateText, String jsonPayload) {
+        return templateEditorService.previewTemplate(templateText, jsonPayload);
+    }
+
+    public TemplateEditorService.SaveResult saveTemplate(String templateName,
+                                                         String templateText,
+                                                         String sqlQuery,
+                                                         String presetCode) {
+        return templateEditorService.saveTemplate(templateName, templateText, sqlQuery, presetCode);
+    }
+
+    private void loadPresets() {
+        Map<String, Object> batchPreset = batchPresetService.buildParams(
+                BatchProductionDocumentParamsService.ParamsRequest.preset("Preset automatico da DB", 1)
+        );
+        presetPayloadByCode.put(DEFAULT_PRESET_CODE, batchPreset);
+    }
+
+    public record EditorState(String defaultTemplateName,
+                              String defaultTemplateContent,
+                              List<String> presetCodes,
+                              String defaultPresetCode,
+                              String previewJsonPayload,
+                              List<TemplateEditorService.VariableNode> variables) {
+    }
+
+    public record PresetState(String presetCode,
+                              String previewJsonPayload,
+                              List<TemplateEditorService.VariableNode> variables) {
+    }
+}

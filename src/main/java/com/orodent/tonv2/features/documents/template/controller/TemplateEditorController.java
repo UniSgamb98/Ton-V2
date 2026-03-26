@@ -1,60 +1,37 @@
 package com.orodent.tonv2.features.documents.template.controller;
 
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
-import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import javafx.scene.control.TreeItem;
-
-import java.sql.Connection;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.function.Supplier;
 
 public class TemplateEditorController {
 
     private final TemplateEditorView view;
-    private final TemplateEditorService service;
-    private final Supplier<Connection> connectionSupplier;
-    private final BatchProductionDocumentParamsService batchPresetService;
-    private final Map<String, Map<String, Object>> presetPayloadByCode;
+    private final TemplateEditorWorkflowService workflowService;
     private String previewJsonPayload;
 
     public TemplateEditorController(TemplateEditorView view,
-                                    TemplateEditorService service,
-                                    Supplier<Connection> connectionSupplier,
-                                    BatchProductionDocumentParamsService batchPresetService) {
+                                    TemplateEditorWorkflowService workflowService) {
         this.view = view;
-        this.service = service;
-        this.connectionSupplier = connectionSupplier;
-        this.batchPresetService = batchPresetService;
-        this.presetPayloadByCode = new LinkedHashMap<>();
+        this.workflowService = workflowService;
 
         setupDefaults();
         setupActions();
     }
 
     private void setupDefaults() {
-        view.getTemplateNameField().setText("NuovoTemplate");
-        view.getTemplateEditor().setValue("""
-                <html>
-                  <body>
-                    <h1>${line.name!"Documento"}</h1>
-                  </body>
-                </html>
-                """);
+        TemplateEditorWorkflowService.EditorState editorState = workflowService.initializeEditorState();
 
-        Map<String, Object> batchPreset = batchPresetService.buildParams(
-                BatchProductionDocumentParamsService.ParamsRequest.preset("Preset automatico da DB", 1)
-        );
-        presetPayloadByCode.put("Batch Production", batchPreset);
+        view.getTemplateNameField().setText(editorState.defaultTemplateName());
+        view.getTemplateEditor().setValue(editorState.defaultTemplateContent());
 
         view.getPresetSelector().setDisable(false);
-        view.getPresetSelector().getItems().setAll(presetPayloadByCode.keySet());
-        view.getPresetSelector().setValue("Batch Production");
+        view.getPresetSelector().getItems().setAll(editorState.presetCodes());
+        view.getPresetSelector().setValue(editorState.defaultPresetCode());
 
-        previewJsonPayload = service.toJson(batchPreset);
-        view.setVariables(service.extractVariablesFromParamsMap(batchPreset));
-
+        previewJsonPayload = editorState.previewJsonPayload();
+        view.setVariables(editorState.variables());
     }
 
     private void setupActions() {
@@ -110,14 +87,14 @@ public class TemplateEditorController {
             return;
         }
 
-        Map<String, Object> payload = presetPayloadByCode.get(presetCode);
-        if (payload == null) {
-            return;
+        try {
+            TemplateEditorWorkflowService.PresetState presetState = workflowService.applyPreset(presetCode);
+            previewJsonPayload = presetState.previewJsonPayload();
+            view.setVariables(presetState.variables());
+            view.setFeedback("Preset caricato: " + presetState.presetCode(), false);
+        } catch (IllegalArgumentException ex) {
+            view.setFeedback(ex.getMessage(), true);
         }
-
-        previewJsonPayload = service.toJson(payload);
-        view.setVariables(service.extractVariablesFromParamsMap(payload));
-        view.setFeedback("Preset caricato: " + presetCode, false);
     }
 
     private String buildExpression(TreeItem<String> leaf) {
@@ -145,10 +122,9 @@ public class TemplateEditorController {
     }
 
     private void fetchVariablesFromDb() {
-        try (Connection connection = connectionSupplier.get()) {
-            TemplateEditorService.QueryVariablesResult result = service.extractVariablesFromQuery(
-                    view.getSqlEditor().getValue(),
-                    connection
+        try {
+            TemplateEditorService.QueryVariablesResult result = workflowService.fetchVariablesFromDb(
+                    view.getSqlEditor().getValue()
             );
             view.setVariables(result.variables());
             previewJsonPayload = result.sampleJsonPayload();
@@ -159,12 +135,12 @@ public class TemplateEditorController {
     }
 
     private void validateTemplate() {
-        TemplateEditorService.ValidationResult result = service.validateTemplate(view.getTemplateEditor().getValue());
+        TemplateEditorService.ValidationResult result = workflowService.validateTemplate(view.getTemplateEditor().getValue());
         view.setFeedback(result.message(), !result.valid());
     }
 
     private void previewTemplate() {
-        TemplateEditorService.PreviewResult result = service.previewTemplate(
+        TemplateEditorService.PreviewResult result = workflowService.previewTemplate(
                 view.getTemplateEditor().getValue(),
                 previewJsonPayload
         );
@@ -184,7 +160,7 @@ public class TemplateEditorController {
     }
 
     private void saveTemplate() {
-        TemplateEditorService.SaveResult result = service.saveTemplate(
+        TemplateEditorService.SaveResult result = workflowService.saveTemplate(
                 view.getTemplateNameField().getText(),
                 view.getTemplateEditor().getValue(),
                 view.getSqlEditor().getValue(),

@@ -5,6 +5,7 @@ import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
 import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.documents.template.controller.TemplateEditorController;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
@@ -87,7 +88,10 @@ public class AppController {
                 app.itemRepo(),
                 app.lineRepo()
         );
-        new TemplateEditorController(view, templateEditorService, app.database::getConnection, batchPresetService);
+        new TemplateEditorController(
+                view,
+                new TemplateEditorWorkflowService(templateEditorService, app.database::getConnection, batchPresetService)
+        );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuovo documento");
