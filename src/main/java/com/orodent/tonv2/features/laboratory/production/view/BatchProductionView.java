@@ -46,6 +46,7 @@ public class BatchProductionView extends VBox {
 
         lineSelector.setPromptText("Seleziona linea di produzione");
         lineSelector.setMaxWidth(Double.MAX_VALUE);
+
         productSelectorLabel.setStyle("-fx-font-weight: bold;");
         productButtonsBox.setHgap(8);
         productButtonsBox.setVgap(8);

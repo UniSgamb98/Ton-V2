@@ -91,6 +91,10 @@ public class IngredientRowView extends HBox {
         percentageField.setText(Double.toString(percentage));
     }
 
+    /* =======================
+       GETTER PER IL CONTROLLER
+       ======================= */
+
     public void setOnIngredientChanged(Runnable onIngredientChanged) {
         this.onIngredientChanged = onIngredientChanged;
     }

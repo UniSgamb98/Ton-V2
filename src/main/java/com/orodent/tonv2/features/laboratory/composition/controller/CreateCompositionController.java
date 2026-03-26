@@ -49,7 +49,7 @@ public class CreateCompositionController {
     private void loadProducts() {
         view.getProductSelector().getItems().setAll(productRepo.findAll());
         if (!view.getProductSelector().getItems().contains(NEW_PRODUCT_OPTION)) {
-            view.getProductSelector().getItems().add(0, NEW_PRODUCT_OPTION);
+            view.getProductSelector().getItems().addFirst(NEW_PRODUCT_OPTION);
         }
     }
 
@@ -225,7 +225,7 @@ public class CreateCompositionController {
             Product newProduct = productRepo.insert(newProductCode, null);
             view.getProductSelector().getItems().add(newProduct);
             view.getProductSelector().getItems().remove(NEW_PRODUCT_OPTION);
-            view.getProductSelector().getItems().add(0, NEW_PRODUCT_OPTION);
+            view.getProductSelector().getItems().addFirst(NEW_PRODUCT_OPTION);
             view.getProductSelector().setValue(newProduct);
             return Optional.of(newProduct);
         } catch (RuntimeException e) {

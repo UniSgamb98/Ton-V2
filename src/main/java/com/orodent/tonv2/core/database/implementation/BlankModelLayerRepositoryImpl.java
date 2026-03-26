@@ -33,19 +33,20 @@ public class BlankModelLayerRepositoryImpl implements BlankModelLayerRepository 
             throw new RuntimeException("Error inserting blank model layer", e);
         }
     }
-
     @Override
     public List<BlankModelLayer> findByBlankModelId(int blankModelId) {
         String sql = """
         SELECT blank_model_id, layer_number, disk_percentage
         FROM blank_model_layer
         WHERE blank_model_id = ?
-        ORDER BY layer_number
+        ORDER BY layer_number ASC
         """;
 
         List<BlankModelLayer> layers = new ArrayList<>();
+
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, blankModelId);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     layers.add(new BlankModelLayer(
@@ -55,9 +56,11 @@ public class BlankModelLayerRepositoryImpl implements BlankModelLayerRepository 
                     ));
                 }
             }
-            return layers;
         } catch (SQLException e) {
-            throw new RuntimeException("Error loading blank model layers for " + blankModelId, e);
+            throw new RuntimeException("Error loading blank model layers for blank model " + blankModelId, e);
         }
+
+        return layers;
     }
+
 }

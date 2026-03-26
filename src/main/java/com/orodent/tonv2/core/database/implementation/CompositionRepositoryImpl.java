@@ -16,35 +16,6 @@ public class CompositionRepositoryImpl implements CompositionRepository {
     }
 
     @Override
-    public Optional<Composition> findById(int compositionId) {
-        String sql = """
-        SELECT id, product_id, version, num_layers, created_at, notes
-        FROM composition
-        WHERE id = ?
-        """;
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, compositionId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Timestamp createdAt = rs.getTimestamp("created_at");
-                    return Optional.of(new Composition(
-                            rs.getInt("id"),
-                            rs.getInt("product_id"),
-                            rs.getInt("version"),
-                            rs.getInt("num_layers"),
-                            createdAt != null ? createdAt.toLocalDateTime() : null,
-                            rs.getString("notes")
-                    ));
-                }
-            }
-            return Optional.empty();
-        } catch (SQLException e) {
-            throw new RuntimeException("Error finding composition " + compositionId, e);
-        }
-    }
-
-    @Override
     public Optional<Integer> findMaxVersionByProduct(int productId) {
 
         String sql = """
@@ -113,6 +84,43 @@ public class CompositionRepositoryImpl implements CompositionRepository {
 
         return Optional.empty();
     }
+    @Override
+    public Optional<Composition> findById(int compositionId) {
+
+        String sql = """
+        SELECT id, product_id, version, num_layers, created_at, notes
+        FROM composition
+        WHERE id = ?
+        FETCH FIRST 1 ROW ONLY
+        """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, compositionId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Timestamp createdAt = rs.getTimestamp("created_at");
+                    return Optional.of(new Composition(
+                            rs.getInt("id"),
+                            rs.getInt("product_id"),
+                            rs.getInt("version"),
+                            rs.getInt("num_layers"),
+                            createdAt != null ? createdAt.toLocalDateTime() : null,
+                            rs.getString("notes")
+                    ));
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error finding composition with id " + compositionId, e
+            );
+        }
+
+        return Optional.empty();
+    }
+
 
     @Override
     public Optional<Integer> findActiveCompositionId(int productId) {
@@ -204,7 +212,7 @@ public class CompositionRepositoryImpl implements CompositionRepository {
     }
 
     @Override
-    public int createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients) {
+    public void createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients) {
         boolean originalAutoCommit = true;
         try {
             originalAutoCommit = conn.getAutoCommit();
@@ -216,7 +224,6 @@ public class CompositionRepositoryImpl implements CompositionRepository {
             setActiveCompositionInternal(composition.productId(), compositionId);
 
             conn.commit();
-            return compositionId;
         } catch (SQLException e) {
             try {
                 conn.rollback();
