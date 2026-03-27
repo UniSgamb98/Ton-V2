@@ -19,7 +19,7 @@ public class TemplateEditorWorkflowService {
     private static final String DEFAULT_TEMPLATE_CONTENT = """
             <html>
               <body>
-                <h1>${line.name!\"Documento\"}</h1>
+                <h1>${line.name!"Documento"}</h1>
               </body>
             </html>
             """;

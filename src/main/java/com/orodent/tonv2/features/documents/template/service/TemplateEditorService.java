@@ -48,7 +48,7 @@ public class TemplateEditorService {
         }
 
         storage.saveTemplate(normalizedName, templateText, sqlQuery, presetCode);
-        return SaveResult.ok("Template salvato su database.");
+        return SaveResult.ok();
     }
 
     public QueryVariablesResult extractVariablesFromQuery(String sqlQuery, Connection connection) {
@@ -114,7 +114,7 @@ public class TemplateEditorService {
     }
 
     public record SaveResult(boolean success, String message) {
-        static SaveResult ok(String message) { return new SaveResult(true, message); }
+        static SaveResult ok() { return new SaveResult(true, "Template salvato su database."); }
         static SaveResult error(String message) { return new SaveResult(false, message); }
     }
 

@@ -20,8 +20,4 @@ public class MainApp extends Application {
     public void stop(){
         appController.shutdown();
     }
-
-    public static void main(String[] args) {
-        launch();
-    }
 }

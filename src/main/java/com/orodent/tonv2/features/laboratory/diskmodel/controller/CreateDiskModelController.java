@@ -37,7 +37,7 @@ public class CreateDiskModelController {
                     parseDouble(view.getInferiorOvermaterial(), "Overmaterial inferiore default"),
                     parseDouble(view.getPressure(), "Pressione"),
                     parseDouble(view.getGramsPerMm(), "Grammi per mm"),
-                    parseInteger(view.getNumLayers(), "Numero strati")
+                    parseInteger(view.getNumLayers())
             );
 
             List<CreateDiskModelService.LayerData> layers = parseLayers();
@@ -84,7 +84,7 @@ public class CreateDiskModelController {
         return ranges;
     }
 
-    private Integer parseInteger(String raw, String fieldName) {
+    private Integer parseInteger(String raw) {
         String value = trimToNull(raw);
         if (value == null) {
             return null;
@@ -93,7 +93,7 @@ public class CreateDiskModelController {
         try {
             return Integer.parseInt(value);
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException(fieldName + " deve essere un intero valido.");
+            throw new IllegalArgumentException("Numero strati" + " deve essere un intero valido.");
         }
     }
 

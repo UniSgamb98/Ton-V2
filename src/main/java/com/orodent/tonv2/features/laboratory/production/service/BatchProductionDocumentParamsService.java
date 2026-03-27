@@ -1,10 +1,6 @@
 package com.orodent.tonv2.features.laboratory.production.service;
 
-import com.orodent.tonv2.core.database.model.BlankModel;
-import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
-import com.orodent.tonv2.core.database.model.Item;
-import com.orodent.tonv2.core.database.model.Line;
-import com.orodent.tonv2.core.database.model.Powder;
+import com.orodent.tonv2.core.database.model.*;
 import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
 import com.orodent.tonv2.core.database.repository.BlankModelRepository;
 import com.orodent.tonv2.core.database.repository.CompositionLayerIngredientRepository;
@@ -114,7 +110,7 @@ public class BatchProductionDocumentParamsService {
         }
 
         int version = compositionRepo.findById(compositionId)
-                .map(composition -> composition.version())
+                .map(Composition::version)
                 .orElse(0);
 
         List<Map<String, Object>> blankLayers = blankModelLayerRepo.findByBlankModelId(blankModelId).stream()

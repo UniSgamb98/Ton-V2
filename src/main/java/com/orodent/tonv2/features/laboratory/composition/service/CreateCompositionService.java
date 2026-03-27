@@ -69,7 +69,6 @@ public class CreateCompositionService {
         Composition composition = latestComposition.get();
         Integer blankModelId = compositionRepo.findBlankModelIdByCompositionId(composition.id()).orElse(null);
 
-        List<LayerDraft> layerDrafts = new ArrayList<>();
         Map<Integer, LayerDraft> byLayer = new TreeMap<>();
 
         for (CompositionLayerIngredient ingredient : compositionLayerIngredientRepo.findByCompositionId(composition.id())) {
@@ -80,7 +79,7 @@ public class CreateCompositionService {
             ));
         }
 
-        layerDrafts.addAll(byLayer.values());
+        List<LayerDraft> layerDrafts = new ArrayList<>(byLayer.values());
         return Optional.of(new LatestCompositionData(composition.notes(), blankModelId, layerDrafts));
     }
 

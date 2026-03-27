@@ -28,7 +28,7 @@ public class TemplateRuntimeService {
     public ValidationResult validateTemplate(String templateText) {
         try {
             compileTemplate(templateText);
-            return ValidationResult.ok("Template valido.");
+            return ValidationResult.ok();
         } catch (IOException e) {
             ErrorDetails details = extractErrorDetails(e, "Errore validazione");
             return ValidationResult.error(details.message(), details.line(), details.column());
@@ -103,7 +103,7 @@ public class TemplateRuntimeService {
     }
 
     public record ValidationResult(boolean valid, String message) {
-        static ValidationResult ok(String message) { return new ValidationResult(true, message); }
+        static ValidationResult ok() { return new ValidationResult(true, "Template valido."); }
         static ValidationResult error(String message, Integer line, Integer column) {
             return new ValidationResult(false, appendLineColumn(message, line, column));
         }

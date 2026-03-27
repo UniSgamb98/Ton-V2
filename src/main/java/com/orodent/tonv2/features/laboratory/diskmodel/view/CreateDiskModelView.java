@@ -98,7 +98,7 @@ public class CreateDiskModelView extends VBox {
         HBox.setHgrow(layersSection, Priority.ALWAYS);
 
         Label rangesLabel = new Label("Overmaterial per fascia altezza (opzionale)");
-        addRangeBtn.setOnAction(e -> addRangeRow(null));
+        addRangeBtn.setOnAction(e -> addRangeRow());
 
         VBox leftBox = new VBox(12,
                 baseForm,
@@ -182,8 +182,8 @@ public class CreateDiskModelView extends VBox {
         previewView.update(sup, inf, percentages);
     }
 
-    private void addRangeRow(HeightRangeDraft preset) {
-        HeightRangeRow row = new HeightRangeRow(preset);
+    private void addRangeRow() {
+        HeightRangeRow row = new HeightRangeRow();
         rangeRows.add(row);
 
         row.removeButton.setOnAction(e -> {
@@ -287,18 +287,11 @@ public class CreateDiskModelView extends VBox {
         private final TextField inferiorField = new TextField();
         private final Button removeButton = new Button("Rimuovi");
 
-        private HeightRangeRow(HeightRangeDraft preset) {
+        private HeightRangeRow() {
             minHeightField.setPromptText("Min mm");
             maxHeightField.setPromptText("Max mm");
             superiorField.setPromptText("Over sup.");
             inferiorField.setPromptText("Over inf.");
-
-            if (preset != null) {
-                minHeightField.setText(preset.minHeight());
-                maxHeightField.setText(preset.maxHeight());
-                superiorField.setText(preset.superiorOvermaterial());
-                inferiorField.setText(preset.inferiorOvermaterial());
-            }
 
             HBox.setHgrow(minHeightField, Priority.ALWAYS);
             HBox.setHgrow(maxHeightField, Priority.ALWAYS);

@@ -28,7 +28,6 @@ public class LayerEditorView extends HBox {
     private final Button removeLayerBtn = new Button("✕");
 
     private Runnable onRemove;
-    private Runnable onLayerChanged;
 
     public LayerEditorView(LayerDraft layerDraft, List<Powder> availablePowders) {
         this.layerDraft = layerDraft;
@@ -83,15 +82,11 @@ public class LayerEditorView extends HBox {
         removeLayerBtn.setManaged(enabled);
     }
 
-    public void setOnLayerChanged(Runnable onLayerChanged) {
-        this.onLayerChanged = onLayerChanged;
-    }
-
     private void addIngredient() {
         IngredientDraft ingredient = new IngredientDraft(0, 0);
         layerDraft.ingredients().add(ingredient);
         addIngredientRow(ingredient);
-        notifyLayerChanged();
+        refreshMetrics();
     }
 
     private void addIngredientRow(IngredientDraft ingredient) {
@@ -99,22 +94,15 @@ public class LayerEditorView extends HBox {
         rowView.setAvailablePowders(availablePowders);
         rowView.setPowderById(ingredient.powderId());
         rowView.setPercentage(ingredient.percentage());
-        rowView.setOnIngredientChanged(this::notifyLayerChanged);
+        rowView.setOnIngredientChanged(this::refreshMetrics);
 
         rowView.setOnRemove(() -> {
             layerDraft.ingredients().remove(ingredient);
             ingredientsBox.getChildren().remove(rowView);
-            notifyLayerChanged();
+            refreshMetrics();
         });
 
         ingredientsBox.getChildren().add(rowView);
-    }
-
-    private void notifyLayerChanged() {
-        refreshMetrics();
-        if (onLayerChanged != null) {
-            onLayerChanged.run();
-        }
     }
 
     private void refreshMetrics() {
