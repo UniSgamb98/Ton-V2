@@ -20,7 +20,6 @@ public class AppContainer {
     private final PowderRepository powderRepo;
     private final PowderOxideRepository powderOxideRepo;
     private final CompositionRepository compositionRepo;
-    private final CompositionLayerRepository compositionLayerRepo;
     private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
     private final ProductionRepository productionRepo;
     private final FiringRepository firingRepo;
@@ -54,7 +53,6 @@ public class AppContainer {
         this.powderRepo = new PowderRepositoryImpl(database.getConnection());
         this.compositionRepo = new CompositionRepositoryImpl(database.getConnection());
         this.powderOxideRepo = new PowderOxideRepositoryImpl(database.getConnection());
-        this.compositionLayerRepo = new CompositionLayerRepositoryImpl(database.getConnection());
         this.compositionLayerIngredientRepo = new CompositionLayerIngredientRepositoryImpl(database.getConnection());
         this.firingRepo = new FiringRepositoryImpl(database.getConnection());
         this.productionRepo = new ProductionRepositoryImpl(database.getConnection());
@@ -85,7 +83,6 @@ public class AppContainer {
     public StockRepository stockRepo() { return stockRepo; }
     public PowderRepository powderRepo() { return powderRepo; }
     public CompositionRepository compositionRepo() { return compositionRepo; }
-    public CompositionLayerRepository compositionLayerRepo() { return compositionLayerRepo; }
     public CompositionLayerIngredientRepository compositionLayerIngredientRepo() { return compositionLayerIngredientRepo; }
     public PowderOxideRepository powderOxideRepo() { return powderOxideRepo; }
     public FiringRepository firingRepo() { return firingRepo; }
