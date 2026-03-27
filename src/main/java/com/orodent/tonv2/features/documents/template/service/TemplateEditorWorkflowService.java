@@ -1,7 +1,10 @@
 package com.orodent.tonv2.features.documents.template.service;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 
+import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -10,6 +13,7 @@ import java.util.function.Supplier;
 
 public class TemplateEditorWorkflowService {
 
+    private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
     private static final String DEFAULT_TEMPLATE_NAME = "NuovoTemplate";
     private static final String DEFAULT_PRESET_CODE = "Batch Production";
     private static final String DEFAULT_TEMPLATE_CONTENT = """
@@ -24,6 +28,7 @@ public class TemplateEditorWorkflowService {
     private final Supplier<Connection> connectionSupplier;
     private final BatchProductionDocumentParamsService batchPresetService;
     private final Map<String, Map<String, Object>> presetPayloadByCode = new LinkedHashMap<>();
+    private final Gson gson = new Gson();
 
     public TemplateEditorWorkflowService(TemplateEditorService templateEditorService,
                                          Supplier<Connection> connectionSupplier,
@@ -64,12 +69,25 @@ public class TemplateEditorWorkflowService {
         );
     }
 
-    public TemplateEditorService.QueryVariablesResult fetchVariablesFromDb(String sqlQuery) {
+    public QueryPayloadState fetchQueryPayload(String sqlQuery) {
         try (Connection connection = connectionSupplier.get()) {
-            return templateEditorService.extractVariablesFromQuery(sqlQuery, connection);
+            TemplateEditorService.QueryVariablesResult result = templateEditorService.extractVariablesFromQuery(sqlQuery, connection);
+            return new QueryPayloadState(result.sampleJsonPayload());
         } catch (Exception ex) {
             throw new IllegalArgumentException(ex.getMessage(), ex);
         }
+    }
+
+    public CombinedPayloadState mergePresetAndQueryPayload(String presetJsonPayload, String queryJsonPayload) {
+        Map<String, Object> presetMap = parseJsonToMap(presetJsonPayload);
+        Map<String, Object> queryMap = parseJsonToMap(queryJsonPayload);
+
+        Map<String, Object> merged = deepMerge(presetMap, queryMap);
+
+        return new CombinedPayloadState(
+                templateEditorService.toJson(merged),
+                templateEditorService.extractVariablesFromParamsMap(merged)
+        );
     }
 
     public TemplateEditorService.ValidationResult validateTemplate(String templateText) {
@@ -94,6 +112,40 @@ public class TemplateEditorWorkflowService {
         presetPayloadByCode.put(DEFAULT_PRESET_CODE, batchPreset);
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> deepMerge(Map<String, Object> base, Map<String, Object> extra) {
+        Map<String, Object> merged = new LinkedHashMap<>(base);
+
+        for (Map.Entry<String, Object> entry : extra.entrySet()) {
+            String key = entry.getKey();
+            Object extraValue = entry.getValue();
+            Object baseValue = merged.get(key);
+
+            if (baseValue instanceof Map<?, ?> baseMap && extraValue instanceof Map<?, ?> extraMap) {
+                merged.put(
+                        key,
+                        deepMerge(
+                                (Map<String, Object>) baseMap,
+                                (Map<String, Object>) extraMap
+                        )
+                );
+            } else {
+                merged.put(key, extraValue);
+            }
+        }
+
+        return merged;
+    }
+
+    private Map<String, Object> parseJsonToMap(String json) {
+        if (json == null || json.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+
+        Map<String, Object> parsed = gson.fromJson(json, MAP_TYPE);
+        return parsed == null ? new LinkedHashMap<>() : parsed;
+    }
+
     public record EditorState(String defaultTemplateName,
                               String defaultTemplateContent,
                               List<String> presetCodes,
@@ -105,5 +157,12 @@ public class TemplateEditorWorkflowService {
     public record PresetState(String presetCode,
                               String previewJsonPayload,
                               List<TemplateEditorService.VariableNode> variables) {
+    }
+
+    public record QueryPayloadState(String queryJsonPayload) {
+    }
+
+    public record CombinedPayloadState(String mergedJsonPayload,
+                                       List<TemplateEditorService.VariableNode> variables) {
     }
 }

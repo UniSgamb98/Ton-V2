@@ -9,6 +9,8 @@ public class TemplateEditorController {
 
     private final TemplateEditorView view;
     private final TemplateEditorWorkflowService workflowService;
+    private String presetJsonPayload;
+    private String queryJsonPayload;
     private String previewJsonPayload;
 
     public TemplateEditorController(TemplateEditorView view,
@@ -30,8 +32,9 @@ public class TemplateEditorController {
         view.getPresetSelector().getItems().setAll(editorState.presetCodes());
         view.getPresetSelector().setValue(editorState.defaultPresetCode());
 
-        previewJsonPayload = editorState.previewJsonPayload();
-        view.setVariables(editorState.variables());
+        presetJsonPayload = editorState.previewJsonPayload();
+        queryJsonPayload = "{}";
+        syncPreviewPayload();
     }
 
     private void setupActions() {
@@ -89,8 +92,8 @@ public class TemplateEditorController {
 
         try {
             TemplateEditorWorkflowService.PresetState presetState = workflowService.applyPreset(presetCode);
-            previewJsonPayload = presetState.previewJsonPayload();
-            view.setVariables(presetState.variables());
+            presetJsonPayload = presetState.previewJsonPayload();
+            syncPreviewPayload();
             view.setFeedback("Preset caricato: " + presetState.presetCode(), false);
         } catch (IllegalArgumentException ex) {
             view.setFeedback(ex.getMessage(), true);
@@ -123,15 +126,24 @@ public class TemplateEditorController {
 
     private void fetchVariablesFromDb() {
         try {
-            TemplateEditorService.QueryVariablesResult result = workflowService.fetchVariablesFromDb(
+            TemplateEditorWorkflowService.QueryPayloadState queryState = workflowService.fetchQueryPayload(
                     view.getSqlEditor().getValue()
             );
-            view.setVariables(result.variables());
-            previewJsonPayload = result.sampleJsonPayload();
-            view.setFeedback("Variabili aggiornate dalla query SQL.", false);
+            queryJsonPayload = queryState.queryJsonPayload();
+            syncPreviewPayload();
+            view.setFeedback("Variabili query aggiunte alle variabili preset.", false);
         } catch (Exception ex) {
             view.setFeedback(ex.getMessage(), true);
         }
+    }
+
+    private void syncPreviewPayload() {
+        TemplateEditorWorkflowService.CombinedPayloadState combined = workflowService.mergePresetAndQueryPayload(
+                presetJsonPayload,
+                queryJsonPayload
+        );
+        previewJsonPayload = combined.mergedJsonPayload();
+        view.setVariables(combined.variables());
     }
 
     private void validateTemplate() {
