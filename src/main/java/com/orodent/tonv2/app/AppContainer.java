@@ -6,6 +6,7 @@ import com.orodent.tonv2.core.csv.CsvPathsLoader;
 import com.orodent.tonv2.core.csv.parser.MagazzinoCsvParser;
 import com.orodent.tonv2.core.database.implementation.*;
 import com.orodent.tonv2.core.database.repository.*;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
 public class AppContainer {
 
@@ -28,6 +29,9 @@ public class AppContainer {
     private final BlankModelRepository blankModelRepo;
     private final BlankModelLayerRepository blankModelLayerRepo;
     private final BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo;
+
+    // --- Shared services ---
+    private final TemplateEditorService templateEditorService;
 
     // --- Database ---
     protected final Database database;
@@ -63,6 +67,9 @@ public class AppContainer {
         this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(database.getConnection());
         System.out.println("Caricati le repository.");
 
+        // SHARED SERVICES
+        this.templateEditorService = new TemplateEditorService(database::getConnection);
+
         // PARSER
         this.magazzinoParser = new MagazzinoCsvParser(
                 itemRepo,
@@ -92,6 +99,8 @@ public class AppContainer {
     public BlankModelRepository blankModelRepo() { return blankModelRepo; }
     public BlankModelLayerRepository blankModelLayerRepo() { return blankModelLayerRepo; }
     public BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo() { return blankModelHeightOvermaterialRepo; }
+
+    public TemplateEditorService templateEditorService() { return templateEditorService; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
 }
