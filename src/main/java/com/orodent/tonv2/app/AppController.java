@@ -178,6 +178,7 @@ public class AppController {
                         app.templateEditorService(),
                         batchDocumentParamsService
                 ),
+                app.documentBrowserService(),
                 preselectedItems
         );
 

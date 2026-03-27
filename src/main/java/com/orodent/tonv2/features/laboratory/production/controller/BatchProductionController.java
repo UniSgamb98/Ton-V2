@@ -3,6 +3,7 @@ package com.orodent.tonv2.features.laboratory.production.controller;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
 import com.orodent.tonv2.core.database.model.Product;
+import com.orodent.tonv2.features.document.service.DocumentBrowserService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 
@@ -13,12 +14,15 @@ public class BatchProductionController {
 
     private final BatchProductionView view;
     private final BatchProductionService service;
+    private final DocumentBrowserService documentBrowserService;
 
     public BatchProductionController(BatchProductionView view,
                                      BatchProductionService service,
+                                     DocumentBrowserService documentBrowserService,
                                      List<Item> preselectedItems) {
         this.view = view;
         this.service = service;
+        this.documentBrowserService = documentBrowserService;
 
         setupActions(preselectedItems);
     }
@@ -75,10 +79,14 @@ public class BatchProductionController {
                     result.plan()
             );
 
+            if (documentPath != null) {
+                documentBrowserService.openDocument(documentPath);
+            }
+
             view.setFeedback(
                     "Batch salvato. Ordine #" + result.persistResult().productionOrderId() +
                             " con " + result.plan().lines().size() + " righe, quantità totale " + result.persistResult().totalQuantity() + "." +
-                            (documentPath == null ? "" : " Documento generato: " + documentPath),
+                            (documentPath == null ? "" : " Documento generato e aperto nel browser: " + documentPath),
                     false
             );
         } catch (IllegalArgumentException ex) {

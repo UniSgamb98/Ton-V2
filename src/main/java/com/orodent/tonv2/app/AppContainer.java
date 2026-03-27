@@ -6,6 +6,7 @@ import com.orodent.tonv2.core.csv.CsvPathsLoader;
 import com.orodent.tonv2.core.csv.parser.MagazzinoCsvParser;
 import com.orodent.tonv2.core.database.implementation.*;
 import com.orodent.tonv2.core.database.repository.*;
+import com.orodent.tonv2.features.document.service.DocumentBrowserService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
 public class AppContainer {
@@ -32,6 +33,7 @@ public class AppContainer {
 
     // --- Shared services ---
     private final TemplateEditorService templateEditorService;
+    private final DocumentBrowserService documentBrowserService;
 
     // --- Database ---
     protected final Database database;
@@ -69,6 +71,7 @@ public class AppContainer {
 
         // SHARED SERVICES
         this.templateEditorService = new TemplateEditorService(database::getConnection);
+        this.documentBrowserService = new DocumentBrowserService();
 
         // PARSER
         this.magazzinoParser = new MagazzinoCsvParser(
@@ -101,6 +104,7 @@ public class AppContainer {
     public BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo() { return blankModelHeightOvermaterialRepo; }
 
     public TemplateEditorService templateEditorService() { return templateEditorService; }
+    public DocumentBrowserService documentBrowserService() { return documentBrowserService; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
 }
