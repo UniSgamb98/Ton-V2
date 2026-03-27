@@ -2,6 +2,8 @@ package com.orodent.tonv2.features.documents.template.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.orodent.tonv2.core.database.implementation.DocumentTemplateRepositoryImpl;
+import com.orodent.tonv2.core.database.repository.DocumentTemplateRepository;
 
 import java.sql.Connection;
 import java.time.Instant;
@@ -20,7 +22,8 @@ public class TemplateEditorService {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         this.runtime = new TemplateRuntimeService(gson);
         this.variables = new TemplateVariableService(gson);
-        this.storage = new TemplateStorageService(connectionSupplier);
+        DocumentTemplateRepository templateRepository = new DocumentTemplateRepositoryImpl(connectionSupplier.get());
+        this.storage = new TemplateStorageService(templateRepository);
     }
 
     public ValidationResult validateTemplate(String templateText) {
