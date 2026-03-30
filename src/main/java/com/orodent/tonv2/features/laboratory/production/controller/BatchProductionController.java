@@ -18,28 +18,21 @@ public class BatchProductionController {
 
     public BatchProductionController(BatchProductionView view,
                                      BatchProductionService service,
-                                     DocumentBrowserService documentBrowserService,
-                                     List<Item> preselectedItems) {
+                                     DocumentBrowserService documentBrowserService) {
         this.view = view;
         this.service = service;
         this.documentBrowserService = documentBrowserService;
 
-        setupActions(preselectedItems);
+        setupActions();
     }
 
-    private void setupActions(List<Item> preselectedItems) {
+    private void setupActions() {
         view.setLines(service.findAllLines());
 
         view.getLineSelector().setOnAction(e -> onLineChanged());
         view.setProductSelectionHandler(this::onProductSelected);
         view.getProduceButton().setOnAction(e -> produceBatch());
         refreshTemplateSelector();
-
-        service.resolvePreselection(preselectedItems).ifPresent(preselection -> {
-            view.getLineSelector().setValue(preselection.line());
-            view.setSelectableProducts(preselection.selectableProducts(), preselection.preselectedProduct());
-            view.setItemRows(preselection.items());
-        });
     }
 
     private void onLineChanged() {

@@ -57,27 +57,6 @@ public class BatchProductionService {
         return itemRepo.findByProduct(productId);
     }
 
-    public Optional<PreselectionData> resolvePreselection(List<Item> preselectedItems) {
-        if (preselectedItems == null || preselectedItems.isEmpty()) {
-            return Optional.empty();
-        }
-
-        int productId = preselectedItems.getFirst().productId();
-        Optional<Line> line = lineRepo.findAll().stream()
-                .filter(l -> l.productId() == productId)
-                .findFirst();
-
-        if (line.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Product preselectedProduct = productRepo.findById(productId);
-        List<Product> selectableProducts = preselectedProduct == null ? List.of() : List.of(preselectedProduct);
-        List<Item> items = itemRepo.findByProduct(productId);
-
-        return Optional.of(new PreselectionData(line.get(), selectableProducts, preselectedProduct, items));
-    }
-
     public BatchResult produce(Line line, List<ProductionRequestLine> requestLines, String notes) {
         ProductionPlan plan = buildPlan(requestLines, line);
         PersistResult persistResult = persistPlan(plan, LocalDate.now(), notes);
@@ -216,11 +195,6 @@ public class BatchProductionService {
 
         return new PersistResult(orderId, totalQty);
     }
-
-    public record PreselectionData(Line line,
-                                   List<Product> selectableProducts,
-                                   Product preselectedProduct,
-                                   List<Item> items) {}
 
     public record ProductionRequestLine(int itemId, int quantity) {}
 

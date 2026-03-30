@@ -1,6 +1,6 @@
 package com.orodent.tonv2.features.laboratory.composition.controller;
 
-import com.orodent.tonv2.app.AppController;
+import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
@@ -17,14 +17,14 @@ public class CreateCompositionController {
     private static final Product NEW_PRODUCT_OPTION = new Product(-1, "➕ Nuovo prodotto", "");
 
     private final CreateCompositionView view;
-    private final AppController app;
+    private final LaboratoryNavigator navigator;
     private final CreateCompositionService service;
 
     public CreateCompositionController(CreateCompositionView view,
-                                       AppController app,
+                                       LaboratoryNavigator navigator,
                                        CreateCompositionService service) {
         this.view = view;
-        this.app = app;
+        this.navigator = navigator;
         this.service = service;
 
         loadProducts();
@@ -109,7 +109,7 @@ public class CreateCompositionController {
             alert.setContentText("La ricetta è stata registrata correttamente.");
             alert.showAndWait();
 
-            app.showLaboratory();
+            navigator.showLaboratory();
         } catch (IllegalArgumentException ex) {
             showWarning("Validazione dati", ex.getMessage());
         } catch (RuntimeException ex) {

@@ -1,23 +1,23 @@
 package com.orodent.tonv2.features.documents.archive.controller;
 
+import com.orodent.tonv2.app.navigation.DocumentsNavigator;
 import com.orodent.tonv2.features.documents.archive.view.DocumentsArchiveView;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
 import java.util.List;
-import java.util.function.IntConsumer;
 
 public class DocumentsArchiveController {
 
     private final DocumentsArchiveView view;
     private final TemplateEditorService templateEditorService;
-    private final IntConsumer openTemplateEditorAction;
+    private final DocumentsNavigator navigator;
 
     public DocumentsArchiveController(DocumentsArchiveView view,
                                       TemplateEditorService templateEditorService,
-                                      IntConsumer openTemplateEditorAction) {
+                                      DocumentsNavigator navigator) {
         this.view = view;
         this.templateEditorService = templateEditorService;
-        this.openTemplateEditorAction = openTemplateEditorAction;
+        this.navigator = navigator;
 
         setupActions();
         loadTemplates("");
@@ -30,7 +30,7 @@ public class DocumentsArchiveController {
             if (selectedTemplate == null) {
                 return;
             }
-            openTemplateEditorAction.accept(selectedTemplate.id());
+            navigator.showDocumentsEditTemplate(selectedTemplate.id());
         });
     }
 

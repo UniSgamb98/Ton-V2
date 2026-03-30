@@ -1,6 +1,6 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.controller;
 
-import com.orodent.tonv2.app.AppController;
+import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import javafx.scene.control.Alert;
@@ -11,14 +11,14 @@ import java.util.List;
 public class CreateDiskModelController {
 
     private final CreateDiskModelView view;
-    private final AppController app;
+    private final LaboratoryNavigator navigator;
     private final CreateDiskModelService service;
 
     public CreateDiskModelController(CreateDiskModelView view,
-                                     AppController app,
+                                     LaboratoryNavigator navigator,
                                      CreateDiskModelService service) {
         this.view = view;
-        this.app = app;
+        this.navigator = navigator;
         this.service = service;
 
         setupActions();
@@ -50,7 +50,7 @@ public class CreateDiskModelController {
             ok.setContentText("Il nuovo modello è stato registrato correttamente.");
             ok.showAndWait();
 
-            app.showLaboratory();
+            navigator.showLaboratory();
         } catch (IllegalArgumentException ex) {
             showError("Validazione dati", ex.getMessage());
         } catch (RuntimeException ex) {

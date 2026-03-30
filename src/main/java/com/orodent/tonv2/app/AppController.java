@@ -1,5 +1,7 @@
 package com.orodent.tonv2.app;
 
+import com.orodent.tonv2.app.navigation.DocumentsNavigator;
+import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.documents.archive.controller.DocumentsArchiveController;
 import com.orodent.tonv2.features.documents.archive.view.DocumentsArchiveView;
@@ -34,7 +36,7 @@ import javafx.stage.Stage;
 
 import java.util.Objects;
 
-public class AppController {
+public class AppController implements DocumentsNavigator, LaboratoryNavigator {
     /*
     Qua salvo i modelli dell'applicazione e tutte le variabili che servono all'intera applicazione e non alle
     singole pagine.
@@ -76,6 +78,7 @@ public class AppController {
         stage.setTitle("TON - Home");
     }
 
+    @Override
     public void showDocumentsCreate() {
         TemplateEditorView view = new TemplateEditorView();
         configureHeader(view.getHeader());
@@ -89,23 +92,21 @@ public class AppController {
         stage.setTitle("TON - Nuovo documento");
     }
 
+    @Override
     public void showDocumentsArchive() {
         DocumentsArchiveView view = new DocumentsArchiveView();
         configureHeader(view.getHeader());
         new DocumentsArchiveController(
                 view,
                 app.templateEditorService(),
-                this::showDocumentsEditTemplate
+                this
         );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Archivio template");
     }
 
-    public void showDocumentsSearch() {
-        showDocuments();
-    }
-
+    @Override
     public void showDocumentsEditTemplate(int templateId) {
         TemplateEditorService.TemplateSnapshot templateSnapshot = app.templateEditorService().getTemplateById(templateId);
         if (templateSnapshot == null) {
@@ -119,7 +120,7 @@ public class AppController {
         new TemplateEditorController(
                 view,
                 buildTemplateWorkflowService(),
-                TemplateEditorController.EditorMode.edit(templateId, templateSnapshot.sqlQuery(), this::showDocumentsArchive)
+                TemplateEditorController.EditorMode.edit(templateId, templateSnapshot.sqlQuery(), this)
         );
 
         stage.setScene(createSceneWithCSS(view));
@@ -149,6 +150,7 @@ public class AppController {
         stage.setTitle("TON - Inventario");
     }
 
+    @Override
     public void showCreateComposition() {
         CreateCompositionView view = new CreateCompositionView();
         configureHeader(view.getHeader());
@@ -169,6 +171,7 @@ public class AppController {
     }
 
 
+    @Override
     public void showDocuments() {
         DocumentsView view = new DocumentsView();
         configureHeader(view.getHeader());
@@ -178,7 +181,7 @@ public class AppController {
         stage.setTitle("TON - Documentazione");
     }
 
-
+    @Override
     public void showLaboratory() {
         LaboratoryView view = new LaboratoryView();
         configureHeader(view.getHeader());
@@ -188,12 +191,8 @@ public class AppController {
         stage.setTitle("TON - Laboratorio");
     }
 
-
+    @Override
     public void showBatchProduction() {
-        showBatchProduction(java.util.List.of());
-    }
-
-    public void showBatchProduction(java.util.List<com.orodent.tonv2.core.database.model.Item> preselectedItems) {
         BatchProductionView view = new BatchProductionView();
         configureHeader(view.getHeader());
         BatchProductionDocumentParamsService batchDocumentParamsService = new BatchProductionDocumentParamsService(
@@ -216,14 +215,14 @@ public class AppController {
                         app.templateEditorService(),
                         batchDocumentParamsService
                 ),
-                app.documentBrowserService(),
-                preselectedItems
+                app.documentBrowserService()
         );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Produzione batch");
     }
 
+    @Override
     public void showItemSetup() {
         ItemSetupView view = new ItemSetupView();
         configureHeader(view.getHeader());
@@ -236,6 +235,7 @@ public class AppController {
         stage.setTitle("TON - Setup Item");
     }
 
+    @Override
     public void showPresintering() {
         PresinteringView view = new PresinteringView();
         configureHeader(view.getHeader());
@@ -248,6 +248,7 @@ public class AppController {
         stage.setTitle("TON - Presinterizza");
     }
 
+    @Override
     public void showCreateDiskModel() {
         CreateDiskModelView view = new CreateDiskModelView();
         configureHeader(view.getHeader());

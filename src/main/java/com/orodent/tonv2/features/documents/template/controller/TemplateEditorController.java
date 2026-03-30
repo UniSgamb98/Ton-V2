@@ -1,5 +1,6 @@
 package com.orodent.tonv2.features.documents.template.controller;
 
+import com.orodent.tonv2.app.navigation.DocumentsNavigator;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
@@ -222,12 +223,12 @@ public class TemplateEditorController {
     }
 
     private void navigateBackWithConfirmation() {
-        if (editorMode.backAction() == null) {
+        if (editorMode.navigator() == null) {
             return;
         }
 
         if (!hasUnsavedChanges()) {
-            editorMode.backAction().run();
+            editorMode.navigator().showDocumentsArchive();
             return;
         }
 
@@ -245,13 +246,13 @@ public class TemplateEditorController {
         if (result == saveAndBack) {
             saveTemplate();
             if (!hasUnsavedChanges()) {
-                editorMode.backAction().run();
+                editorMode.navigator().showDocumentsArchive();
             }
             return;
         }
 
         if (result == discardAndBack) {
-            editorMode.backAction().run();
+            editorMode.navigator().showDocumentsArchive();
         }
     }
 
@@ -273,13 +274,13 @@ public class TemplateEditorController {
         return value == null ? "" : value;
     }
 
-    public record EditorMode(Integer editTemplateId, String initialSqlQuery, Runnable backAction) {
+    public record EditorMode(Integer editTemplateId, String initialSqlQuery, DocumentsNavigator navigator) {
         public static EditorMode create() {
             return new EditorMode(null, "", null);
         }
 
-        public static EditorMode edit(int templateId, String initialSqlQuery, Runnable backAction) {
-            return new EditorMode(templateId, initialSqlQuery, backAction);
+        public static EditorMode edit(int templateId, String initialSqlQuery, DocumentsNavigator navigator) {
+            return new EditorMode(templateId, initialSqlQuery, navigator);
         }
     }
 }
