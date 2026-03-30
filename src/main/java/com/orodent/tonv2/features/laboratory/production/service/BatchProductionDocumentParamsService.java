@@ -138,27 +138,28 @@ public class BatchProductionDocumentParamsService {
         List<CompositionLayerIngredient> ingredients = compositionLayerIngredientRepo.findByCompositionId(compositionId);
 
         Map<Integer, List<Map<String, Object>>> groupedIngredients = new LinkedHashMap<>();
-        Map<Integer, Double> groupedPercentages = new LinkedHashMap<>();
 
         for (CompositionLayerIngredient ingredient : ingredients) {
             Powder powder = powderRepo.findById(ingredient.powderId());
-            groupedIngredients.computeIfAbsent(ingredient.layerNumber(), ignored -> new ArrayList<>())
+
+            groupedIngredients
+                    .computeIfAbsent(ingredient.layerNumber(), ignored -> new ArrayList<>())
                     .add(Map.of(
                             "powder", Map.of(
                                     "code", powder == null || powder.code() == null ? "" : powder.code()
-                            )
+                            ),
+                            "percentage", ingredient.percentage()
                     ));
-            groupedPercentages.merge(ingredient.layerNumber(), ingredient.percentage(), Double::sum);
         }
 
         List<Map<String, Object>> layers = new ArrayList<>();
         for (Map.Entry<Integer, List<Map<String, Object>>> entry : groupedIngredients.entrySet()) {
             layers.add(Map.of(
                     "layer_number", entry.getKey(),
-                    "percentage", groupedPercentages.getOrDefault(entry.getKey(), 0.0),
                     "ingredients", entry.getValue()
             ));
         }
+
         return layers;
     }
 
@@ -179,9 +180,6 @@ public class BatchProductionDocumentParamsService {
             double diskPercentage = ((Number) blankLayer.getOrDefault("disk_percentage", 0.0)).doubleValue();
 
             Map<String, Object> compositionLayer = compositionByLayer.get(layerNumber);
-            double compositionPercentage = compositionLayer == null
-                    ? 0.0
-                    : ((Number) compositionLayer.getOrDefault("percentage", 0.0)).doubleValue();
 
             List<Map<String, Object>> compositionIngredients = compositionLayer == null
                     ? List.of()
@@ -191,7 +189,7 @@ public class BatchProductionDocumentParamsService {
             for (Map<String, Object> ingredient : compositionIngredients) {
                 ingredients.add(Map.of(
                         "powder", ingredient.get("powder"),
-                        "percentage", compositionPercentage
+                        "percentage", ingredient.get("percentage")
                 ));
             }
 
