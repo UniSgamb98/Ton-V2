@@ -4,6 +4,7 @@ public record Powder(
         int id,
         String code,
         String name,
+        int viewOrder,
         Double strength,
         Double translucency,
         int yttria,

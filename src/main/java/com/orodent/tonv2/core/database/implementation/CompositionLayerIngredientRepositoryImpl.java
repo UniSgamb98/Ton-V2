@@ -45,10 +45,11 @@ public class CompositionLayerIngredientRepositoryImpl implements CompositionLaye
     @Override
     public List<CompositionLayerIngredient> findByCompositionId(int compositionId) {
         String sql = """
-        SELECT composition_id, layer_number, powder_id, percentage
-        FROM composition_layer_ingredient
-        WHERE composition_id = ?
-        ORDER BY layer_number ASC, powder_id ASC
+        SELECT cli.composition_id, cli.layer_number, cli.powder_id, cli.percentage
+        FROM composition_layer_ingredient cli
+        JOIN powder p ON p.id = cli.powder_id
+        WHERE cli.composition_id = ?
+        ORDER BY cli.layer_number ASC, p.view_order ASC, p.yttria ASC, cli.powder_id ASC
         """;
 
         List<CompositionLayerIngredient> ingredients = new ArrayList<>();

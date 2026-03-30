@@ -119,6 +119,7 @@ CREATE TABLE powder (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     code VARCHAR(50) NOT NULL,
     name VARCHAR(100) NOT NULL,
+    view_order INTEGER NOT NULL DEFAULT 0,
 
     strength DOUBLE,
     translucency DOUBLE,
@@ -126,7 +127,8 @@ CREATE TABLE powder (
     notes VARCHAR(500),
 
     PRIMARY KEY (id),
-    CONSTRAINT uq_powder_code UNIQUE(code)
+    CONSTRAINT uq_powder_code UNIQUE(code),
+    CONSTRAINT ck_powder_view_order CHECK (view_order >= 0)
 );
 
 ------------------------------------------------------------

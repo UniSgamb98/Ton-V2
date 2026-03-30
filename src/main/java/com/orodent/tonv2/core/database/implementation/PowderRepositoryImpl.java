@@ -19,7 +19,7 @@ public class PowderRepositoryImpl implements PowderRepository {
     public List<Powder> findAll() {
         List<Powder> list = new ArrayList<>();
 
-        String sql = "SELECT id, code, name, strength, translucency, yttria, notes FROM powder";
+        String sql = "SELECT id, code, name, view_order, strength, translucency, yttria, notes FROM powder";
 
         try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()
@@ -36,7 +36,7 @@ public class PowderRepositoryImpl implements PowderRepository {
 
     @Override
     public Powder findById(int id) {
-        String sql = "SELECT id, code, name, strength, translucency, yttria, notes FROM powder WHERE id = ?";
+        String sql = "SELECT id, code, name, view_order, strength, translucency, yttria, notes FROM powder WHERE id = ?";
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
@@ -59,7 +59,7 @@ public class PowderRepositoryImpl implements PowderRepository {
         }
 
         String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
-        String sql = "SELECT id, code, name, strength, translucency, yttria, notes FROM powder WHERE id IN (" + placeholders + ")";
+        String sql = "SELECT id, code, name, view_order, strength, translucency, yttria, notes FROM powder WHERE id IN (" + placeholders + ")";
         List<Powder> list = new ArrayList<>();
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -90,17 +90,18 @@ public class PowderRepositoryImpl implements PowderRepository {
 
     private Powder insert(Powder p) {
         String sql =
-                "INSERT INTO powder(code, name, strength, translucency, yttria, notes) " +
-                        "VALUES (?, ?, ?, ?, ?, ?)";
+                "INSERT INTO powder(code, name, view_order, strength, translucency, yttria, notes) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setString(1, p.code());
             ps.setString(2, p.name());
-            ps.setObject(3, p.strength());
-            ps.setObject(4, p.translucency());
-            ps.setObject(5, p.yttria());
-            ps.setString(6, p.notes());
+            ps.setInt(3, p.viewOrder());
+            ps.setObject(4, p.strength());
+            ps.setObject(5, p.translucency());
+            ps.setObject(6, p.yttria());
+            ps.setString(7, p.notes());
 
             ps.executeUpdate();
 
@@ -110,6 +111,7 @@ public class PowderRepositoryImpl implements PowderRepository {
                             keys.getInt(1),
                             p.code(),
                             p.name(),
+                            p.viewOrder(),
                             p.strength(),
                             p.translucency(),
                             p.yttria(),
@@ -127,17 +129,18 @@ public class PowderRepositoryImpl implements PowderRepository {
 
     private Powder update(Powder p) {
         String sql =
-                "UPDATE powder SET code=?, name=?, strength=?, translucency=?, yttria=?, notes=? WHERE id=?";
+                "UPDATE powder SET code=?, name=?, view_order=?, strength=?, translucency=?, yttria=?, notes=? WHERE id=?";
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, p.code());
             ps.setString(2, p.name());
-            ps.setObject(3, p.strength());
-            ps.setObject(4, p.translucency());
-            ps.setObject(5, p.yttria());
-            ps.setString(6, p.notes());
-            ps.setInt(7, p.id());
+            ps.setInt(3, p.viewOrder());
+            ps.setObject(4, p.strength());
+            ps.setObject(5, p.translucency());
+            ps.setObject(6, p.yttria());
+            ps.setString(7, p.notes());
+            ps.setInt(8, p.id());
 
             ps.executeUpdate();
 
@@ -167,6 +170,7 @@ public class PowderRepositoryImpl implements PowderRepository {
                 rs.getInt("id"),
                 rs.getString("code"),
                 rs.getString("name"),
+                rs.getInt("view_order"),
                 rs.getDouble("strength"),
                 rs.getDouble("translucency"),
                 rs.getInt("yttria"),

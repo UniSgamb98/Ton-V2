@@ -21,7 +21,6 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 public class CreateCompositionService {
-
     private final PowderRepository powderRepo;
     private final CompositionRepository compositionRepo;
     private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
@@ -134,6 +133,18 @@ public class CreateCompositionService {
                     "La composizione ha " + numLayers + " layer, ma il modello blank selezionato richiede "
                             + request.blankModel().numLayers() + " layer."
             );
+        }
+
+        for (LayerDraft layer : request.layers()) {
+            double totalPercentage = layer.ingredients().stream()
+                    .mapToDouble(IngredientDraft::percentage)
+                    .sum();
+            if (totalPercentage != 100.0) {
+                throw new IllegalArgumentException(
+                        "La somma delle percentuali del layer " + layer.layerNumber()
+                                + " deve essere pari a 100%. Valore attuale: " + totalPercentage + "%."
+                );
+            }
         }
     }
 
