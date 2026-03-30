@@ -45,6 +45,7 @@ public class TemplateEditorView extends VBox {
     private final Button validateButton = new Button("Valida");
     private final Button previewButton = new Button("Anteprima");
     private final Button saveButton = new Button("Salva");
+    private final Button backButton = new Button("Indietro");
     private final Button previewPortraitButton = new Button("A4 Verticale");
     private final Button previewLandscapeButton = new Button("A4 Orizzontale");
 
@@ -99,7 +100,9 @@ public class TemplateEditorView extends VBox {
         queryAndVariables.setMinHeight(220);
         HBox.setHgrow(queryAndVariables, Priority.ALWAYS);
 
-        HBox actions = new HBox(10, fetchDbButton, validateButton, previewButton, saveButton);
+        HBox actions = new HBox(10, fetchDbButton, validateButton, previewButton, saveButton, backButton);
+        backButton.setVisible(false);
+        backButton.setManaged(false);
 
         SplitPane editorSplitPane = new SplitPane(templateBox, queryAndVariables);
         editorSplitPane.setOrientation(Orientation.VERTICAL);
@@ -197,6 +200,19 @@ public class TemplateEditorView extends VBox {
         previewLandscapeButton.setDisable(true);
     }
 
+
+    public void configureEditMode(boolean editMode) {
+        if (editMode) {
+            saveButton.setText("Salva modifiche");
+            backButton.setVisible(true);
+            backButton.setManaged(true);
+        } else {
+            saveButton.setText("Salva");
+            backButton.setVisible(false);
+            backButton.setManaged(false);
+        }
+    }
+
     public void setFeedback(String message, boolean error) {
         feedbackArea.setText(message == null ? "" : message);
         feedbackArea.setStyle(error
@@ -221,6 +237,7 @@ public class TemplateEditorView extends VBox {
     public Button getValidateButton() { return validateButton; }
     public Button getPreviewButton() { return previewButton; }
     public Button getSaveButton() { return saveButton; }
+    public Button getBackButton() { return backButton; }
     public Button getPreviewPortraitButton() { return previewPortraitButton; }
     public Button getPreviewLandscapeButton() { return previewLandscapeButton; }
 }

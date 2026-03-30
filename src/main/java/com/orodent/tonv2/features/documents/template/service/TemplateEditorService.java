@@ -37,8 +37,8 @@ public class TemplateEditorService {
     }
 
     public SaveResult saveTemplate(String templateName, String templateText, String sqlQuery, String presetCode) {
-        String normalizedName = templateName == null ? "" : templateName.trim();
-        if (normalizedName.isBlank()) {
+        String normalizedName = normalizeTemplateName(templateName);
+        if (normalizedName == null) {
             return SaveResult.error("Nome template obbligatorio.");
         }
 
@@ -49,6 +49,25 @@ public class TemplateEditorService {
 
         storage.saveTemplate(normalizedName, templateText, sqlQuery, presetCode);
         return SaveResult.ok();
+    }
+
+    public SaveResult updateTemplate(int templateId, String templateName, String templateText, String sqlQuery, String presetCode) {
+        String normalizedName = normalizeTemplateName(templateName);
+        if (normalizedName == null) {
+            return SaveResult.error("Nome template obbligatorio.");
+        }
+
+        ValidationResult validation = validateTemplate(templateText);
+        if (!validation.valid()) {
+            return SaveResult.error("Impossibile salvare: " + validation.message());
+        }
+
+        try {
+            storage.updateTemplateById(templateId, normalizedName, templateText, sqlQuery, presetCode);
+            return SaveResult.ok("Template aggiornato su database.");
+        } catch (RuntimeException ex) {
+            return SaveResult.error(ex.getMessage());
+        }
     }
 
     public QueryVariablesResult extractVariablesFromQuery(String sqlQuery, Connection connection) {
@@ -67,6 +86,7 @@ public class TemplateEditorService {
     public List<TemplateSnapshot> getSavedTemplates() {
         return storage.loadTemplates().stream()
                 .map(snapshot -> new TemplateSnapshot(
+                        snapshot.id(),
                         snapshot.name(),
                         snapshot.templateContent(),
                         snapshot.sqlQuery(),
@@ -74,6 +94,28 @@ public class TemplateEditorService {
                         snapshot.savedAt()
                 ))
                 .toList();
+    }
+
+    public List<TemplateListEntry> searchSavedTemplates(String templateNameFilter) {
+        return storage.loadTemplatesByName(templateNameFilter).stream()
+                .map(snapshot -> new TemplateListEntry(snapshot.id(), snapshot.name()))
+                .toList();
+    }
+
+    public TemplateSnapshot getTemplateById(int templateId) {
+        TemplateStorageService.TemplateSnapshot snapshot = storage.loadTemplateById(templateId);
+        if (snapshot == null) {
+            return null;
+        }
+
+        return new TemplateSnapshot(
+                snapshot.id(),
+                snapshot.name(),
+                snapshot.templateContent(),
+                snapshot.sqlQuery(),
+                snapshot.presetCode(),
+                snapshot.savedAt()
+        );
     }
 
     public String getTemplateContentByName(String templateName) {
@@ -97,6 +139,11 @@ public class TemplateEditorService {
         lastBatchTemplateName = templateName == null || templateName.isBlank() ? null : templateName.trim();
     }
 
+    private String normalizeTemplateName(String templateName) {
+        String normalizedName = templateName == null ? "" : templateName.trim();
+        return normalizedName.isBlank() ? null : normalizedName;
+    }
+
     private List<VariableNode> toVariableNodes(List<TemplateVariableService.VariableNode> variableNodes) {
         return variableNodes.stream()
                 .map(this::toVariableNode)
@@ -115,6 +162,7 @@ public class TemplateEditorService {
 
     public record SaveResult(boolean success, String message) {
         static SaveResult ok() { return new SaveResult(true, "Template salvato su database."); }
+        static SaveResult ok(String message) { return new SaveResult(true, message); }
         static SaveResult error(String message) { return new SaveResult(false, message); }
     }
 
@@ -122,5 +170,12 @@ public class TemplateEditorService {
 
     public record QueryVariablesResult(List<VariableNode> variables, String sampleJsonPayload) {}
 
-    public record TemplateSnapshot(String name, String templateContent, String sqlQuery, String presetCode, Instant savedAt) {}
+    public record TemplateSnapshot(int id,
+                                   String name,
+                                   String templateContent,
+                                   String sqlQuery,
+                                   String presetCode,
+                                   Instant savedAt) {}
+
+    public record TemplateListEntry(int id, String name) {}
 }

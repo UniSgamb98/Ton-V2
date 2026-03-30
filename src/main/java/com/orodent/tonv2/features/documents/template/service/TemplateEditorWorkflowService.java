@@ -48,7 +48,30 @@ public class TemplateEditorWorkflowService {
                 List.copyOf(presetPayloadByCode.keySet()),
                 DEFAULT_PRESET_CODE,
                 templateEditorService.toJson(defaultPayload),
-                templateEditorService.extractVariablesFromParamsMap(defaultPayload)
+                templateEditorService.extractVariablesFromParamsMap(defaultPayload),
+                null,
+                false
+        );
+    }
+
+    public EditorState initializeEditorStateForEdit(int templateId) {
+        TemplateEditorService.TemplateSnapshot template = templateEditorService.getTemplateById(templateId);
+        if (template == null) {
+            throw new IllegalArgumentException("Template non trovato: id=" + templateId);
+        }
+
+        String selectedPresetCode = resolvePresetCode(template.presetCode());
+        Map<String, Object> selectedPreset = presetPayloadByCode.getOrDefault(selectedPresetCode, Map.of());
+
+        return new EditorState(
+                template.name(),
+                template.templateContent(),
+                List.copyOf(presetPayloadByCode.keySet()),
+                selectedPresetCode,
+                templateEditorService.toJson(selectedPreset),
+                templateEditorService.extractVariablesFromParamsMap(selectedPreset),
+                template.id(),
+                true
         );
     }
 
@@ -105,6 +128,21 @@ public class TemplateEditorWorkflowService {
         return templateEditorService.saveTemplate(templateName, templateText, sqlQuery, presetCode);
     }
 
+    public TemplateEditorService.SaveResult updateTemplate(int templateId,
+                                                           String templateName,
+                                                           String templateText,
+                                                           String sqlQuery,
+                                                           String presetCode) {
+        return templateEditorService.updateTemplate(templateId, templateName, templateText, sqlQuery, presetCode);
+    }
+
+    private String resolvePresetCode(String requestedPresetCode) {
+        if (requestedPresetCode != null && presetPayloadByCode.containsKey(requestedPresetCode)) {
+            return requestedPresetCode;
+        }
+        return DEFAULT_PRESET_CODE;
+    }
+
     private void loadPresets() {
         Map<String, Object> batchPreset = batchPresetService.buildParams(
                 BatchProductionDocumentParamsService.ParamsRequest.preset("Preset automatico da DB", 1)
@@ -151,7 +189,9 @@ public class TemplateEditorWorkflowService {
                               List<String> presetCodes,
                               String defaultPresetCode,
                               String previewJsonPayload,
-                              List<TemplateEditorService.VariableNode> variables) {
+                              List<TemplateEditorService.VariableNode> variables,
+                              Integer templateId,
+                              boolean editMode) {
     }
 
     public record PresetState(String presetCode,
