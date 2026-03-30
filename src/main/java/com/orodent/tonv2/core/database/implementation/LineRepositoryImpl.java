@@ -59,4 +59,20 @@ public class LineRepositoryImpl implements LineRepository {
             throw new RuntimeException("Errore durante il caricamento linee per prodotto.", e);
         }
     }
+
+    @Override
+    public List<String> findDistinctNames() {
+        String sql = "SELECT DISTINCT name FROM line ORDER BY name ASC";
+        List<String> result = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                result.add(rs.getString("name"));
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore durante il caricamento nomi linea.", e);
+        }
+    }
 }

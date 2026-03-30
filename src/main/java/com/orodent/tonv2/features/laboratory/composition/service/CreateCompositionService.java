@@ -8,12 +8,12 @@ import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.BlankModelRepository;
 import com.orodent.tonv2.core.database.repository.CompositionLayerIngredientRepository;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
+import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.PowderRepository;
 import com.orodent.tonv2.core.database.repository.ProductRepository;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,17 +25,20 @@ public class CreateCompositionService {
     private final CompositionRepository compositionRepo;
     private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
     private final ProductRepository productRepo;
+    private final LineRepository lineRepo;
     private final BlankModelRepository blankModelRepo;
 
     public CreateCompositionService(PowderRepository powderRepo,
                                     CompositionRepository compositionRepo,
                                     CompositionLayerIngredientRepository compositionLayerIngredientRepo,
                                     ProductRepository productRepo,
+                                    LineRepository lineRepo,
                                     BlankModelRepository blankModelRepo) {
         this.powderRepo = powderRepo;
         this.compositionRepo = compositionRepo;
         this.compositionLayerIngredientRepo = compositionLayerIngredientRepo;
         this.productRepo = productRepo;
+        this.lineRepo = lineRepo;
         this.blankModelRepo = blankModelRepo;
     }
 
@@ -51,12 +54,8 @@ public class CreateCompositionService {
         return powderRepo.findAll();
     }
 
-    public Product createProduct(String productCode) {
-        if (productCode == null || productCode.isBlank()) {
-            throw new IllegalArgumentException("Inserisci un codice prodotto valido per continuare.");
-        }
-
-        return productRepo.insert(productCode.trim(), null);
+    public List<String> findAllLineNames() {
+        return lineRepo.findDistinctNames();
     }
 
     public Optional<LatestCompositionData> loadLatestComposition(int productId) {
@@ -85,20 +84,6 @@ public class CreateCompositionService {
     public void saveComposition(SaveCompositionRequest request) {
         validateRequest(request);
 
-        int newVersion = compositionRepo
-                .findMaxVersionByProduct(request.product().id())
-                .map(v -> v + 1)
-                .orElse(1);
-
-        Composition composition = new Composition(
-                0,
-                request.product().id(),
-                newVersion,
-                request.layers().size(),
-                LocalDateTime.now(),
-                request.notes()
-        );
-
         List<CompositionLayerIngredient> ingredients = new ArrayList<>();
         for (LayerDraft layerDraft : request.layers()) {
             for (IngredientDraft ing : layerDraft.ingredients()) {
@@ -111,12 +96,26 @@ public class CreateCompositionService {
             }
         }
 
-        compositionRepo.createVersionWithModelAndActivate(composition, request.blankModel().id(), ingredients);
+        Integer existingProductId = request.product() == null ? null : request.product().id();
+        String newProductCode = request.newProductCode() == null ? null : request.newProductCode().trim();
+        compositionRepo.createVersionWithModelAndActivateForLine(
+                existingProductId,
+                newProductCode,
+                request.lineName().trim(),
+                request.blankModel().id(),
+                request.layers().size(),
+                request.notes(),
+                ingredients
+        );
     }
 
     private void validateRequest(SaveCompositionRequest request) {
-        if (request.product() == null) {
+        if (request.product() == null && (request.newProductCode() == null || request.newProductCode().isBlank())) {
             throw new IllegalArgumentException("Seleziona o crea un prodotto prima di salvare la composizione.");
+        }
+
+        if (request.lineName() == null || request.lineName().isBlank()) {
+            throw new IllegalArgumentException("Seleziona o crea una linea prima di salvare la composizione.");
         }
 
         if (request.blankModel() == null) {
@@ -154,6 +153,8 @@ public class CreateCompositionService {
     }
 
     public record SaveCompositionRequest(Product product,
+                                         String newProductCode,
+                                         String lineName,
                                          BlankModel blankModel,
                                          List<LayerDraft> layers,
                                          String notes) {

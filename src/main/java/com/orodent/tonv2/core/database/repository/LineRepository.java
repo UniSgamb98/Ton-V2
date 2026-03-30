@@ -7,4 +7,5 @@ import java.util.List;
 public interface LineRepository {
     List<Line> findAll();
     List<Line> findByProductId(int productId);
+    List<String> findDistinctNames();
 }

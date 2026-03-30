@@ -162,6 +162,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
                         app.compositionRepo(),
                         app.compositionLayerIngredientRepo(),
                         app.productRepo(),
+                        app.lineRepo(),
                         app.blankModelRepo()
                 )
         );

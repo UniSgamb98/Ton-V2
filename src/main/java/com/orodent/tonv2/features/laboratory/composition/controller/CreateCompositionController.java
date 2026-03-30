@@ -15,6 +15,7 @@ import java.util.Optional;
 public class CreateCompositionController {
 
     private static final Product NEW_PRODUCT_OPTION = new Product(-1, "➕ Nuovo prodotto", "");
+    private static final String NEW_LINE_OPTION = "➕ Nuova linea";
 
     private final CreateCompositionView view;
     private final LaboratoryNavigator navigator;
@@ -28,6 +29,7 @@ public class CreateCompositionController {
         this.service = service;
 
         loadProducts();
+        loadLines();
         loadBlankModels();
         loadPowders();
         setupActions();
@@ -42,6 +44,13 @@ public class CreateCompositionController {
 
     private void loadPowders() {
         view.setAvailablePowders(service.findAllPowders());
+    }
+
+    private void loadLines() {
+        view.getLineSelector().getItems().setAll(service.findAllLineNames());
+        if (!view.getLineSelector().getItems().contains(NEW_LINE_OPTION)) {
+            view.getLineSelector().getItems().addFirst(NEW_LINE_OPTION);
+        }
     }
 
     private void loadBlankModels() {
@@ -88,8 +97,13 @@ public class CreateCompositionController {
     }
 
     private void saveComposition() {
-        Product product = resolveProduct();
-        if (product == null) {
+        ProductSelection productSelection = resolveProductSelection();
+        if (productSelection == null) {
+            return;
+        }
+
+        String lineName = resolveLineName();
+        if (lineName == null) {
             return;
         }
 
@@ -98,7 +112,9 @@ public class CreateCompositionController {
 
         try {
             service.saveComposition(new CreateCompositionService.SaveCompositionRequest(
-                    product,
+                    productSelection.product(),
+                    productSelection.newProductCode(),
+                    lineName,
                     blankModel,
                     view.getLayers(),
                     view.getNotes()
@@ -117,11 +133,11 @@ public class CreateCompositionController {
         }
     }
 
-    private Product resolveProduct() {
+    private ProductSelection resolveProductSelection() {
         Product selected = view.getProductSelector().getValue();
 
         if (selected != null && !isNewProductOption(selected)) {
-            return selected;
+            return new ProductSelection(selected, null);
         }
 
         return showMissingProductDialog().orElse(null);
@@ -131,7 +147,18 @@ public class CreateCompositionController {
         return product != null && product.id() == NEW_PRODUCT_OPTION.id();
     }
 
-    private Optional<Product> showMissingProductDialog() {
+    private String resolveLineName() {
+        String selected = view.getLineSelector().getValue();
+        if (selected == null || selected.isBlank()) {
+            return showMissingLineDialog().orElse(null);
+        }
+        if (NEW_LINE_OPTION.equals(selected)) {
+            return showMissingLineDialog().orElse(null);
+        }
+        return selected;
+    }
+
+    private Optional<ProductSelection> showMissingProductDialog() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Nuovo prodotto");
         dialog.setHeaderText("Product selector vuoto");
@@ -154,19 +181,36 @@ public class CreateCompositionController {
         }
 
         try {
-            Product newProduct = service.createProduct(result.get());
-            view.getProductSelector().getItems().add(newProduct);
-            view.getProductSelector().getItems().remove(NEW_PRODUCT_OPTION);
-            view.getProductSelector().getItems().addFirst(NEW_PRODUCT_OPTION);
-            view.getProductSelector().setValue(newProduct);
-            return Optional.of(newProduct);
+            String newProductCode = result.get() == null ? null : result.get().trim();
+            if (newProductCode == null || newProductCode.isBlank()) {
+                throw new IllegalArgumentException("Inserisci un codice prodotto valido per continuare.");
+            }
+            return Optional.of(new ProductSelection(null, newProductCode));
         } catch (IllegalArgumentException ex) {
             showWarning("Codice prodotto mancante", ex.getMessage());
             return Optional.empty();
-        } catch (RuntimeException e) {
-            showDbError("Errore creazione prodotto", e);
+        }
+    }
+
+    private Optional<String> showMissingLineDialog() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Nuova linea");
+        dialog.setHeaderText("Line selector vuoto");
+        dialog.setContentText("Nome nuova linea:");
+        dialog.getEditor().setPromptText("Inserisci nome linea");
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
             return Optional.empty();
         }
+
+        String lineName = result.get() == null ? null : result.get().trim();
+        if (lineName == null || lineName.isBlank()) {
+            showWarning("Nome linea mancante", "Inserisci un nome linea valido per continuare.");
+            return Optional.empty();
+        }
+
+        return Optional.of(lineName);
     }
 
     private void showWarning(String header, String content) {
@@ -192,4 +236,6 @@ public class CreateCompositionController {
         error.setContentText(message);
         error.showAndWait();
     }
+
+    private record ProductSelection(Product product, String newProductCode) {}
 }

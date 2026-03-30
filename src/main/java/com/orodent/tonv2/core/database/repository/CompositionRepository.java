@@ -15,4 +15,11 @@ public interface CompositionRepository {
     void setActiveComposition(int productId, int compositionId);
     int insert(Composition composition);
     void createVersionWithModelAndActivate(Composition composition, int blankModelId, List<CompositionLayerIngredient> ingredients);
+    void createVersionWithModelAndActivateForLine(Integer existingProductId,
+                                                  String newProductCode,
+                                                  String lineName,
+                                                  int blankModelId,
+                                                  int numLayers,
+                                                  String notes,
+                                                  List<CompositionLayerIngredient> ingredients);
 }

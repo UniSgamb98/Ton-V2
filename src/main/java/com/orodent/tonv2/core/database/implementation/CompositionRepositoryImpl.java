@@ -240,6 +240,107 @@ public class CompositionRepositoryImpl implements CompositionRepository {
         }
     }
 
+    @Override
+    public void createVersionWithModelAndActivateForLine(Integer existingProductId,
+                                                         String newProductCode,
+                                                         String lineName,
+                                                         int blankModelId,
+                                                         int numLayers,
+                                                         String notes,
+                                                         List<CompositionLayerIngredient> ingredients) {
+        boolean originalAutoCommit = true;
+        try {
+            originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+
+            int productId = resolveOrCreateProductId(existingProductId, newProductCode);
+            ensureLineAssociation(productId, lineName);
+
+            int newVersion = findMaxVersionByProductInternal(productId).map(v -> v + 1).orElse(1);
+            Composition composition = new Composition(
+                    0,
+                    productId,
+                    newVersion,
+                    numLayers,
+                    java.time.LocalDateTime.now(),
+                    notes
+            );
+
+            int compositionId = insertCompositionInternal(composition);
+            insertCompositionIngredientsInternal(compositionId, ingredients);
+            insertCompositionBlankModelInternal(compositionId, blankModelId);
+            setActiveCompositionInternal(productId, compositionId);
+
+            conn.commit();
+        } catch (SQLException e) {
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackEx) {
+                e.addSuppressed(rollbackEx);
+            }
+            throw new RuntimeException("Error creating/activating composition with line transaction", e);
+        } finally {
+            try {
+                conn.setAutoCommit(originalAutoCommit);
+            } catch (SQLException ignored) {
+                // no-op
+            }
+        }
+    }
+
+    private Optional<Integer> findMaxVersionByProductInternal(int productId) throws SQLException {
+        String sql = "SELECT MAX(version) FROM composition WHERE product_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, productId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int max = rs.getInt(1);
+                    return rs.wasNull() ? Optional.empty() : Optional.of(max);
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private int resolveOrCreateProductId(Integer existingProductId, String newProductCode) throws SQLException {
+        if (existingProductId != null && existingProductId > 0) {
+            return existingProductId;
+        }
+
+        String sql = "INSERT INTO product (code, description) VALUES (?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, newProductCode);
+            ps.setString(2, null);
+            ps.executeUpdate();
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        throw new SQLException("No ID returned for product insert");
+    }
+
+    private void ensureLineAssociation(int productId, String lineName) throws SQLException {
+        String existsSql = "SELECT 1 FROM line WHERE product_id = ? AND name = ? FETCH FIRST 1 ROW ONLY";
+        try (PreparedStatement existsPs = conn.prepareStatement(existsSql)) {
+            existsPs.setInt(1, productId);
+            existsPs.setString(2, lineName);
+            try (ResultSet rs = existsPs.executeQuery()) {
+                if (rs.next()) {
+                    return;
+                }
+            }
+        }
+
+        String insertSql = "INSERT INTO line (name, product_id) VALUES (?, ?)";
+        try (PreparedStatement insertPs = conn.prepareStatement(insertSql)) {
+            insertPs.setString(1, lineName);
+            insertPs.setInt(2, productId);
+            insertPs.executeUpdate();
+        }
+    }
+
     private int insertCompositionInternal(Composition composition) throws SQLException {
         String sql = """
         INSERT INTO composition (

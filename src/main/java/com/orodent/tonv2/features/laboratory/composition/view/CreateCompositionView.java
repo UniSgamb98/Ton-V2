@@ -22,6 +22,7 @@ public class CreateCompositionView extends VBox {
     private final BorderPane content = new BorderPane();
 
     private final ComboBox<Product> productSelector = new ComboBox<>();
+    private final ComboBox<String> lineSelector = new ComboBox<>();
     private final ComboBox<BlankModel> blankModelSelector = new ComboBox<>();
     private final Button loadLatestVersionBtn = new Button("↵");
     private final Label loadLatestVersionLabel = new Label("carica ultima versione");
@@ -49,6 +50,7 @@ public class CreateCompositionView extends VBox {
 
     private void buildLayout() {
         productSelector.setPromptText("Seleziona prodotto");
+        lineSelector.setPromptText("Seleziona linea");
         blankModelSelector.setPromptText("Seleziona modello blank");
 
         loadLatestVersionBtn.setFocusTraversable(false);
@@ -72,13 +74,21 @@ public class CreateCompositionView extends VBox {
                 blankModelSelector
         );
 
-        HBox selectorsBox = new HBox(16, productBox, blankModelBox);
+        VBox lineBox = new VBox(6,
+                new Label("Linea"),
+                lineSelector
+        );
+
+        HBox selectorsBox = new HBox(16, productBox, lineBox, blankModelBox);
         selectorsBox.setAlignment(Pos.TOP_LEFT);
         HBox.setHgrow(productBox, Priority.ALWAYS);
+        HBox.setHgrow(lineBox, Priority.ALWAYS);
         HBox.setHgrow(blankModelBox, Priority.ALWAYS);
         productBox.setMaxWidth(Double.MAX_VALUE);
+        lineBox.setMaxWidth(Double.MAX_VALUE);
         blankModelBox.setMaxWidth(Double.MAX_VALUE);
         productSelector.setMaxWidth(Double.MAX_VALUE);
+        lineSelector.setMaxWidth(Double.MAX_VALUE);
         blankModelSelector.setMaxWidth(Double.MAX_VALUE);
 
         VBox topBox = new VBox(10,
@@ -149,6 +159,10 @@ public class CreateCompositionView extends VBox {
 
     public ComboBox<BlankModel> getBlankModelSelector() {
         return blankModelSelector;
+    }
+
+    public ComboBox<String> getLineSelector() {
+        return lineSelector;
     }
 
     public String getNotes() {
