@@ -8,4 +8,7 @@ public interface DocumentTemplateRepository {
     void ensureTable();
     void upsert(String name, String templateContent, String sqlQuery, String presetCode);
     List<DocumentTemplate> findAll();
+    List<DocumentTemplate> findByNameContaining(String nameFilter);
+    DocumentTemplate findById(int id);
+    void updateById(int id, String name, String templateContent, String sqlQuery, String presetCode);
 }

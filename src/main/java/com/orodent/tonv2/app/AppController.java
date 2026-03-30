@@ -1,9 +1,12 @@
 package com.orodent.tonv2.app;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.documents.archive.controller.DocumentsArchiveController;
+import com.orodent.tonv2.features.documents.archive.view.DocumentsArchiveView;
 import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
 import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.documents.template.controller.TemplateEditorController;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
@@ -31,7 +34,7 @@ import javafx.stage.Stage;
 
 import java.util.Objects;
 
-public class AppController {
+public class AppController implements DocumentsNavigator {
     /*
     Qua salvo i modelli dell'applicazione e tutte le variabili che servono all'intera applicazione e non alle
     singole pagine.
@@ -76,6 +79,54 @@ public class AppController {
     public void showDocumentsCreate() {
         TemplateEditorView view = new TemplateEditorView();
         configureHeader(view.getHeader());
+
+        new TemplateEditorController(
+                view,
+                buildTemplateWorkflowService()
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Nuovo documento");
+    }
+
+    public void showDocumentsArchive() {
+        DocumentsArchiveView view = new DocumentsArchiveView();
+        configureHeader(view.getHeader());
+        new DocumentsArchiveController(
+                view,
+                app.templateEditorService(),
+                this
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Archivio template");
+    }
+
+    public void showDocumentsSearch() {
+        showDocuments();
+    }
+
+    public void showDocumentsEditTemplate(int templateId) {
+        TemplateEditorService.TemplateSnapshot templateSnapshot = app.templateEditorService().getTemplateById(templateId);
+        if (templateSnapshot == null) {
+            showDocumentsArchive();
+            return;
+        }
+
+        TemplateEditorView view = new TemplateEditorView();
+        configureHeader(view.getHeader());
+
+        new TemplateEditorController(
+                view,
+                buildTemplateWorkflowService(),
+                TemplateEditorController.EditorMode.edit(templateId, templateSnapshot.sqlQuery(), this::showDocumentsArchive)
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Modifica template");
+    }
+
+    private TemplateEditorWorkflowService buildTemplateWorkflowService() {
         BatchProductionDocumentParamsService batchPresetService = new BatchProductionDocumentParamsService(
                 app.compositionRepo(),
                 app.blankModelRepo(),
@@ -85,21 +136,24 @@ public class AppController {
                 app.itemRepo(),
                 app.lineRepo()
         );
-        new TemplateEditorController(
-                view,
-                new TemplateEditorWorkflowService(app.templateEditorService(), app.database::getConnection, batchPresetService)
-        );
 
-        stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Nuovo documento");
+        return new TemplateEditorWorkflowService(app.templateEditorService(), app.database::getConnection, batchPresetService);
     }
 
-    public void showDocumentsArchive() {
-        showDocuments();
+
+    @Override
+    public void showArchive() {
+        showDocumentsArchive();
     }
 
-    public void showDocumentsSearch() {
-        showDocuments();
+    @Override
+    public void showCreate() {
+        showDocumentsCreate();
+    }
+
+    @Override
+    public void showEditTemplate(int templateId) {
+        showDocumentsEditTemplate(templateId);
     }
 
     public void showInventory() {
