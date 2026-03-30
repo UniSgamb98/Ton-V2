@@ -34,7 +34,7 @@ import javafx.stage.Stage;
 
 import java.util.Objects;
 
-public class AppController {
+public class AppController implements DocumentsNavigator {
     /*
     Qua salvo i modelli dell'applicazione e tutte le variabili che servono all'intera applicazione e non alle
     singole pagine.
@@ -95,7 +95,7 @@ public class AppController {
         new DocumentsArchiveController(
                 view,
                 app.templateEditorService(),
-                this::showDocumentsEditTemplate
+                this
         );
 
         stage.setScene(createSceneWithCSS(view));
@@ -138,6 +138,22 @@ public class AppController {
         );
 
         return new TemplateEditorWorkflowService(app.templateEditorService(), app.database::getConnection, batchPresetService);
+    }
+
+
+    @Override
+    public void showArchive() {
+        showDocumentsArchive();
+    }
+
+    @Override
+    public void showCreate() {
+        showDocumentsCreate();
+    }
+
+    @Override
+    public void showEditTemplate(int templateId) {
+        showDocumentsEditTemplate(templateId);
     }
 
     public void showInventory() {
