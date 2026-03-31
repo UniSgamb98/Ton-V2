@@ -171,6 +171,11 @@ public class CreateCompositionView extends VBox {
         }
     }
 
+
+    public void setLineSelectorLocked(boolean locked) {
+        lineSelector.setDisable(locked);
+    }
+
     public ComboBox<Product> getProductSelector() {
         return productSelector;
     }

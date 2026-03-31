@@ -49,6 +49,7 @@ public class CreateCompositionController {
         this.editorMode = editorMode;
 
         view.configureEditMode(editorMode.editMode());
+        view.setLineSelectorLocked(editorMode.editMode());
         loadProducts();
         loadLines();
         loadBlankModels();
@@ -86,9 +87,11 @@ public class CreateCompositionController {
                 navigateBackWithConfirmation();
             }
         });
-        view.getProductSelector().valueProperty().addListener((obs, oldValue, newValue) ->
-                view.setLoadLatestVersionVisible(newValue != null && !isNewProductOption(newValue))
-        );
+        view.getProductSelector().valueProperty().addListener((obs, oldValue, newValue) -> {
+            boolean isNewProduct = isNewProductOption(newValue);
+            view.setLoadLatestVersionVisible(newValue != null && !isNewProduct);
+            view.setLineSelectorLocked(editorMode.editMode() && !isNewProduct);
+        });
         view.getBlankModelSelector().valueProperty().addListener((obs, oldModel, newModel) -> {
             if (newModel != null) {
                 view.setLayerCount(newModel.numLayers());
@@ -163,6 +166,10 @@ public class CreateCompositionController {
                     .filter(model -> model.id() == snapshot.blankModelId())
                     .findFirst()
                     .ifPresent(view.getBlankModelSelector()::setValue);
+        }
+
+        if (snapshot.lineName() != null && !snapshot.lineName().isBlank()) {
+            view.getLineSelector().setValue(snapshot.lineName());
         }
 
         view.setNotes(snapshot.notes());

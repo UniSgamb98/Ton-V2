@@ -36,10 +36,12 @@ public class LaboratoryView extends VBox {
         HBox archiveActions = new HBox(20, archiveDiskModelsButton, archiveCompositionsButton);
         HBox secondaryActions = new HBox(20, produceButton, presinterButton);
 
-        Separator separator = new Separator();
-        separator.setMaxWidth(Double.MAX_VALUE);
+        Separator topSeparator = new Separator();
+        topSeparator.setMaxWidth(Double.MAX_VALUE);
+        Separator bottomSeparator = new Separator();
+        bottomSeparator.setMaxWidth(Double.MAX_VALUE);
 
-        getChildren().addAll(header, primaryActions, archiveActions, separator, secondaryActions);
+        getChildren().addAll(header, primaryActions, topSeparator, archiveActions, bottomSeparator, secondaryActions);
     }
 
     public Button getCreateCompositionButton() { return createCompositionButton; }
