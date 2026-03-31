@@ -3,6 +3,7 @@ package com.orodent.tonv2.features.laboratory.composition.controller;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Product;
+import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
 import javafx.scene.control.Alert;
@@ -97,14 +98,21 @@ public class CreateCompositionController {
     }
 
 
-    public void preloadFromProductId(int productId) {
+    public void preloadFromArchiveSnapshot(CompositionArchiveService.CompositionSnapshot snapshot) {
         view.getProductSelector().getItems().stream()
-                .filter(product -> product.id() == productId)
+                .filter(product -> product.id() == snapshot.productId())
                 .findFirst()
-                .ifPresent(product -> {
-                    view.getProductSelector().setValue(product);
-                    loadLatestVersion();
-                });
+                .ifPresent(view.getProductSelector()::setValue);
+
+        if (snapshot.blankModelId() != null) {
+            view.getBlankModelSelector().getItems().stream()
+                    .filter(model -> model.id() == snapshot.blankModelId())
+                    .findFirst()
+                    .ifPresent(view.getBlankModelSelector()::setValue);
+        }
+
+        view.setNotes(snapshot.notes());
+        view.replaceLayers(snapshot.layerDrafts());
     }
 
     private void saveComposition() {

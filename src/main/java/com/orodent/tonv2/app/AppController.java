@@ -183,7 +183,13 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         );
 
         if (productId != null) {
-            controller.preloadFromProductId(productId);
+            CompositionArchiveService archiveService = new CompositionArchiveService(
+                    app.productRepo(),
+                    app.compositionRepo(),
+                    app.compositionLayerIngredientRepo()
+            );
+            archiveService.loadCompositionSnapshot(productId)
+                    .ifPresent(controller::preloadFromArchiveSnapshot);
         }
 
         stage.setScene(createSceneWithCSS(view));
@@ -327,7 +333,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         new CompositionArchiveController(
                 view,
                 this,
-                new CompositionArchiveService(app.productRepo(), app.compositionRepo())
+                new CompositionArchiveService(app.productRepo(), app.compositionRepo(), app.compositionLayerIngredientRepo())
         );
 
         stage.setScene(createSceneWithCSS(view));
