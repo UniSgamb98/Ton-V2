@@ -33,7 +33,7 @@ public class LaboratoryView extends VBox {
         setPadding(new Insets(20));
 
         HBox primaryActions = new HBox(20, createCompositionButton, createDiskModelButton, createArticleButton);
-        HBox archiveActions = new HBox(20, archiveDiskModelsButton, archiveCompositionsButton);
+        HBox archiveActions = new HBox(20, archiveCompositionsButton, archiveDiskModelsButton);
         HBox secondaryActions = new HBox(20, produceButton, presinterButton);
 
         Separator topSeparator = new Separator();
