@@ -1,29 +1,22 @@
 package com.orodent.tonv2.features.documents.template.controller;
 
 import com.orodent.tonv2.app.navigation.DocumentsNavigator;
+import com.orodent.tonv2.core.ui.form.ConfirmUnsavedChangesDialog;
+import com.orodent.tonv2.core.ui.form.DirtyStateTracker;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.TreeItem;
-
-import java.util.Objects;
 
 public class TemplateEditorController {
 
     private final TemplateEditorView view;
     private final TemplateEditorWorkflowService workflowService;
     private final EditorMode editorMode;
+    private final DirtyStateTracker dirtyStateTracker;
     private String presetJsonPayload;
     private String queryJsonPayload;
     private String previewJsonPayload;
-
-    private String initialTemplateName = "";
-    private String initialTemplateContent = "";
-    private String initialSqlQuery = "";
-    private String initialPresetCode = "";
 
     public TemplateEditorController(TemplateEditorView view,
                                     TemplateEditorWorkflowService workflowService) {
@@ -36,6 +29,11 @@ public class TemplateEditorController {
         this.view = view;
         this.workflowService = workflowService;
         this.editorMode = editorMode;
+        this.dirtyStateTracker = new DirtyStateTracker()
+                .track("templateName", () -> normalize(view.getTemplateNameField().getText()))
+                .track("templateContent", () -> normalize(view.getTemplateEditor().getValue()))
+                .track("sqlQuery", () -> normalize(view.getSqlEditor().getValue()))
+                .track("presetCode", () -> normalize(view.getPresetSelector().getValue()));
 
         setupDefaults();
         setupActions();
@@ -59,7 +57,7 @@ public class TemplateEditorController {
         presetJsonPayload = editorState.previewJsonPayload();
         queryJsonPayload = "{}";
         syncPreviewPayload();
-        captureInitialState();
+        dirtyStateTracker.captureInitialState();
     }
 
     private void setupActions() {
@@ -218,7 +216,7 @@ public class TemplateEditorController {
 
         view.setFeedback(result.message(), !result.success());
         if (result.success()) {
-            captureInitialState();
+            dirtyStateTracker.captureInitialState();
         }
     }
 
@@ -227,47 +225,29 @@ public class TemplateEditorController {
             return;
         }
 
-        if (!hasUnsavedChanges()) {
+        if (!dirtyStateTracker.hasUnsavedChanges()) {
             editorMode.navigator().showDocumentsArchive();
             return;
         }
 
-        ButtonType saveAndBack = new ButtonType("Salva modifiche", ButtonBar.ButtonData.YES);
-        ButtonType discardAndBack = new ButtonType("Non salvare", ButtonBar.ButtonData.NO);
-        ButtonType cancel = new ButtonType("Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ConfirmUnsavedChangesDialog.UserChoice choice = ConfirmUnsavedChangesDialog.show(
+                "Modifiche non salvate",
+                "Vuoi salvare le modifiche prima di tornare indietro?",
+                "Se scegli 'Non salvare' perderai le modifiche effettuate.",
+                "Salva modifiche"
+        );
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Modifiche non salvate");
-        alert.setHeaderText("Vuoi salvare le modifiche prima di tornare indietro?");
-        alert.setContentText("Se scegli 'Non salvare' perderai le modifiche effettuate.");
-        alert.getButtonTypes().setAll(saveAndBack, discardAndBack, cancel);
-
-        ButtonType result = alert.showAndWait().orElse(cancel);
-        if (result == saveAndBack) {
+        if (choice == ConfirmUnsavedChangesDialog.UserChoice.SAVE) {
             saveTemplate();
-            if (!hasUnsavedChanges()) {
+            if (!dirtyStateTracker.hasUnsavedChanges()) {
                 editorMode.navigator().showDocumentsArchive();
             }
             return;
         }
 
-        if (result == discardAndBack) {
+        if (choice == ConfirmUnsavedChangesDialog.UserChoice.DISCARD) {
             editorMode.navigator().showDocumentsArchive();
         }
-    }
-
-    private boolean hasUnsavedChanges() {
-        return !Objects.equals(initialTemplateName, normalize(view.getTemplateNameField().getText()))
-                || !Objects.equals(initialTemplateContent, normalize(view.getTemplateEditor().getValue()))
-                || !Objects.equals(initialSqlQuery, normalize(view.getSqlEditor().getValue()))
-                || !Objects.equals(initialPresetCode, normalize(view.getPresetSelector().getValue()));
-    }
-
-    private void captureInitialState() {
-        initialTemplateName = normalize(view.getTemplateNameField().getText());
-        initialTemplateContent = normalize(view.getTemplateEditor().getValue());
-        initialSqlQuery = normalize(view.getSqlEditor().getValue());
-        initialPresetCode = normalize(view.getPresetSelector().getValue());
     }
 
     private String normalize(String value) {

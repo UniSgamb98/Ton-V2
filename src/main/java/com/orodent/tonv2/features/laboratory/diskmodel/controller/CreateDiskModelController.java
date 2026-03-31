@@ -1,13 +1,14 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.controller;
 
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
+import com.orodent.tonv2.core.ui.form.ConfirmUnsavedChangesDialog;
+import com.orodent.tonv2.core.ui.form.DirtyStateTracker;
+import com.orodent.tonv2.core.ui.form.FieldParsers;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
+import com.orodent.tonv2.features.laboratory.diskmodel.service.DiskModelDraftDataService;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class CreateDiskModelController {
@@ -16,16 +17,8 @@ public class CreateDiskModelController {
     private final LaboratoryNavigator navigator;
     private final CreateDiskModelService service;
     private final EditorMode editorMode;
-
-    private String initialCode;
-    private String initialDiameter;
-    private String initialSuperior;
-    private String initialInferior;
-    private String initialPressure;
-    private String initialGramsPerMm;
-    private String initialNumLayers;
-    private String initialLayerSignature;
-    private String initialRangeSignature;
+    private final DiskModelDraftDataService draftDataService;
+    private final DirtyStateTracker dirtyStateTracker;
 
     public CreateDiskModelController(CreateDiskModelView view,
                                      LaboratoryNavigator navigator,
@@ -41,10 +34,21 @@ public class CreateDiskModelController {
         this.navigator = navigator;
         this.service = service;
         this.editorMode = editorMode;
+        this.draftDataService = new DiskModelDraftDataService();
+        this.dirtyStateTracker = new DirtyStateTracker()
+                .track("code", () -> normalize(view.getCode()))
+                .track("diameter", () -> normalize(view.getDiameter()))
+                .track("superior", () -> normalize(view.getSuperiorOvermaterial()))
+                .track("inferior", () -> normalize(view.getInferiorOvermaterial()))
+                .track("pressure", () -> normalize(view.getPressure()))
+                .track("gramsPerMm", () -> normalize(view.getGramsPerMm()))
+                .track("numLayers", () -> normalize(view.getNumLayers()))
+                .track("layerSignature", () -> draftDataService.buildLayerSignature(view.getLayerPercentageDrafts()))
+                .track("rangeSignature", () -> draftDataService.buildRangeSignature(view.getRangeDrafts()));
 
         view.configureEditMode(editorMode.sourceBlankModelId() != null);
         setupActions();
-        captureInitialState();
+        dirtyStateTracker.captureInitialState();
     }
 
     private void setupActions() {
@@ -57,32 +61,28 @@ public class CreateDiskModelController {
     }
 
     public void markAsClean() {
-        captureInitialState();
+        dirtyStateTracker.captureInitialState();
     }
 
     private void navigateBackWithConfirmation() {
-        if (!hasUnsavedChanges()) {
+        if (!dirtyStateTracker.hasUnsavedChanges()) {
             navigator.showLaboratoryDiskModelArchive();
             return;
         }
 
-        ButtonType saveAndBack = new ButtonType("Salva e torna", ButtonBar.ButtonData.YES);
-        ButtonType discardAndBack = new ButtonType("Non salvare", ButtonBar.ButtonData.NO);
-        ButtonType cancel = new ButtonType("Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ConfirmUnsavedChangesDialog.UserChoice choice = ConfirmUnsavedChangesDialog.show(
+                "Modifiche non salvate",
+                "Vuoi salvare le modifiche prima di tornare all'archivio?",
+                "Se scegli 'Non salvare' perderai le modifiche effettuate.",
+                "Salva e torna"
+        );
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Modifiche non salvate");
-        alert.setHeaderText("Vuoi salvare le modifiche prima di tornare all'archivio?");
-        alert.setContentText("Se scegli 'Non salvare' perderai le modifiche effettuate.");
-        alert.getButtonTypes().setAll(saveAndBack, discardAndBack, cancel);
-
-        ButtonType result = alert.showAndWait().orElse(cancel);
-        if (result == saveAndBack) {
+        if (choice == ConfirmUnsavedChangesDialog.UserChoice.SAVE) {
             save(false);
             return;
         }
 
-        if (result == discardAndBack) {
+        if (choice == ConfirmUnsavedChangesDialog.UserChoice.DISCARD) {
             navigator.showLaboratoryDiskModelArchive();
         }
     }
@@ -90,17 +90,17 @@ public class CreateDiskModelController {
     private boolean save(boolean navigateAfterSave) {
         try {
             CreateDiskModelService.CreateDiskModelData modelData = new CreateDiskModelService.CreateDiskModelData(
-                    trimToNull(view.getCode()),
-                    parseDouble(view.getDiameter(), "Diametro"),
-                    parseDouble(view.getSuperiorOvermaterial(), "Overmaterial superiore default"),
-                    parseDouble(view.getInferiorOvermaterial(), "Overmaterial inferiore default"),
-                    parseDouble(view.getPressure(), "Pressione"),
-                    parseDouble(view.getGramsPerMm(), "Grammi per mm"),
-                    parseInteger(view.getNumLayers())
+                    FieldParsers.trimToNull(view.getCode()),
+                    FieldParsers.parseDouble(view.getDiameter(), "Diametro"),
+                    FieldParsers.parseDouble(view.getSuperiorOvermaterial(), "Overmaterial superiore default"),
+                    FieldParsers.parseDouble(view.getInferiorOvermaterial(), "Overmaterial inferiore default"),
+                    FieldParsers.parseDouble(view.getPressure(), "Pressione"),
+                    FieldParsers.parseDouble(view.getGramsPerMm(), "Grammi per mm"),
+                    FieldParsers.parseInteger(view.getNumLayers(), "Numero strati")
             );
 
-            List<CreateDiskModelService.LayerData> layers = parseLayers();
-            List<CreateDiskModelService.HeightRangeData> ranges = parseRanges();
+            List<CreateDiskModelService.LayerData> layers = draftDataService.parseLayers(view.getLayerPercentageDrafts());
+            List<CreateDiskModelService.HeightRangeData> ranges = draftDataService.parseRanges(view.getRangeDrafts());
 
             if (editorMode.sourceBlankModelId() == null) {
                 service.createDiskModel(modelData, layers, ranges);
@@ -110,7 +110,7 @@ public class CreateDiskModelController {
                 ok.setContentText("Il nuovo modello è stato registrato correttamente.");
                 ok.showAndWait();
 
-                captureInitialState();
+                dirtyStateTracker.captureInitialState();
                 if (navigateAfterSave) {
                     navigator.showLaboratory();
                 }
@@ -128,7 +128,7 @@ public class CreateDiskModelController {
                         + ") e copiate " + result.copiedCompositionAssociations() + " associazioni composizione.");
                 ok.showAndWait();
 
-                captureInitialState();
+                dirtyStateTracker.captureInitialState();
                 if (navigateAfterSave) {
                     navigator.showLaboratoryDiskModelArchive();
                 }
@@ -143,117 +143,8 @@ public class CreateDiskModelController {
         }
     }
 
-    private boolean hasUnsavedChanges() {
-        return !normalize(view.getCode()).equals(initialCode)
-                || !normalize(view.getDiameter()).equals(initialDiameter)
-                || !normalize(view.getSuperiorOvermaterial()).equals(initialSuperior)
-                || !normalize(view.getInferiorOvermaterial()).equals(initialInferior)
-                || !normalize(view.getPressure()).equals(initialPressure)
-                || !normalize(view.getGramsPerMm()).equals(initialGramsPerMm)
-                || !normalize(view.getNumLayers()).equals(initialNumLayers)
-                || !buildLayerSignature().equals(initialLayerSignature)
-                || !buildRangeSignature().equals(initialRangeSignature);
-    }
-
-    private void captureInitialState() {
-        initialCode = normalize(view.getCode());
-        initialDiameter = normalize(view.getDiameter());
-        initialSuperior = normalize(view.getSuperiorOvermaterial());
-        initialInferior = normalize(view.getInferiorOvermaterial());
-        initialPressure = normalize(view.getPressure());
-        initialGramsPerMm = normalize(view.getGramsPerMm());
-        initialNumLayers = normalize(view.getNumLayers());
-        initialLayerSignature = buildLayerSignature();
-        initialRangeSignature = buildRangeSignature();
-    }
-
-    private String buildLayerSignature() {
-        StringBuilder sb = new StringBuilder();
-        view.getLayerPercentageDrafts().forEach(layer -> sb
-                .append(layer.layerNumber())
-                .append('=')
-                .append(normalize(layer.percentage()))
-                .append(';'));
-        return sb.toString();
-    }
-
-    private String buildRangeSignature() {
-        StringBuilder sb = new StringBuilder();
-        view.getRangeDrafts().forEach(range -> sb
-                .append(normalize(range.minHeight()))
-                .append('|')
-                .append(normalize(range.maxHeight()))
-                .append('|')
-                .append(normalize(range.superiorOvermaterial()))
-                .append('|')
-                .append(normalize(range.inferiorOvermaterial()))
-                .append(';'));
-        return sb.toString();
-    }
-
     private String normalize(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    private List<CreateDiskModelService.LayerData> parseLayers() {
-        List<CreateDiskModelService.LayerData> layers = new ArrayList<>();
-
-        for (CreateDiskModelView.LayerPercentageDraft draft : view.getLayerPercentageDrafts()) {
-            Double percentage = parseDouble(draft.percentage(), "Percentuale layer " + draft.layerNumber());
-            layers.add(new CreateDiskModelService.LayerData(draft.layerNumber(), percentage));
-        }
-
-        return layers;
-    }
-
-    private List<CreateDiskModelService.HeightRangeData> parseRanges() {
-        List<CreateDiskModelService.HeightRangeData> ranges = new ArrayList<>();
-
-        for (CreateDiskModelView.HeightRangeDraft draft : view.getRangeDrafts()) {
-            ranges.add(new CreateDiskModelService.HeightRangeData(
-                    parseDouble(draft.minHeight(), "Min altezza fascia"),
-                    parseDouble(draft.maxHeight(), "Max altezza fascia"),
-                    parseDouble(draft.superiorOvermaterial(), "Overmaterial superiore fascia"),
-                    parseDouble(draft.inferiorOvermaterial(), "Overmaterial inferiore fascia")
-            ));
-        }
-
-        return ranges;
-    }
-
-    private Integer parseInteger(String raw) {
-        String value = trimToNull(raw);
-        if (value == null) {
-            return null;
-        }
-
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("Numero strati" + " deve essere un intero valido.");
-        }
-    }
-
-    private Double parseDouble(String raw, String fieldName) {
-        String value = trimToNull(raw);
-        if (value == null) {
-            return null;
-        }
-
-        try {
-            return Double.parseDouble(value.replace(',', '.'));
-        } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException(fieldName + " deve essere un numero valido.");
-        }
-    }
-
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private void showError(String header, String content) {

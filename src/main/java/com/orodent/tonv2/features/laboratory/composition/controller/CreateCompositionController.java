@@ -3,19 +3,18 @@ package com.orodent.tonv2.features.laboratory.composition.controller;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Product;
-import com.orodent.tonv2.core.ui.draft.LayerDraft;
+import com.orodent.tonv2.core.ui.form.ConfirmUnsavedChangesDialog;
+import com.orodent.tonv2.core.ui.form.DirtyStateTracker;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
+import com.orodent.tonv2.features.laboratory.composition.service.CompositionDraftStateService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
 import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
 
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 public class CreateCompositionController {
@@ -27,12 +26,8 @@ public class CreateCompositionController {
     private final LaboratoryNavigator navigator;
     private final CreateCompositionService service;
     private final EditorMode editorMode;
-
-    private Integer initialProductId;
-    private String initialLineName;
-    private Integer initialBlankModelId;
-    private String initialNotes;
-    private String initialLayersSignature;
+    private final CompositionDraftStateService draftStateService;
+    private final DirtyStateTracker dirtyStateTracker;
 
     public CreateCompositionController(CreateCompositionView view,
                                        LaboratoryNavigator navigator,
@@ -48,6 +43,13 @@ public class CreateCompositionController {
         this.navigator = navigator;
         this.service = service;
         this.editorMode = editorMode;
+        this.draftStateService = new CompositionDraftStateService();
+        this.dirtyStateTracker = new DirtyStateTracker()
+                .track("productId", () -> view.getProductSelector().getValue() == null ? null : view.getProductSelector().getValue().id())
+                .track("lineName", () -> normalize(view.getLineSelector().getValue()))
+                .track("blankModelId", () -> view.getBlankModelSelector().getValue() == null ? null : view.getBlankModelSelector().getValue().id())
+                .track("notes", () -> normalize(view.getNotes()))
+                .track("layers", () -> draftStateService.buildLayersSignature(view.getLayers()));
 
         view.configureEditMode(editorMode.editMode());
         view.setLineSelectorLocked(editorMode.editMode());
@@ -56,7 +58,7 @@ public class CreateCompositionController {
         loadBlankModels();
         loadPowders();
         setupActions();
-        captureInitialState();
+        dirtyStateTracker.captureInitialState();
     }
 
     private void loadProducts() {
@@ -126,30 +128,26 @@ public class CreateCompositionController {
     }
 
     private void navigateBackWithConfirmation() {
-        if (!hasUnsavedChanges()) {
+        if (!dirtyStateTracker.hasUnsavedChanges()) {
             navigator.showLaboratoryCompositionArchive();
             return;
         }
 
-        ButtonType saveAndBack = new ButtonType("Salva e torna", ButtonBar.ButtonData.YES);
-        ButtonType discardAndBack = new ButtonType("Non salvare", ButtonBar.ButtonData.NO);
-        ButtonType cancel = new ButtonType("Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ConfirmUnsavedChangesDialog.UserChoice choice = ConfirmUnsavedChangesDialog.show(
+                "Modifiche non salvate",
+                "Vuoi salvare le modifiche prima di tornare all'archivio?",
+                "Se scegli 'Non salvare' perderai le modifiche effettuate.",
+                "Salva e torna"
+        );
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Modifiche non salvate");
-        alert.setHeaderText("Vuoi salvare le modifiche prima di tornare all'archivio?");
-        alert.setContentText("Se scegli 'Non salvare' perderai le modifiche effettuate.");
-        alert.getButtonTypes().setAll(saveAndBack, discardAndBack, cancel);
-
-        ButtonType result = alert.showAndWait().orElse(cancel);
-        if (result == saveAndBack) {
+        if (choice == ConfirmUnsavedChangesDialog.UserChoice.SAVE) {
             if (saveComposition(false)) {
                 navigator.showLaboratoryCompositionArchive();
             }
             return;
         }
 
-        if (result == discardAndBack) {
+        if (choice == ConfirmUnsavedChangesDialog.UserChoice.DISCARD) {
             navigator.showLaboratoryCompositionArchive();
         }
     }
@@ -201,7 +199,7 @@ public class CreateCompositionController {
     }
 
     public void markAsClean() {
-        captureInitialState();
+        dirtyStateTracker.captureInitialState();
     }
 
     private boolean saveComposition(boolean navigateToLaboratory) {
@@ -233,7 +231,7 @@ public class CreateCompositionController {
             alert.setContentText("La ricetta è stata registrata correttamente.");
             alert.showAndWait();
 
-            captureInitialState();
+            dirtyStateTracker.captureInitialState();
 
             if (navigateToLaboratory) {
                 navigator.showLaboratory();
@@ -246,49 +244,6 @@ public class CreateCompositionController {
             showDbError("Errore salvataggio composizione", ex);
             return false;
         }
-    }
-
-    private boolean hasUnsavedChanges() {
-        Integer currentProductId = view.getProductSelector().getValue() == null ? null : view.getProductSelector().getValue().id();
-        String currentLineName = normalize(view.getLineSelector().getValue());
-        Integer currentBlankModelId = view.getBlankModelSelector().getValue() == null ? null : view.getBlankModelSelector().getValue().id();
-        String currentNotes = normalize(view.getNotes());
-        String currentLayersSignature = buildLayersSignature();
-
-        return !equalsNullable(initialProductId, currentProductId)
-                || !equalsNullable(initialBlankModelId, currentBlankModelId)
-                || !initialLineName.equals(currentLineName)
-                || !initialNotes.equals(currentNotes)
-                || !initialLayersSignature.equals(currentLayersSignature);
-    }
-
-    private void captureInitialState() {
-        initialProductId = view.getProductSelector().getValue() == null ? null : view.getProductSelector().getValue().id();
-        initialLineName = normalize(view.getLineSelector().getValue());
-        initialBlankModelId = view.getBlankModelSelector().getValue() == null ? null : view.getBlankModelSelector().getValue().id();
-        initialNotes = normalize(view.getNotes());
-        initialLayersSignature = buildLayersSignature();
-    }
-
-    private String buildLayersSignature() {
-        StringBuilder sb = new StringBuilder();
-        for (LayerDraft layer : view.getLayers()) {
-            sb.append("L").append(layer.layerNumber()).append(':');
-            layer.ingredients().forEach(ingredient -> sb
-                    .append(ingredient.powderId())
-                    .append('=')
-                    .append(String.format(Locale.ROOT, "%.6f", ingredient.percentage()))
-                    .append(';'));
-            sb.append('|');
-        }
-        return sb.toString();
-    }
-
-    private boolean equalsNullable(Object a, Object b) {
-        if (a == null) {
-            return b == null;
-        }
-        return a.equals(b);
     }
 
     private String normalize(String value) {
