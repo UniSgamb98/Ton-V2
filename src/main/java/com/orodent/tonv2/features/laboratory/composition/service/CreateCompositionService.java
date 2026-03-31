@@ -47,7 +47,11 @@ public class CreateCompositionService {
     }
 
     public List<BlankModel> findAllBlankModels() {
-        return blankModelRepo.findAll();
+        java.util.LinkedHashMap<String, BlankModel> latestByCode = new java.util.LinkedHashMap<>();
+        for (BlankModel model : blankModelRepo.findAll()) {
+            latestByCode.putIfAbsent(model.code(), model);
+        }
+        return new java.util.ArrayList<>(latestByCode.values());
     }
 
     public List<Powder> findAllPowders() {

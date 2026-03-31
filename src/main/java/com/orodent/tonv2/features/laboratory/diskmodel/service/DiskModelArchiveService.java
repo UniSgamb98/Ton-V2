@@ -26,7 +26,12 @@ public class DiskModelArchiveService {
     public List<BlankModel> searchDiskModels(String codeFilter) {
         String normalized = codeFilter == null ? "" : codeFilter.trim().toLowerCase();
 
-        return blankModelRepository.findAll().stream()
+        java.util.LinkedHashMap<String, BlankModel> latestByCode = new java.util.LinkedHashMap<>();
+        for (BlankModel model : blankModelRepository.findAll()) {
+            latestByCode.putIfAbsent(model.code(), model);
+        }
+
+        return latestByCode.values().stream()
                 .filter(model -> normalized.isBlank() || model.code().toLowerCase().contains(normalized))
                 .toList();
     }
