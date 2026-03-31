@@ -1,0 +1,109 @@
+<html>
+  <head>
+    <style>
+      .row {
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+      }
+
+      .left, .right {
+        flex: 1;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 16px;
+      }
+
+      th, td {
+        border: 1px solid black;
+        padding: 2px, 4px;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Produzione Prodotto: ${line.name!"Documento"}</h1>
+    <p>Note di produzione: ${notes!""}</p>
+    <#assign mms = []>
+    <#assign g_layers = []>
+    <#assign tot_g_layer = []>
+    <div class="row">
+      <div class="left">
+        <#list items as item>
+          <table>
+            <thead>
+              <tr>
+                <th colspan="5">${item.code}</th>
+              </tr>
+              <tr>
+                <th>mm</th>
+                <th>g/mm</th>
+                <th>g</th>
+                <th>N°</th>
+                <th>g tot.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <#assign li = blank_model.layers?size>
+              <#list blank_model.layers as layer>
+                
+                <#if layer_index == 0>
+                <#assign mms = mms + [layer.disk_percentage * item.height_mm /100 + blank_model.superior_overmaterial_default_mm]>
+                <#assign g_layer = mms[layer_index] * blank_model.grams_per_mm>
+                <#elseif layer_index == (li-1)>
+                <#assign mms = mms + [layer.disk_percentage * item.height_mm /100 + blank_model.inferior_overmaterial_default_mm]>
+                <#assign g_layer = mms[layer_index] * blank_model.grams_per_mm>
+                <#else>
+                <#assign mms = mms + [layer.disk_percentage * item.height_mm /100]>
+                <#assign g_layer = mms[layer_index] * blank_model.grams_per_mm>
+                </#if>
+                  
+                  
+                  <#assign g_layers = g_layers + [g_layer]>
+                  <#assign tot_g_layer = tot_g_layer + [g_layer * item.quantity * 1.005]>
+             
+                <tr>
+                  <td>${mms[layer_index]}</td>
+                  <td>${blank_model.grams_per_mm}</td>
+                  <td>${g_layer}</td>
+                  <td>${item.quantity}</td>
+                  <td>${item.quantity * g_layer}</td>
+                </tr>
+              </#list>
+            </tbody>
+          </table>
+        </#list>
+      </div>
+
+      <div class="right">
+        
+        
+        <#list blank_model.layers as layer>
+        <#assign percent = 0>
+
+          <table><thead>
+            <tr>
+              <th>Tipo Zr</th><th>%</th><th>g</th>
+            </tr>
+            </thead>
+            <tbody>
+          <#list layer.ingredients as ingredient>
+          <#assign percent = percent + ingredient.percentage>
+  					<tr>
+              <td>${ingredient.powder.code}</td><td>${ingredient.percentage}</td><td>${g_layers[layer_index] * ingredient.percentage/100}</td>
+            </tr>
+					</#list>
+              <tr><th>Totale</th><th>${percent}%</th><th>${tot_g_layer[layer_index]}</th></tr>
+            </tbody> 
+          </table>
+				</#list>
+
+        
+        
+      </div>
+    </div>
+  </body>
+</html>
