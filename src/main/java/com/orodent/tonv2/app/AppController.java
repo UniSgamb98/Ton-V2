@@ -193,6 +193,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
             );
             archiveService.loadCompositionSnapshot(productId)
                     .ifPresent(controller::preloadFromArchiveSnapshot);
+            controller.markAsClean();
         }
 
         stage.setScene(createSceneWithCSS(view));
@@ -290,7 +291,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
     private void showCreateDiskModelInternal(Integer blankModelId) {
         CreateDiskModelView view = new CreateDiskModelView();
         configureHeader(view.getHeader());
-        new CreateDiskModelController(
+        CreateDiskModelController controller = new CreateDiskModelController(
                 view,
                 this,
                 new CreateDiskModelService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo(), app.compositionRepo()),
@@ -325,6 +326,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
                                 ))
                                 .toList()
                 );
+                controller.markAsClean();
             }
         }
 

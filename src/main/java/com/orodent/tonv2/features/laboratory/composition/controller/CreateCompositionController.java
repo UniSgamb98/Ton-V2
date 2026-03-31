@@ -3,14 +3,18 @@ package com.orodent.tonv2.features.laboratory.composition.controller;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Product;
+import com.orodent.tonv2.core.ui.draft.LayerDraft;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
 
 import java.sql.SQLException;
+import java.util.Locale;
 import java.util.Optional;
 
 public class CreateCompositionController {
@@ -22,6 +26,12 @@ public class CreateCompositionController {
     private final LaboratoryNavigator navigator;
     private final CreateCompositionService service;
     private final EditorMode editorMode;
+
+    private Integer initialProductId;
+    private String initialLineName;
+    private Integer initialBlankModelId;
+    private String initialNotes;
+    private String initialLayersSignature;
 
     public CreateCompositionController(CreateCompositionView view,
                                        LaboratoryNavigator navigator,
@@ -44,6 +54,7 @@ public class CreateCompositionController {
         loadBlankModels();
         loadPowders();
         setupActions();
+        captureInitialState();
     }
 
     private void loadProducts() {
@@ -69,10 +80,10 @@ public class CreateCompositionController {
     }
 
     private void setupActions() {
-        view.getSaveButton().setOnAction(e -> saveComposition());
+        view.getSaveButton().setOnAction(e -> saveComposition(true));
         view.getBackButton().setOnAction(e -> {
             if (editorMode.editMode()) {
-                navigator.showLaboratoryCompositionArchive();
+                navigateBackWithConfirmation();
             }
         });
         view.getProductSelector().valueProperty().addListener((obs, oldValue, newValue) ->
@@ -85,6 +96,35 @@ public class CreateCompositionController {
         });
         view.getLoadLatestVersionButton().setOnAction(e -> loadLatestVersion());
         view.setLoadLatestVersionVisible(false);
+    }
+
+    private void navigateBackWithConfirmation() {
+        if (!hasUnsavedChanges()) {
+            navigator.showLaboratoryCompositionArchive();
+            return;
+        }
+
+        ButtonType saveAndBack = new ButtonType("Salva e torna", ButtonBar.ButtonData.YES);
+        ButtonType discardAndBack = new ButtonType("Non salvare", ButtonBar.ButtonData.NO);
+        ButtonType cancel = new ButtonType("Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Modifiche non salvate");
+        alert.setHeaderText("Vuoi salvare le modifiche prima di tornare all'archivio?");
+        alert.setContentText("Se scegli 'Non salvare' perderai le modifiche effettuate.");
+        alert.getButtonTypes().setAll(saveAndBack, discardAndBack, cancel);
+
+        ButtonType result = alert.showAndWait().orElse(cancel);
+        if (result == saveAndBack) {
+            if (saveComposition(false)) {
+                navigator.showLaboratoryCompositionArchive();
+            }
+            return;
+        }
+
+        if (result == discardAndBack) {
+            navigator.showLaboratoryCompositionArchive();
+        }
     }
 
     private void loadLatestVersion() {
@@ -112,7 +152,6 @@ public class CreateCompositionController {
         view.replaceLayers(data.layerDrafts());
     }
 
-
     public void preloadFromArchiveSnapshot(CompositionArchiveService.CompositionSnapshot snapshot) {
         view.getProductSelector().getItems().stream()
                 .filter(product -> product.id() == snapshot.productId())
@@ -130,15 +169,19 @@ public class CreateCompositionController {
         view.replaceLayers(snapshot.layerDrafts());
     }
 
-    private void saveComposition() {
+    public void markAsClean() {
+        captureInitialState();
+    }
+
+    private boolean saveComposition(boolean navigateToLaboratory) {
         ProductSelection productSelection = resolveProductSelection();
         if (productSelection == null) {
-            return;
+            return false;
         }
 
         String lineName = resolveLineName();
         if (lineName == null) {
-            return;
+            return false;
         }
 
         BlankModel blankModel = view.getBlankModelSelector().getValue();
@@ -159,12 +202,66 @@ public class CreateCompositionController {
             alert.setContentText("La ricetta è stata registrata correttamente.");
             alert.showAndWait();
 
-            navigator.showLaboratory();
+            captureInitialState();
+
+            if (navigateToLaboratory) {
+                navigator.showLaboratory();
+            }
+            return true;
         } catch (IllegalArgumentException ex) {
             showWarning("Validazione dati", ex.getMessage());
+            return false;
         } catch (RuntimeException ex) {
             showDbError("Errore salvataggio composizione", ex);
+            return false;
         }
+    }
+
+    private boolean hasUnsavedChanges() {
+        Integer currentProductId = view.getProductSelector().getValue() == null ? null : view.getProductSelector().getValue().id();
+        String currentLineName = normalize(view.getLineSelector().getValue());
+        Integer currentBlankModelId = view.getBlankModelSelector().getValue() == null ? null : view.getBlankModelSelector().getValue().id();
+        String currentNotes = normalize(view.getNotes());
+        String currentLayersSignature = buildLayersSignature();
+
+        return !equalsNullable(initialProductId, currentProductId)
+                || !equalsNullable(initialBlankModelId, currentBlankModelId)
+                || !initialLineName.equals(currentLineName)
+                || !initialNotes.equals(currentNotes)
+                || !initialLayersSignature.equals(currentLayersSignature);
+    }
+
+    private void captureInitialState() {
+        initialProductId = view.getProductSelector().getValue() == null ? null : view.getProductSelector().getValue().id();
+        initialLineName = normalize(view.getLineSelector().getValue());
+        initialBlankModelId = view.getBlankModelSelector().getValue() == null ? null : view.getBlankModelSelector().getValue().id();
+        initialNotes = normalize(view.getNotes());
+        initialLayersSignature = buildLayersSignature();
+    }
+
+    private String buildLayersSignature() {
+        StringBuilder sb = new StringBuilder();
+        for (LayerDraft layer : view.getLayers()) {
+            sb.append("L").append(layer.layerNumber()).append(':');
+            layer.ingredients().forEach(ingredient -> sb
+                    .append(ingredient.powderId())
+                    .append('=')
+                    .append(String.format(Locale.ROOT, "%.6f", ingredient.percentage()))
+                    .append(';'));
+            sb.append('|');
+        }
+        return sb.toString();
+    }
+
+    private boolean equalsNullable(Object a, Object b) {
+        if (a == null) {
+            return b == null;
+        }
+        return a.equals(b);
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value;
     }
 
     private ProductSelection resolveProductSelection() {
