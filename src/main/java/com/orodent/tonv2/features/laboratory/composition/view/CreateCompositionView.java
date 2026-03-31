@@ -31,6 +31,7 @@ public class CreateCompositionView extends VBox {
     private final VBox layersBox = new VBox(10);
 
     private final Button saveBtn = new Button("Salva composizione");
+    private final Button backBtn = new Button("Indietro");
 
     private final List<LayerDraft> layers = new ArrayList<>();
     private List<Powder> availablePowders = new ArrayList<>();
@@ -112,9 +113,14 @@ public class CreateCompositionView extends VBox {
         centeredCenterBox.setPadding(new Insets(0, 10, 0, 10));
         StackPane.setAlignment(centerBox, Pos.TOP_CENTER);
 
-        HBox bottomBox = new HBox(saveBtn);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        backBtn.setVisible(false);
+        backBtn.setManaged(false);
+
+        HBox bottomBox = new HBox(10, backBtn, spacer, saveBtn);
         bottomBox.setPadding(new Insets(10));
-        bottomBox.setAlignment(Pos.CENTER_RIGHT);
+        bottomBox.setAlignment(Pos.CENTER_LEFT);
 
         content.setTop(topBox);
         content.setCenter(centeredCenterBox);
@@ -150,6 +156,18 @@ public class CreateCompositionView extends VBox {
             if (node instanceof LayerEditorView view) {
                 view.setLayerNumber(number);
             }
+        }
+    }
+
+    public void configureEditMode(boolean editMode) {
+        if (editMode) {
+            header.setTitle("Laboratorio - Modifica Composizione");
+            backBtn.setVisible(true);
+            backBtn.setManaged(true);
+        } else {
+            header.setTitle("Laboratorio - Nuova Composizione");
+            backBtn.setVisible(false);
+            backBtn.setManaged(false);
         }
     }
 
@@ -201,6 +219,10 @@ public class CreateCompositionView extends VBox {
 
     public Button getSaveButton() {
         return saveBtn;
+    }
+
+    public Button getBackButton() {
+        return backBtn;
     }
 
     public Button getLoadLatestVersionButton() {

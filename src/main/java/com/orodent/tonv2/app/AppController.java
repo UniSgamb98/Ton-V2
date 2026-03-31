@@ -179,7 +179,10 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
                         app.productRepo(),
                         app.lineRepo(),
                         app.blankModelRepo()
-                )
+                ),
+                productId == null
+                        ? CreateCompositionController.EditorMode.create()
+                        : CreateCompositionController.EditorMode.edit()
         );
 
         if (productId != null) {
@@ -193,7 +196,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         }
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Nuova composizione");
+        stage.setTitle(productId == null ? "TON - Nuova composizione" : "TON - Modifica Composizione");
     }
 
 

@@ -21,14 +21,24 @@ public class CreateCompositionController {
     private final CreateCompositionView view;
     private final LaboratoryNavigator navigator;
     private final CreateCompositionService service;
+    private final EditorMode editorMode;
 
     public CreateCompositionController(CreateCompositionView view,
                                        LaboratoryNavigator navigator,
                                        CreateCompositionService service) {
+        this(view, navigator, service, EditorMode.create());
+    }
+
+    public CreateCompositionController(CreateCompositionView view,
+                                       LaboratoryNavigator navigator,
+                                       CreateCompositionService service,
+                                       EditorMode editorMode) {
         this.view = view;
         this.navigator = navigator;
         this.service = service;
+        this.editorMode = editorMode;
 
+        view.configureEditMode(editorMode.editMode());
         loadProducts();
         loadLines();
         loadBlankModels();
@@ -60,6 +70,11 @@ public class CreateCompositionController {
 
     private void setupActions() {
         view.getSaveButton().setOnAction(e -> saveComposition());
+        view.getBackButton().setOnAction(e -> {
+            if (editorMode.editMode()) {
+                navigator.showLaboratoryCompositionArchive();
+            }
+        });
         view.getProductSelector().valueProperty().addListener((obs, oldValue, newValue) ->
                 view.setLoadLatestVersionVisible(newValue != null && !isNewProductOption(newValue))
         );
@@ -257,4 +272,14 @@ public class CreateCompositionController {
     }
 
     private record ProductSelection(Product product, String newProductCode) {}
+
+    public record EditorMode(boolean editMode) {
+        public static EditorMode create() {
+            return new EditorMode(false);
+        }
+
+        public static EditorMode edit() {
+            return new EditorMode(true);
+        }
+    }
 }
