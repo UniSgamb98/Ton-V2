@@ -58,6 +58,14 @@ public class CreateCompositionService {
         return lineRepo.findDistinctNames();
     }
 
+
+    public List<String> findLineNamesByProductId(int productId) {
+        return lineRepo.findByProductId(productId).stream()
+                .map(com.orodent.tonv2.core.database.model.Line::name)
+                .distinct()
+                .toList();
+    }
+
     public Optional<LatestCompositionData> loadLatestComposition(int productId) {
         Optional<Composition> latestComposition = compositionRepo.findLatestByProduct(productId);
         if (latestComposition.isEmpty()) {

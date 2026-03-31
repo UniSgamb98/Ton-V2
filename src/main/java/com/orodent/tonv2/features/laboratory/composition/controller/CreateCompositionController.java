@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -91,6 +92,7 @@ public class CreateCompositionController {
             boolean isNewProduct = isNewProductOption(newValue);
             view.setLoadLatestVersionVisible(newValue != null && !isNewProduct);
             view.setLineSelectorLocked(editorMode.editMode() && !isNewProduct);
+            applyLineSelectionForProduct(newValue, oldValue);
         });
         view.getBlankModelSelector().valueProperty().addListener((obs, oldModel, newModel) -> {
             if (newModel != null) {
@@ -99,6 +101,28 @@ public class CreateCompositionController {
         });
         view.getLoadLatestVersionButton().setOnAction(e -> loadLatestVersion());
         view.setLoadLatestVersionVisible(false);
+    }
+
+    private void applyLineSelectionForProduct(Product newProduct, Product oldProduct) {
+        if (newProduct == null) {
+            return;
+        }
+
+        if (isNewProductOption(newProduct)) {
+            if (editorMode.editMode()) {
+                view.getLineSelector().setValue(NEW_LINE_OPTION);
+            }
+            return;
+        }
+
+        if (oldProduct != null && oldProduct.id() == newProduct.id()) {
+            return;
+        }
+
+        List<String> lines = service.findLineNamesByProductId(newProduct.id());
+        if (!lines.isEmpty()) {
+            view.getLineSelector().setValue(lines.get(0));
+        }
     }
 
     private void navigateBackWithConfirmation() {
