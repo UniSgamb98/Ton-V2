@@ -419,4 +419,33 @@ public class CompositionRepositoryImpl implements CompositionRepository {
             }
         }
     }
+    @Override
+    public int copyBlankModelAssociations(int sourceBlankModelId, int targetBlankModelId) {
+        String sql = """
+                INSERT INTO composition_blank_model (composition_id, blank_model_id)
+                SELECT cbm.composition_id, ?
+                FROM composition_blank_model cbm
+                WHERE cbm.blank_model_id = ?
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM composition_blank_model existing
+                    WHERE existing.composition_id = cbm.composition_id
+                      AND existing.blank_model_id = ?
+                )
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, targetBlankModelId);
+            ps.setInt(2, sourceBlankModelId);
+            ps.setInt(3, targetBlankModelId);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(
+                    "Error copying composition associations from blank model " + sourceBlankModelId
+                            + " to blank model " + targetBlankModelId, e
+            );
+        }
+    }
+
+
 }

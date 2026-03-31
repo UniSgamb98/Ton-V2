@@ -290,7 +290,10 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         new CreateDiskModelController(
                 view,
                 this,
-                new CreateDiskModelService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo())
+                new CreateDiskModelService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo(), app.compositionRepo()),
+                blankModelId == null
+                        ? CreateDiskModelController.EditorMode.create()
+                        : CreateDiskModelController.EditorMode.edit(blankModelId)
         );
 
         if (blankModelId != null) {
@@ -323,7 +326,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         }
 
         stage.setScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Nuovo modello disco");
+        stage.setTitle(blankModelId == null ? "TON - Nuovo modello disco" : "TON - Modifica Modello Disco");
     }
 
     @Override

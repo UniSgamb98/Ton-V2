@@ -6,6 +6,7 @@ import com.orodent.tonv2.core.database.model.BlankModelLayer;
 import com.orodent.tonv2.core.database.repository.BlankModelHeightOvermaterialRepository;
 import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
 import com.orodent.tonv2.core.database.repository.BlankModelRepository;
+import com.orodent.tonv2.core.database.repository.CompositionRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,18 +16,21 @@ public class CreateDiskModelService {
     private final BlankModelRepository blankModelRepo;
     private final BlankModelLayerRepository blankModelLayerRepo;
     private final BlankModelHeightOvermaterialRepository overmaterialRepo;
+    private final CompositionRepository compositionRepo;
 
     public CreateDiskModelService(BlankModelRepository blankModelRepo,
                                   BlankModelLayerRepository blankModelLayerRepo,
-                                  BlankModelHeightOvermaterialRepository overmaterialRepo) {
+                                  BlankModelHeightOvermaterialRepository overmaterialRepo,
+                                  CompositionRepository compositionRepo) {
         this.blankModelRepo = blankModelRepo;
         this.blankModelLayerRepo = blankModelLayerRepo;
         this.overmaterialRepo = overmaterialRepo;
+        this.compositionRepo = compositionRepo;
     }
 
-    public void createDiskModel(CreateDiskModelData modelData,
-                                List<LayerData> layers,
-                                List<HeightRangeData> ranges) {
+    public BlankModel createDiskModel(CreateDiskModelData modelData,
+                                      List<LayerData> layers,
+                                      List<HeightRangeData> ranges) {
         validateModelData(modelData);
         validateLayers(modelData.numLayers(), layers);
         List<HeightRangeData> normalizedRanges = validateAndNormalizeRanges(ranges);
@@ -55,6 +59,17 @@ public class CreateDiskModelService {
                     range.inferiorOvermaterial()
             ));
         }
+
+        return model;
+    }
+
+    public VersionedSaveResult createDiskModelVersionFrom(int sourceBlankModelId,
+                                                          CreateDiskModelData modelData,
+                                                          List<LayerData> layers,
+                                                          List<HeightRangeData> ranges) {
+        BlankModel newModel = createDiskModel(modelData, layers, ranges);
+        int copiedAssociations = compositionRepo.copyBlankModelAssociations(sourceBlankModelId, newModel.id());
+        return new VersionedSaveResult(newModel.id(), copiedAssociations);
     }
 
     private void validateModelData(CreateDiskModelData modelData) {
@@ -189,5 +204,8 @@ public class CreateDiskModelService {
                     && superiorOvermaterial != null
                     && inferiorOvermaterial != null;
         }
+    }
+
+    public record VersionedSaveResult(int newBlankModelId, int copiedCompositionAssociations) {
     }
 }

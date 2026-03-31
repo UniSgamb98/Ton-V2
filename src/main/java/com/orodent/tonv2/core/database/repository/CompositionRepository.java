@@ -22,4 +22,5 @@ public interface CompositionRepository {
                                                   int numLayers,
                                                   String notes,
                                                   List<CompositionLayerIngredient> ingredients);
+    int copyBlankModelAssociations(int sourceBlankModelId, int targetBlankModelId);
 }

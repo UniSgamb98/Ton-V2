@@ -13,19 +13,34 @@ public class CreateDiskModelController {
     private final CreateDiskModelView view;
     private final LaboratoryNavigator navigator;
     private final CreateDiskModelService service;
+    private final EditorMode editorMode;
 
     public CreateDiskModelController(CreateDiskModelView view,
                                      LaboratoryNavigator navigator,
                                      CreateDiskModelService service) {
+        this(view, navigator, service, EditorMode.create());
+    }
+
+    public CreateDiskModelController(CreateDiskModelView view,
+                                     LaboratoryNavigator navigator,
+                                     CreateDiskModelService service,
+                                     EditorMode editorMode) {
         this.view = view;
         this.navigator = navigator;
         this.service = service;
+        this.editorMode = editorMode;
 
+        view.configureEditMode(editorMode.sourceBlankModelId() != null);
         setupActions();
     }
 
     private void setupActions() {
         view.getSaveButton().setOnAction(e -> save());
+        view.getBackButton().setOnAction(e -> {
+            if (editorMode.sourceBlankModelId() != null) {
+                navigator.showLaboratoryDiskModelArchive();
+            }
+        });
     }
 
     private void save() {
@@ -43,14 +58,31 @@ public class CreateDiskModelController {
             List<CreateDiskModelService.LayerData> layers = parseLayers();
             List<CreateDiskModelService.HeightRangeData> ranges = parseRanges();
 
-            service.createDiskModel(modelData, layers, ranges);
+            if (editorMode.sourceBlankModelId() == null) {
+                service.createDiskModel(modelData, layers, ranges);
 
-            Alert ok = new Alert(Alert.AlertType.INFORMATION);
-            ok.setHeaderText("Modello disco salvato");
-            ok.setContentText("Il nuovo modello è stato registrato correttamente.");
-            ok.showAndWait();
+                Alert ok = new Alert(Alert.AlertType.INFORMATION);
+                ok.setHeaderText("Modello disco salvato");
+                ok.setContentText("Il nuovo modello è stato registrato correttamente.");
+                ok.showAndWait();
 
-            navigator.showLaboratory();
+                navigator.showLaboratory();
+            } else {
+                CreateDiskModelService.VersionedSaveResult result = service.createDiskModelVersionFrom(
+                        editorMode.sourceBlankModelId(),
+                        modelData,
+                        layers,
+                        ranges
+                );
+
+                Alert ok = new Alert(Alert.AlertType.INFORMATION);
+                ok.setHeaderText("Modifiche salvate");
+                ok.setContentText("Creato nuovo modello disco (ID " + result.newBlankModelId()
+                        + ") e copiate " + result.copiedCompositionAssociations() + " associazioni composizione.");
+                ok.showAndWait();
+
+                navigator.showLaboratoryDiskModelArchive();
+            }
         } catch (IllegalArgumentException ex) {
             showError("Validazione dati", ex.getMessage());
         } catch (RuntimeException ex) {
@@ -124,5 +156,15 @@ public class CreateDiskModelController {
         error.setHeaderText(header);
         error.setContentText(content);
         error.showAndWait();
+    }
+
+    public record EditorMode(Integer sourceBlankModelId) {
+        public static EditorMode create() {
+            return new EditorMode(null);
+        }
+
+        public static EditorMode edit(Integer sourceBlankModelId) {
+            return new EditorMode(sourceBlankModelId);
+        }
     }
 }

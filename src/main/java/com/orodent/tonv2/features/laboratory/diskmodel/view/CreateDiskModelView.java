@@ -29,6 +29,7 @@ public class CreateDiskModelView extends VBox {
     private final VBox rangesBox = new VBox(8);
     private final Button addRangeBtn = new Button("Aggiungi fascia altezza");
     private final Button saveBtn = new Button("Salva modello disco");
+    private final Button backBtn = new Button("Indietro");
 
     private final DiskModelPreviewView previewView = new DiskModelPreviewView();
 
@@ -120,9 +121,14 @@ public class CreateDiskModelView extends VBox {
         centered.setPadding(new Insets(0, 10, 0, 10));
         StackPane.setAlignment(centerContent, Pos.TOP_CENTER);
 
-        HBox bottom = new HBox(saveBtn);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        backBtn.setVisible(false);
+        backBtn.setManaged(false);
+
+        HBox bottom = new HBox(10, backBtn, spacer, saveBtn);
         bottom.setPadding(new Insets(10));
-        bottom.setAlignment(Pos.CENTER_RIGHT);
+        bottom.setAlignment(Pos.CENTER_LEFT);
 
         content.setCenter(centered);
         content.setBottom(bottom);
@@ -194,12 +200,30 @@ public class CreateDiskModelView extends VBox {
         rangesBox.getChildren().add(row.container);
     }
 
+    public void configureEditMode(boolean editMode) {
+        if (editMode) {
+            header.setTitle("Laboratorio - Modifica Modello Disco");
+            saveBtn.setText("Salva Modifiche");
+            backBtn.setVisible(true);
+            backBtn.setManaged(true);
+        } else {
+            header.setTitle("Laboratorio - Nuovo Modello Disco");
+            saveBtn.setText("Salva modello disco");
+            backBtn.setVisible(false);
+            backBtn.setManaged(false);
+        }
+    }
+
     public AppHeader getHeader() {
         return header;
     }
 
     public Button getSaveButton() {
         return saveBtn;
+    }
+
+    public Button getBackButton() {
+        return backBtn;
     }
 
     public String getCode() { return codeField.getText(); }
