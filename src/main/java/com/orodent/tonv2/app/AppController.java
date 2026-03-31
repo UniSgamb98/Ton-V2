@@ -310,7 +310,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
 
             if (snapshot != null) {
                 view.fillFromModel(
-                        generateVersionedBlankModelCode(snapshot.model().code()),
+                        snapshot.model().code(),
                         snapshot.model().diameterMm(),
                         snapshot.model().superiorOvermaterialDefaultMm(),
                         snapshot.model().inferiorOvermaterialDefaultMm(),
@@ -361,26 +361,6 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Archivio dischi");
-    }
-
-    private String generateVersionedBlankModelCode(String sourceCode) {
-        if (sourceCode == null || sourceCode.isBlank()) {
-            return sourceCode;
-        }
-
-        String baseCode = sourceCode.trim();
-        java.util.Set<String> existingCodes = app.blankModelRepo().findAll().stream()
-                .map(model -> model.code() == null ? "" : model.code().trim().toLowerCase(java.util.Locale.ROOT))
-                .collect(java.util.stream.Collectors.toSet());
-
-        int nextVersion = 2;
-        String candidate;
-        do {
-            candidate = baseCode + "-V" + nextVersion;
-            nextVersion++;
-        } while (existingCodes.contains(candidate.toLowerCase(java.util.Locale.ROOT)));
-
-        return candidate;
     }
 
     /*

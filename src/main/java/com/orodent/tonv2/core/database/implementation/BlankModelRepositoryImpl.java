@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class BlankModelRepositoryImpl implements BlankModelRepository {
 
@@ -25,6 +26,7 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
         String sql = """
                 SELECT id,
                        code,
+                       version,
                        diameter_mm,
                        superior_overmaterial_default_mm,
                        inferior_overmaterial_default_mm,
@@ -32,7 +34,7 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
                        grams_per_mm,
                        num_layers
                 FROM blank_model
-                ORDER BY code
+                ORDER BY code ASC, version DESC
                 """;
 
         List<BlankModel> blankModels = new ArrayList<>();
@@ -44,6 +46,7 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
                 blankModels.add(new BlankModel(
                         rs.getInt("id"),
                         rs.getString("code"),
+                        rs.getInt("version"),
                         rs.getDouble("diameter_mm"),
                         rs.getDouble("superior_overmaterial_default_mm"),
                         rs.getDouble("inferior_overmaterial_default_mm"),
@@ -66,6 +69,7 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
         String sql = """
                 SELECT id,
                        code,
+                       version,
                        diameter_mm,
                        superior_overmaterial_default_mm,
                        inferior_overmaterial_default_mm,
@@ -84,6 +88,7 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
                     return new BlankModel(
                             rs.getInt("id"),
                             rs.getString("code"),
+                            rs.getInt("version"),
                             rs.getDouble("diameter_mm"),
                             rs.getDouble("superior_overmaterial_default_mm"),
                             rs.getDouble("inferior_overmaterial_default_mm"),
@@ -102,32 +107,51 @@ public class BlankModelRepositoryImpl implements BlankModelRepository {
     }
 
     @Override
-    public BlankModel insert(String code, double diameterMm, double superiorOvermaterialDefaultMm, double inferiorOvermaterialDefaultMm, double pressureKgCm2, double gramsPerMm, int numLayers) {
+    public Optional<Integer> findMaxVersionByCode(String code) {
+        String sql = "SELECT MAX(version) FROM blank_model WHERE UPPER(code) = UPPER(?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, code);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    int max = rs.getInt(1);
+                    return rs.wasNull() ? Optional.empty() : Optional.of(max);
+                }
+            }
+            return Optional.empty();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error finding max blank model version for code " + code, e);
+        }
+    }
+
+    @Override
+    public BlankModel insert(String code, int version, double diameterMm, double superiorOvermaterialDefaultMm, double inferiorOvermaterialDefaultMm, double pressureKgCm2, double gramsPerMm, int numLayers) {
         String sql = """
                 INSERT INTO blank_model (
                     code,
+                    version,
                     diameter_mm,
                     superior_overmaterial_default_mm,
                     inferior_overmaterial_default_mm,
                     pressure_kg_cm2,
                     grams_per_mm,
                     num_layers
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, code);
-            ps.setDouble(2, diameterMm);
-            ps.setDouble(3, superiorOvermaterialDefaultMm);
-            ps.setDouble(4, inferiorOvermaterialDefaultMm);
-            ps.setDouble(5, pressureKgCm2);
-            ps.setDouble(6, gramsPerMm);
-            ps.setInt(7, numLayers);
+            ps.setInt(2, version);
+            ps.setDouble(3, diameterMm);
+            ps.setDouble(4, superiorOvermaterialDefaultMm);
+            ps.setDouble(5, inferiorOvermaterialDefaultMm);
+            ps.setDouble(6, pressureKgCm2);
+            ps.setDouble(7, gramsPerMm);
+            ps.setInt(8, numLayers);
             ps.executeUpdate();
 
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
-                    return new BlankModel(rs.getInt(1), code, diameterMm, superiorOvermaterialDefaultMm, inferiorOvermaterialDefaultMm, pressureKgCm2, gramsPerMm, numLayers);
+                    return new BlankModel(rs.getInt(1), code, version, diameterMm, superiorOvermaterialDefaultMm, inferiorOvermaterialDefaultMm, pressureKgCm2, gramsPerMm, numLayers);
                 }
             }
 

@@ -32,6 +32,7 @@ CREATE TABLE line (
 CREATE TABLE blank_model (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     code VARCHAR(100) NOT NULL,
+    version INTEGER NOT NULL,
 
     diameter_mm DECIMAL(4,1) NOT NULL,
 
@@ -44,10 +45,11 @@ CREATE TABLE blank_model (
     num_layers INTEGER NOT NULL,
 
     PRIMARY KEY (id),
-    CONSTRAINT uq_blank_model_code UNIQUE (code),
+    CONSTRAINT uq_blank_model_code_version UNIQUE (code, version),
 
     CONSTRAINT ck_bm_diameter CHECK (diameter_mm > 0),
-    CONSTRAINT ck_bm_layers CHECK (num_layers > 0)
+    CONSTRAINT ck_bm_layers CHECK (num_layers > 0),
+    CONSTRAINT ck_bm_version CHECK (version > 0)
 );
 
 ------------------------------------------------------------

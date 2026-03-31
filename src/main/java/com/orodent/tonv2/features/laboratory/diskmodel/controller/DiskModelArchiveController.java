@@ -36,7 +36,7 @@ public class DiskModelArchiveController {
 
     private void loadDiskModels(String nameFilter) {
         List<DiskModelArchiveView.DiskModelRow> rows = service.searchDiskModels(nameFilter).stream()
-                .map(model -> new DiskModelArchiveView.DiskModelRow(model.id(), model.code()))
+                .map(model -> new DiskModelArchiveView.DiskModelRow(model.id(), model.code() + " (v" + model.version() + ")"))
                 .toList();
 
         view.setDiskModels(rows);

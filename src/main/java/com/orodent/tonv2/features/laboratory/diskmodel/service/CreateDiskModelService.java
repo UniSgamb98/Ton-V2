@@ -35,8 +35,14 @@ public class CreateDiskModelService {
         validateLayers(modelData.numLayers(), layers);
         List<HeightRangeData> normalizedRanges = validateAndNormalizeRanges(ranges);
 
+        String normalizedCode = modelData.code().trim();
+        int nextVersion = blankModelRepo.findMaxVersionByCode(normalizedCode)
+                .map(version -> version + 1)
+                .orElse(1);
+
         BlankModel model = blankModelRepo.insert(
-                modelData.code().trim(),
+                normalizedCode,
+                nextVersion,
                 modelData.diameter(),
                 modelData.defaultSuperiorOvermaterial(),
                 modelData.defaultInferiorOvermaterial(),
