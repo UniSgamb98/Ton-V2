@@ -12,6 +12,8 @@ public class LaboratoryView extends VBox {
     private final AppHeader header;
     private final Button createCompositionButton;
     private final Button createDiskModelButton;
+    private final Button archiveDiskModelsButton;
+    private final Button archiveCompositionsButton;
     private final Button produceButton;
     private final Button createArticleButton;
     private final Button presinterButton;
@@ -21,6 +23,8 @@ public class LaboratoryView extends VBox {
 
         createCompositionButton = new Button("Nuova Composizione");
         createDiskModelButton = new Button("Nuovo Modello Disco");
+        archiveDiskModelsButton = new Button("Archivio Dischi");
+        archiveCompositionsButton = new Button("Archivio Composizioni");
         createArticleButton = new Button("Nuovo Articolo");
         produceButton = new Button("Produzione");
         presinterButton = new Button("Presinterizza");
@@ -29,17 +33,24 @@ public class LaboratoryView extends VBox {
         setPadding(new Insets(20));
 
         HBox primaryActions = new HBox(20, createCompositionButton, createDiskModelButton, createArticleButton);
+        HBox archiveActions = new HBox(20, archiveDiskModelsButton, archiveCompositionsButton);
         HBox secondaryActions = new HBox(20, produceButton, presinterButton);
 
         Separator separator = new Separator();
         separator.setMaxWidth(Double.MAX_VALUE);
 
-        getChildren().addAll(header, primaryActions, separator, secondaryActions);
+        getChildren().addAll(header, primaryActions, archiveActions, separator, secondaryActions);
     }
 
     public Button getCreateCompositionButton() { return createCompositionButton; }
     public Button getCreateDiskModelButton() {
         return createDiskModelButton;
+    }
+    public Button getArchiveDiskModelsButton() {
+        return archiveDiskModelsButton;
+    }
+    public Button getArchiveCompositionsButton() {
+        return archiveCompositionsButton;
     }
     public Button getProduceButton() {
         return produceButton;

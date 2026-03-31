@@ -218,6 +218,66 @@ public class CreateDiskModelView extends VBox {
         return drafts;
     }
 
+
+    public void fillFromModel(String code,
+                              Double diameter,
+                              Double superiorOvermaterial,
+                              Double inferiorOvermaterial,
+                              Double pressure,
+                              Double gramsPerMm,
+                              Integer numLayers,
+                              List<Double> layerPercentages,
+                              List<HeightRangeDraft> ranges) {
+        codeField.setText(valueOrEmpty(code));
+        diameterField.setText(formatDouble(diameter));
+        superiorOvermaterialField.setText(formatDouble(superiorOvermaterial));
+        inferiorOvermaterialField.setText(formatDouble(inferiorOvermaterial));
+        pressureField.setText(formatDouble(pressure));
+        gramsPerMmField.setText(formatDouble(gramsPerMm));
+        numLayersField.setText(numLayers == null ? "" : String.valueOf(numLayers));
+        rebuildLayerRows();
+
+        if (layerPercentages != null) {
+            for (int i = 0; i < Math.min(layerPercentages.size(), layerRows.size()); i++) {
+                layerRows.get(i).percentageField.setText(formatDouble(layerPercentages.get(i)));
+            }
+        }
+
+        rangeRows.clear();
+        rangesBox.getChildren().clear();
+        if (ranges != null) {
+            for (HeightRangeDraft draft : ranges) {
+                HeightRangeRow row = new HeightRangeRow();
+                row.minHeightField.setText(valueOrEmpty(draft.minHeight()));
+                row.maxHeightField.setText(valueOrEmpty(draft.maxHeight()));
+                row.superiorField.setText(valueOrEmpty(draft.superiorOvermaterial()));
+                row.inferiorField.setText(valueOrEmpty(draft.inferiorOvermaterial()));
+                row.removeButton.setOnAction(e -> {
+                    rangeRows.remove(row);
+                    rangesBox.getChildren().remove(row.container);
+                });
+                rangeRows.add(row);
+                rangesBox.getChildren().add(row.container);
+            }
+        }
+
+        updateLayerSummary();
+        refreshPreview();
+    }
+
+    private String formatDouble(Double value) {
+        if (value == null) {
+            return "";
+        }
+        return String.format(java.util.Locale.ROOT, "%.4f", value)
+                .replaceAll("0+$", "")
+                .replaceAll("\\.$", "");
+    }
+
+    private String valueOrEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
     public List<HeightRangeDraft> getRangeDrafts() {
         List<HeightRangeDraft> drafts = new ArrayList<>();
         for (HeightRangeRow row : rangeRows) {

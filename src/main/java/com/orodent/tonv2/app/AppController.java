@@ -14,9 +14,11 @@ import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import com.orodent.tonv2.features.inventory.controller.InventoryController;
 import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
+import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
+import com.orodent.tonv2.features.laboratory.diskmodel.service.DiskModelArchiveService;
 import com.orodent.tonv2.features.laboratory.home.controller.LaboratoryController;
 import com.orodent.tonv2.features.laboratory.itemsetup.controller.ItemSetupController;
 import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
@@ -28,8 +30,12 @@ import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView
 import com.orodent.tonv2.features.laboratory.presintering.controller.PresinteringController;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
+import com.orodent.tonv2.features.laboratory.composition.controller.CompositionArchiveController;
+import com.orodent.tonv2.features.laboratory.composition.view.CompositionArchiveView;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
+import com.orodent.tonv2.features.laboratory.diskmodel.controller.DiskModelArchiveController;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
+import com.orodent.tonv2.features.laboratory.diskmodel.view.DiskModelArchiveView;
 import com.orodent.tonv2.features.laboratory.home.view.LaboratoryView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -152,9 +158,18 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
 
     @Override
     public void showCreateComposition() {
+        showCreateCompositionInternal(null);
+    }
+
+    @Override
+    public void showCreateComposition(int productId) {
+        showCreateCompositionInternal(productId);
+    }
+
+    private void showCreateCompositionInternal(Integer productId) {
         CreateCompositionView view = new CreateCompositionView();
         configureHeader(view.getHeader());
-        new CreateCompositionController(
+        CreateCompositionController controller = new CreateCompositionController(
                 view,
                 this,
                 new CreateCompositionService(
@@ -166,6 +181,10 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
                         app.blankModelRepo()
                 )
         );
+
+        if (productId != null) {
+            controller.preloadFromProductId(productId);
+        }
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuova composizione");
@@ -251,6 +270,15 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
 
     @Override
     public void showCreateDiskModel() {
+        showCreateDiskModelInternal(null);
+    }
+
+    @Override
+    public void showCreateDiskModel(int blankModelId) {
+        showCreateDiskModelInternal(blankModelId);
+    }
+
+    private void showCreateDiskModelInternal(Integer blankModelId) {
         CreateDiskModelView view = new CreateDiskModelView();
         configureHeader(view.getHeader());
         new CreateDiskModelController(
@@ -259,8 +287,65 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
                 new CreateDiskModelService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo())
         );
 
+        if (blankModelId != null) {
+            DiskModelArchiveService.DiskModelSnapshot snapshot = new DiskModelArchiveService(
+                    app.blankModelRepo(),
+                    app.blankModelLayerRepo(),
+                    app.blankModelHeightOvermaterialRepo()
+            ).loadDiskModelSnapshot(blankModelId);
+
+            if (snapshot != null) {
+                view.fillFromModel(
+                        snapshot.model().code(),
+                        snapshot.model().diameterMm(),
+                        snapshot.model().superiorOvermaterialDefaultMm(),
+                        snapshot.model().inferiorOvermaterialDefaultMm(),
+                        snapshot.model().pressureKgCm2(),
+                        snapshot.model().gramsPerMm(),
+                        snapshot.model().numLayers(),
+                        snapshot.layers().stream().map(layer -> layer.diskPercentage()).toList(),
+                        snapshot.ranges().stream()
+                                .map(range -> new CreateDiskModelView.HeightRangeDraft(
+                                        String.valueOf(range.minHeightMm()),
+                                        String.valueOf(range.maxHeightMm()),
+                                        String.valueOf(range.superiorOvermaterialMm()),
+                                        String.valueOf(range.inferiorOvermaterialMm())
+                                ))
+                                .toList()
+                );
+            }
+        }
+
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuovo modello disco");
+    }
+
+    @Override
+    public void showLaboratoryCompositionArchive() {
+        CompositionArchiveView view = new CompositionArchiveView();
+        configureHeader(view.getHeader());
+        new CompositionArchiveController(
+                view,
+                this,
+                new CompositionArchiveService(app.productRepo(), app.compositionRepo())
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Archivio composizioni");
+    }
+
+    @Override
+    public void showLaboratoryDiskModelArchive() {
+        DiskModelArchiveView view = new DiskModelArchiveView();
+        configureHeader(view.getHeader());
+        new DiskModelArchiveController(
+                view,
+                this,
+                new DiskModelArchiveService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo())
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Archivio dischi");
     }
 
     /*

@@ -8,6 +8,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BlankModelHeightOvermaterialRepositoryImpl implements BlankModelHeightOvermaterialRepository {
 
@@ -48,5 +50,41 @@ public class BlankModelHeightOvermaterialRepositoryImpl implements BlankModelHei
             throw new RuntimeException("Error inserting blank model overmaterial range", e);
         }
     }
-}
 
+    @Override
+    public List<BlankModelHeightOvermaterial> findByBlankModelId(int blankModelId) {
+        String sql = """
+                SELECT id,
+                       blank_model_id,
+                       min_height_mm,
+                       max_height_mm,
+                       superior_overmaterial_mm,
+                       inferior_overmaterial_mm
+                FROM blank_model_height_overmaterial
+                WHERE blank_model_id = ?
+                ORDER BY min_height_mm ASC, max_height_mm ASC
+                """;
+
+        List<BlankModelHeightOvermaterial> ranges = new ArrayList<>();
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, blankModelId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    ranges.add(new BlankModelHeightOvermaterial(
+                            rs.getInt("id"),
+                            rs.getInt("blank_model_id"),
+                            rs.getDouble("min_height_mm"),
+                            rs.getDouble("max_height_mm"),
+                            rs.getDouble("superior_overmaterial_mm"),
+                            rs.getDouble("inferior_overmaterial_mm")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error loading blank model overmaterial ranges for blank model " + blankModelId, e);
+        }
+
+        return ranges;
+    }
+}

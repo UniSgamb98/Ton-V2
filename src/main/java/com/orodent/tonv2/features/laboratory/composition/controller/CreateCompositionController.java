@@ -96,6 +96,17 @@ public class CreateCompositionController {
         view.replaceLayers(data.layerDrafts());
     }
 
+
+    public void preloadFromProductId(int productId) {
+        view.getProductSelector().getItems().stream()
+                .filter(product -> product.id() == productId)
+                .findFirst()
+                .ifPresent(product -> {
+                    view.getProductSelector().setValue(product);
+                    loadLatestVersion();
+                });
+    }
+
     private void saveComposition() {
         ProductSelection productSelection = resolveProductSelection();
         if (productSelection == null) {
