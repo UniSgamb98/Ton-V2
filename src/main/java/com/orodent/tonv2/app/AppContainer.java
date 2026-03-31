@@ -9,6 +9,9 @@ import com.orodent.tonv2.core.database.repository.*;
 import com.orodent.tonv2.features.document.service.DocumentBrowserService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 public class AppContainer {
 
     // --- CSV paths ---
@@ -37,6 +40,7 @@ public class AppContainer {
 
     // --- Database ---
     protected final Database database;
+    private final Connection sharedConnection;
 
     // --- Parsers ---
     private final MagazzinoCsvParser magazzinoParser;
@@ -46,31 +50,32 @@ public class AppContainer {
         // DATABASE
         this.database = new Database();
         database.start();
+        this.sharedConnection = database.getConnection();
 
         // LOAD CSV PATHS
         this.csvPaths = CsvPathsLoader.load();
         System.out.println("Caricati i path ai csv.");
 
         // REPOSITORIES
-        this.itemRepo = new ItemRepositoryImpl(database.getConnection());
-        this.lotRepo = new LotRepositoryImpl(database.getConnection());
-        this.depotRepo = new DepotRepositoryImpl(database.getConnection());
-        this.stockRepo = new StockRepositoryImpl(database.getConnection());
-        this.powderRepo = new PowderRepositoryImpl(database.getConnection());
-        this.compositionRepo = new CompositionRepositoryImpl(database.getConnection());
-        this.powderOxideRepo = new PowderOxideRepositoryImpl(database.getConnection());
-        this.compositionLayerIngredientRepo = new CompositionLayerIngredientRepositoryImpl(database.getConnection());
-        this.firingRepo = new FiringRepositoryImpl(database.getConnection());
-        this.productionRepo = new ProductionRepositoryImpl(database.getConnection());
-        this.productRepo = new ProductRepositoryImpl(database.getConnection());
-        this.lineRepo = new LineRepositoryImpl(database.getConnection());
-        this.blankModelRepo = new BlankModelRepositoryImpl(database.getConnection());
-        this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(database.getConnection());
-        this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(database.getConnection());
+        this.itemRepo = new ItemRepositoryImpl(sharedConnection);
+        this.lotRepo = new LotRepositoryImpl(sharedConnection);
+        this.depotRepo = new DepotRepositoryImpl(sharedConnection);
+        this.stockRepo = new StockRepositoryImpl(sharedConnection);
+        this.powderRepo = new PowderRepositoryImpl(sharedConnection);
+        this.compositionRepo = new CompositionRepositoryImpl(sharedConnection);
+        this.powderOxideRepo = new PowderOxideRepositoryImpl(sharedConnection);
+        this.compositionLayerIngredientRepo = new CompositionLayerIngredientRepositoryImpl(sharedConnection);
+        this.firingRepo = new FiringRepositoryImpl(sharedConnection);
+        this.productionRepo = new ProductionRepositoryImpl(sharedConnection);
+        this.productRepo = new ProductRepositoryImpl(sharedConnection);
+        this.lineRepo = new LineRepositoryImpl(sharedConnection);
+        this.blankModelRepo = new BlankModelRepositoryImpl(sharedConnection);
+        this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(sharedConnection);
+        this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(sharedConnection);
         System.out.println("Caricati le repository.");
 
         // SHARED SERVICES
-        this.templateEditorService = new TemplateEditorService(database::getConnection);
+        this.templateEditorService = new TemplateEditorService(() -> sharedConnection);
         this.documentBrowserService = new DocumentBrowserService();
 
         // PARSER
@@ -107,4 +112,14 @@ public class AppContainer {
     public DocumentBrowserService documentBrowserService() { return documentBrowserService; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
+
+    public void shutdown() {
+        try {
+            if (!sharedConnection.isClosed()) {
+                sharedConnection.close();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore durante la chiusura della connessione condivisa.", e);
+        }
+    }
 }

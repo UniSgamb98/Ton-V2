@@ -388,6 +388,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
     }
 
     public void shutdown() {
+        app.shutdown();
         app.database.stop();
     }
 }
