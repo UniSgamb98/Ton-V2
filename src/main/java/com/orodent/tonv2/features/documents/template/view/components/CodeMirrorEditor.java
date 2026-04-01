@@ -17,6 +17,9 @@ public class CodeMirrorEditor extends StackPane {
     private static final String CODE_MIRROR_JS = loadResource("/codemirror/codemirror.min.js");
     private static final String CODE_MIRROR_XML_MODE_JS = loadResource("/codemirror/mode/xml/xml.min.js");
     private static final String CODE_MIRROR_SQL_MODE_JS = loadResource("/codemirror/mode/sql/sql.min.js");
+    private static final String CODE_MIRROR_CSS_MODE_JS = loadOptionalResource("/codemirror/mode/css/css.min.js");
+    private static final String CODE_MIRROR_JS_MODE_JS = loadOptionalResource("/codemirror/mode/javascript/javascript.min.js");
+    private static final String CODE_MIRROR_HTMLMIXED_MODE_JS = loadOptionalResource("/codemirror/mode/htmlmixed/htmlmixed.min.js");
     private boolean ready;
     private String pendingValue = "";
 
@@ -90,7 +93,9 @@ public class CodeMirrorEditor extends StackPane {
     }
 
     private String buildHtml(String mode) {
-        String safeMode = mode == null || mode.isBlank() ? "text/x-freemarker" : mode;
+        String requestedMode = mode == null || mode.isBlank() ? "text/x-freemarker" : mode;
+        String safeMode = resolveMode(requestedMode);
+        String optionalModeScripts = buildOptionalModeScripts();
         return """
                 <!doctype html>
                 <html>
@@ -100,6 +105,7 @@ public class CodeMirrorEditor extends StackPane {
                   <script>%s</script>
                   <script>%s</script>
                   <script>%s</script>
+                  %s
                   <style>
                     html, body { height:100%%; margin:0; background:#0f172a; }
                     .CodeMirror { height:100vh; font-size:13px; background:#0f172a; color:#e2e8f0; }
@@ -149,7 +155,29 @@ public class CodeMirrorEditor extends StackPane {
                   </script>
                 </body>
                 </html>
-                """.formatted(CODE_MIRROR_CSS, CODE_MIRROR_JS, CODE_MIRROR_XML_MODE_JS, CODE_MIRROR_SQL_MODE_JS, escapeJsSingleQuotedString(safeMode));
+                """.formatted(CODE_MIRROR_CSS, CODE_MIRROR_JS, CODE_MIRROR_XML_MODE_JS, CODE_MIRROR_SQL_MODE_JS, optionalModeScripts, escapeJsSingleQuotedString(safeMode));
+    }
+
+    private String resolveMode(String requestedMode) {
+        if ("htmlmixed".equalsIgnoreCase(requestedMode) && CODE_MIRROR_HTMLMIXED_MODE_JS == null) {
+            return "xml";
+        }
+        return requestedMode;
+    }
+
+    private String buildOptionalModeScripts() {
+        StringBuilder scripts = new StringBuilder();
+        appendScript(scripts, CODE_MIRROR_CSS_MODE_JS);
+        appendScript(scripts, CODE_MIRROR_JS_MODE_JS);
+        appendScript(scripts, CODE_MIRROR_HTMLMIXED_MODE_JS);
+        return scripts.toString();
+    }
+
+    private void appendScript(StringBuilder scripts, String content) {
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        scripts.append("<script>").append(content).append("</script>\n");
     }
 
     private static String loadResource(String path) {
@@ -160,6 +188,17 @@ public class CodeMirrorEditor extends StackPane {
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException ex) {
             throw new IllegalStateException("Impossibile caricare la risorsa: " + path, ex);
+        }
+    }
+
+    private static String loadOptionalResource(String path) {
+        try (InputStream stream = CodeMirrorEditor.class.getResourceAsStream(path)) {
+            if (stream == null) {
+                return null;
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Impossibile caricare la risorsa opzionale: " + path, ex);
         }
     }
 
