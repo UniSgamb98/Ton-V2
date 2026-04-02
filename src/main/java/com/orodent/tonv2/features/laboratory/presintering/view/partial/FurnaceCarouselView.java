@@ -36,7 +36,7 @@ public class FurnaceCarouselView extends VBox {
     private Timeline leftHoldTimeline;
     private Timeline rightHoldTimeline;
 
-    private int firstVisibleCardIndex = 1;
+    private int firstVisibleCardIndex = 0;
 
     public FurnaceCarouselView() {
         buildUi();
@@ -58,7 +58,7 @@ public class FurnaceCarouselView extends VBox {
             }
         }
 
-        firstVisibleCardIndex = 1;
+        firstVisibleCardIndex = 0;
         render();
     }
 
@@ -141,23 +141,33 @@ public class FurnaceCarouselView extends VBox {
         int leftHiddenCount = firstVisibleCardIndex;
         int rightHiddenCount = furnaceCards.size() - (firstVisibleCardIndex + FULL_VISIBLE_CARDS);
 
-        if (leftHiddenCount > 0) {
+        if (leftHiddenCount > 1) {
             leftPilePane.getChildren().add(createPile(leftHiddenCount, true));
         }
 
         HBox fullCardsRow = new HBox(12);
         fullCardsRow.setAlignment(Pos.CENTER);
+
+        if (leftHiddenCount == 1) {
+            fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(0)));
+        }
+
         for (int index = firstVisibleCardIndex; index < firstVisibleCardIndex + FULL_VISIBLE_CARDS; index++) {
             fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(index)));
         }
+
+        if (rightHiddenCount == 1) {
+            fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(furnaceCards.size() - 1)));
+        }
+
         centerCardsPane.getChildren().add(fullCardsRow);
 
-        if (rightHiddenCount > 0) {
+        if (rightHiddenCount > 1) {
             rightPilePane.getChildren().add(createPile(rightHiddenCount, false));
         }
 
-        boolean canGoLeft = firstVisibleCardIndex > 1;
-        boolean canGoRight = firstVisibleCardIndex < furnaceCards.size() - 4;
+        boolean canGoLeft = leftHiddenCount > 1;
+        boolean canGoRight = rightHiddenCount > 1;
 
         leftArrow.setVisible(canGoLeft);
         leftArrow.setManaged(canGoLeft);
@@ -264,8 +274,8 @@ public class FurnaceCarouselView extends VBox {
     }
 
     private int clampFirstVisibleIndex(int candidate) {
-        int min = 1;
-        int max = furnaceCards.size() - 4;
+        int min = 0;
+        int max = furnaceCards.size() - FULL_VISIBLE_CARDS;
         return Math.max(min, Math.min(max, candidate));
     }
 
