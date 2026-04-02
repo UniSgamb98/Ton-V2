@@ -20,6 +20,7 @@ import java.util.List;
 public class FurnaceCarouselView extends VBox {
 
     private static final int DEFAULT_VISIBLE_CARDS = 3;
+    private static final int MIN_VISIBLE_CARDS = 2;
     private static final int CARD_WIDTH = 165;
     private static final int CARD_GAP = 12;
 
@@ -78,7 +79,8 @@ public class FurnaceCarouselView extends VBox {
         leftPilePane.setPrefWidth(95);
         rightPilePane.setMinWidth(95);
         rightPilePane.setPrefWidth(95);
-        centerCardsPane.setMinWidth(520);
+        centerCardsPane.setMinWidth(0);
+        centerCardsPane.setPrefWidth(520);
 
         HBox.setHgrow(centerCardsPane, Priority.ALWAYS);
 
@@ -277,11 +279,11 @@ public class FurnaceCarouselView extends VBox {
     private int getFullVisibleCards() {
         double availableWidth = centerCardsPane.getWidth();
         if (availableWidth <= 0) {
-            availableWidth = centerCardsPane.getMinWidth();
+            availableWidth = centerCardsPane.getPrefWidth();
         }
 
         int cardsFromWidth = (int) Math.floor((availableWidth + CARD_GAP) / (CARD_WIDTH + CARD_GAP));
-        return Math.max(1, cardsFromWidth > 0 ? cardsFromWidth : DEFAULT_VISIBLE_CARDS);
+        return Math.max(MIN_VISIBLE_CARDS, cardsFromWidth > 0 ? cardsFromWidth : DEFAULT_VISIBLE_CARDS);
     }
 
     private List<FurnaceItemData> buildPlaceholderItems(String furnaceNumber) {
