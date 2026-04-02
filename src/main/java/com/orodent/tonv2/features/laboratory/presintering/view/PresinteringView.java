@@ -26,7 +26,7 @@ public class PresinteringView extends VBox {
     private final Button insertDisksButton = new Button();
     private final Label feedbackLabel = new Label();
     private final FurnaceCarouselView furnaceCarouselView = new FurnaceCarouselView();
-    private final List<TextField> quantityFields = new ArrayList<>();
+    private final List<DiskPickEntry> diskPickEntries = new ArrayList<>();
 
     private String selectedFurnaceName;
 
@@ -74,7 +74,7 @@ public class PresinteringView extends VBox {
 
     public void setProducedDisks(List<ProductionRepository.ProducedDiskRow> rows) {
         rowsBox.getChildren().clear();
-        quantityFields.clear();
+        diskPickEntries.clear();
 
         if (rows == null || rows.isEmpty()) {
             rowsBox.getChildren().add(new Label("Nessun disco prodotto disponibile."));
@@ -118,7 +118,7 @@ public class PresinteringView extends VBox {
             }
             updateInsertButton();
         });
-        quantityFields.add(pickField);
+        diskPickEntries.add(new DiskPickEntry(pickField, row.totalQuantity()));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -135,10 +135,16 @@ public class PresinteringView extends VBox {
     }
 
     private void updateInsertButton() {
-        int requestedDisks = quantityFields.stream()
-                .map(TextField::getText)
-                .filter(text -> text != null && !text.isBlank())
-                .mapToInt(Integer::parseInt)
+        int requestedDisks = diskPickEntries.stream()
+                .mapToInt(entry -> {
+                    String text = entry.field().getText();
+                    if (text == null || text.isBlank()) {
+                        return 0;
+                    }
+
+                    int requested = Integer.parseInt(text);
+                    return Math.min(requested, entry.availableQuantity());
+                })
                 .sum();
 
         boolean hasRequestedDisks = requestedDisks > 0;
@@ -157,5 +163,8 @@ public class PresinteringView extends VBox {
 
         insertDisksButton.setDisable(false);
         insertDisksButton.setText("Inserisci " + requestedDisks + " dischi nel " + selectedFurnaceName);
+    }
+
+    private record DiskPickEntry(TextField field, int availableQuantity) {
     }
 }
