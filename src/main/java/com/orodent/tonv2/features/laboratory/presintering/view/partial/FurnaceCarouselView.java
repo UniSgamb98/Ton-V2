@@ -19,7 +19,9 @@ import java.util.List;
 
 public class FurnaceCarouselView extends VBox {
 
-    private static final int FULL_VISIBLE_CARDS = 3;
+    private static final int DEFAULT_VISIBLE_CARDS = 3;
+    private static final int CARD_WIDTH = 165;
+    private static final int CARD_GAP = 12;
 
     private final List<FurnaceCardData> furnaceCards = new ArrayList<>();
 
@@ -82,6 +84,7 @@ public class FurnaceCarouselView extends VBox {
 
         viewport.setAlignment(Pos.CENTER);
         viewport.getChildren().addAll(leftPilePane, centerCardsPane, rightPilePane);
+        centerCardsPane.widthProperty().addListener((obs, oldWidth, newWidth) -> render());
 
         carouselPane.getChildren().add(viewport);
         carouselPane.setPadding(new Insets(8, 4, 8, 4));
@@ -121,9 +124,11 @@ public class FurnaceCarouselView extends VBox {
             return;
         }
 
-        if (furnaceCards.size() <= 5) {
+        int fullVisibleCards = getFullVisibleCards();
+
+        if (furnaceCards.size() <= fullVisibleCards) {
             firstVisibleCardIndex = 0;
-            HBox allCards = new HBox(12);
+            HBox allCards = new HBox(CARD_GAP);
             allCards.setAlignment(Pos.CENTER);
             for (FurnaceCardData furnace : furnaceCards) {
                 allCards.getChildren().add(createFullCard(furnace));
@@ -139,15 +144,15 @@ public class FurnaceCarouselView extends VBox {
         firstVisibleCardIndex = clampFirstVisibleIndex(firstVisibleCardIndex);
 
         int leftHiddenCount = firstVisibleCardIndex;
-        int rightHiddenCount = furnaceCards.size() - (firstVisibleCardIndex + FULL_VISIBLE_CARDS);
+        int rightHiddenCount = furnaceCards.size() - (firstVisibleCardIndex + fullVisibleCards);
 
         if (leftHiddenCount > 0) {
             leftPilePane.getChildren().add(createPile(leftHiddenCount, true));
         }
 
-        HBox fullCardsRow = new HBox(12);
+        HBox fullCardsRow = new HBox(CARD_GAP);
         fullCardsRow.setAlignment(Pos.CENTER);
-        for (int index = firstVisibleCardIndex; index < firstVisibleCardIndex + FULL_VISIBLE_CARDS; index++) {
+        for (int index = firstVisibleCardIndex; index < firstVisibleCardIndex + fullVisibleCards; index++) {
             fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(index)));
         }
         centerCardsPane.getChildren().add(fullCardsRow);
@@ -167,8 +172,8 @@ public class FurnaceCarouselView extends VBox {
 
     private VBox createFullCard(FurnaceCardData furnace) {
         VBox card = new VBox(8);
-        card.setPrefWidth(165);
-        card.setMinWidth(165);
+        card.setPrefWidth(CARD_WIDTH);
+        card.setMinWidth(CARD_WIDTH);
         card.setPadding(new Insets(10));
         card.setStyle(
                 "-fx-background-color: rgba(56, 189, 248, 0.18);"
@@ -265,8 +270,18 @@ public class FurnaceCarouselView extends VBox {
 
     private int clampFirstVisibleIndex(int candidate) {
         int min = 0;
-        int max = furnaceCards.size() - FULL_VISIBLE_CARDS;
+        int max = furnaceCards.size() - getFullVisibleCards();
         return Math.max(min, Math.min(max, candidate));
+    }
+
+    private int getFullVisibleCards() {
+        double availableWidth = centerCardsPane.getWidth();
+        if (availableWidth <= 0) {
+            availableWidth = centerCardsPane.getMinWidth();
+        }
+
+        int cardsFromWidth = (int) Math.floor((availableWidth + CARD_GAP) / (CARD_WIDTH + CARD_GAP));
+        return Math.max(1, cardsFromWidth > 0 ? cardsFromWidth : DEFAULT_VISIBLE_CARDS);
     }
 
     private List<FurnaceItemData> buildPlaceholderItems(String furnaceNumber) {
