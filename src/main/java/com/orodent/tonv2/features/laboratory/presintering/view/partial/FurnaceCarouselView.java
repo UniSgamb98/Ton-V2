@@ -141,33 +141,23 @@ public class FurnaceCarouselView extends VBox {
         int leftHiddenCount = firstVisibleCardIndex;
         int rightHiddenCount = furnaceCards.size() - (firstVisibleCardIndex + FULL_VISIBLE_CARDS);
 
-        if (leftHiddenCount > 1) {
+        if (leftHiddenCount > 0) {
             leftPilePane.getChildren().add(createPile(leftHiddenCount, true));
         }
 
         HBox fullCardsRow = new HBox(12);
         fullCardsRow.setAlignment(Pos.CENTER);
-
-        if (leftHiddenCount == 1) {
-            fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(0)));
-        }
-
         for (int index = firstVisibleCardIndex; index < firstVisibleCardIndex + FULL_VISIBLE_CARDS; index++) {
             fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(index)));
         }
-
-        if (rightHiddenCount == 1) {
-            fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(furnaceCards.size() - 1)));
-        }
-
         centerCardsPane.getChildren().add(fullCardsRow);
 
-        if (rightHiddenCount > 1) {
+        if (rightHiddenCount > 0) {
             rightPilePane.getChildren().add(createPile(rightHiddenCount, false));
         }
 
-        boolean canGoLeft = leftHiddenCount > 1;
-        boolean canGoRight = rightHiddenCount > 1;
+        boolean canGoLeft = leftHiddenCount > 0;
+        boolean canGoRight = rightHiddenCount > 0;
 
         leftArrow.setVisible(canGoLeft);
         leftArrow.setManaged(canGoLeft);
