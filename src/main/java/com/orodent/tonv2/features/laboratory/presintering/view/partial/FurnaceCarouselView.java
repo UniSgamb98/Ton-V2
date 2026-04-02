@@ -279,11 +279,11 @@ public class FurnaceCarouselView extends VBox {
     private int getFullVisibleCards() {
         double availableWidth = centerCardsPane.getWidth();
         if (availableWidth <= 0) {
-            availableWidth = centerCardsPane.getPrefWidth();
+            return Math.max(MIN_VISIBLE_CARDS, DEFAULT_VISIBLE_CARDS);
         }
 
         int cardsFromWidth = (int) Math.floor((availableWidth + CARD_GAP) / (CARD_WIDTH + CARD_GAP));
-        return Math.max(MIN_VISIBLE_CARDS, cardsFromWidth > 0 ? cardsFromWidth : DEFAULT_VISIBLE_CARDS);
+        return Math.max(MIN_VISIBLE_CARDS, cardsFromWidth);
     }
 
     private List<FurnaceItemData> buildPlaceholderItems(String furnaceNumber) {
