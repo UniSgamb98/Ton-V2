@@ -2,8 +2,11 @@ package com.orodent.tonv2.features.laboratory.presintering.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
+import com.orodent.tonv2.features.laboratory.presintering.view.partial.FurnaceCarouselView;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 import java.util.List;
@@ -18,12 +21,17 @@ public class PresinteringView extends VBox {
         setSpacing(16);
         setPadding(new Insets(20));
 
-        getChildren().addAll(
-                header,
-                new Label("Dischi prodotti"),
-                rowsBox,
-                feedbackLabel
-        );
+        VBox leftColumn = new VBox(8, new Label("Dischi prodotti"), rowsBox);
+        leftColumn.setMinWidth(260);
+        leftColumn.setPrefWidth(320);
+
+        VBox rightColumn = new VBox(new FurnaceCarouselView());
+        HBox.setHgrow(rightColumn, Priority.ALWAYS);
+
+        HBox contentSplit = new HBox(20, leftColumn, rightColumn);
+        contentSplit.setFillHeight(true);
+
+        getChildren().addAll(header, contentSplit, feedbackLabel);
     }
 
     public AppHeader getHeader() {
