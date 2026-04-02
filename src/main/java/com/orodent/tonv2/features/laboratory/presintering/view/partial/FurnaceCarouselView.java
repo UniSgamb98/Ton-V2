@@ -1,8 +1,9 @@
 package com.orodent.tonv2.features.laboratory.presintering.view.partial;
 
+import com.orodent.tonv2.core.database.model.Furnace;
 import javafx.animation.Animation;
-import javafx.animation.Timeline;
 import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -20,7 +21,7 @@ public class FurnaceCarouselView extends VBox {
 
     private static final int FULL_VISIBLE_CARDS = 3;
 
-    private final List<FurnaceCardData> furnaceCards = createPlaceholderFurnaces();
+    private final List<FurnaceCardData> furnaceCards = new ArrayList<>();
 
     private final StackPane carouselPane = new StackPane();
     private final HBox viewport = new HBox(14);
@@ -39,6 +40,25 @@ public class FurnaceCarouselView extends VBox {
 
     public FurnaceCarouselView() {
         buildUi();
+        render();
+    }
+
+    public void setFurnaces(List<Furnace> furnaces) {
+        furnaceCards.clear();
+
+        if (furnaces != null) {
+            for (Furnace furnace : furnaces) {
+                String displayNumber = furnace.number() == null || furnace.number().isBlank()
+                        ? String.valueOf(furnace.id())
+                        : furnace.number();
+                furnaceCards.add(new FurnaceCardData(
+                        "Forno " + displayNumber,
+                        buildPlaceholderItems(displayNumber)
+                ));
+            }
+        }
+
+        firstVisibleCardIndex = 1;
         render();
     }
 
@@ -88,6 +108,18 @@ public class FurnaceCarouselView extends VBox {
         leftPilePane.getChildren().clear();
         centerCardsPane.getChildren().clear();
         rightPilePane.getChildren().clear();
+
+        if (furnaceCards.isEmpty()) {
+            leftArrow.setVisible(false);
+            rightArrow.setVisible(false);
+            leftArrow.setManaged(false);
+            rightArrow.setManaged(false);
+
+            Label emptyLabel = new Label("Nessun forno disponibile.");
+            emptyLabel.setStyle("-fx-opacity: 0.85;");
+            centerCardsPane.getChildren().add(emptyLabel);
+            return;
+        }
 
         if (furnaceCards.size() <= 5) {
             firstVisibleCardIndex = 0;
@@ -237,19 +269,13 @@ public class FurnaceCarouselView extends VBox {
         return Math.max(min, Math.min(max, candidate));
     }
 
-    private List<FurnaceCardData> createPlaceholderFurnaces() {
-        List<FurnaceCardData> placeholders = new ArrayList<>();
-
-        for (int furnaceIndex = 1; furnaceIndex <= 14; furnaceIndex++) {
-            List<FurnaceItemData> furnaceItems = List.of(
-                    new FurnaceItemData("Item A" + furnaceIndex, 1500 + (furnaceIndex % 4) * 10),
-                    new FurnaceItemData("Item B" + furnaceIndex, 1520 + (furnaceIndex % 3) * 15),
-                    new FurnaceItemData("Item C" + furnaceIndex, 1480 + (furnaceIndex % 5) * 12)
-            );
-            placeholders.add(new FurnaceCardData("Forno " + furnaceIndex, furnaceItems));
-        }
-
-        return placeholders;
+    private List<FurnaceItemData> buildPlaceholderItems(String furnaceNumber) {
+        int seed = Math.abs(furnaceNumber.hashCode());
+        return List.of(
+                new FurnaceItemData("Item A" + furnaceNumber, 1480 + (seed % 5) * 10),
+                new FurnaceItemData("Item B" + furnaceNumber, 1500 + (seed % 4) * 12),
+                new FurnaceItemData("Item C" + furnaceNumber, 1520 + (seed % 3) * 15)
+        );
     }
 
     private record FurnaceCardData(String furnaceName, List<FurnaceItemData> items) {

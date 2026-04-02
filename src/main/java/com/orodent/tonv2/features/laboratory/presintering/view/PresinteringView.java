@@ -1,6 +1,7 @@
 package com.orodent.tonv2.features.laboratory.presintering.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.laboratory.presintering.view.partial.FurnaceCarouselView;
 import javafx.geometry.Insets;
@@ -16,6 +17,7 @@ public class PresinteringView extends VBox {
     private final AppHeader header = new AppHeader("Laboratorio - Presinterizza");
     private final VBox rowsBox = new VBox(8);
     private final Label feedbackLabel = new Label();
+    private final FurnaceCarouselView furnaceCarouselView = new FurnaceCarouselView();
 
     public PresinteringView() {
         setSpacing(16);
@@ -25,7 +27,7 @@ public class PresinteringView extends VBox {
         leftColumn.setMinWidth(260);
         leftColumn.setPrefWidth(320);
 
-        VBox rightColumn = new VBox(new FurnaceCarouselView());
+        VBox rightColumn = new VBox(furnaceCarouselView);
         HBox.setHgrow(rightColumn, Priority.ALWAYS);
 
         HBox contentSplit = new HBox(20, leftColumn, rightColumn);
@@ -50,6 +52,10 @@ public class PresinteringView extends VBox {
             String text = row.itemCode() + " — " + row.totalQuantity() + " pz";
             rowsBox.getChildren().add(new Label(text));
         }
+    }
+
+    public void setFurnaces(List<Furnace> furnaces) {
+        furnaceCarouselView.setFurnaces(furnaces);
     }
 
     public void setFeedback(String text, boolean error) {

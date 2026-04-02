@@ -1,5 +1,6 @@
 package com.orodent.tonv2.features.laboratory.presintering.controller;
 
+import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
@@ -17,17 +18,21 @@ public class PresinteringController {
         this.view = view;
         this.service = service;
 
-        loadProducedDisks();
+        loadData();
     }
 
-    private void loadProducedDisks() {
+    private void loadData() {
         try {
-            List<ProductionRepository.ProducedDiskRow> rows = service.loadProducedDisks();
-            view.setProducedDisks(rows);
+            List<ProductionRepository.ProducedDiskRow> producedDisks = service.loadProducedDisks();
+            List<Furnace> furnaces = service.loadFurnaces();
+
+            view.setProducedDisks(producedDisks);
+            view.setFurnaces(furnaces);
             view.setFeedback("", false);
         } catch (Exception e) {
             view.setProducedDisks(List.of());
-            view.setFeedback("Errore durante il caricamento dischi prodotti.", true);
+            view.setFurnaces(List.of());
+            view.setFeedback("Errore durante il caricamento dati presinterizza.", true);
         }
     }
 }

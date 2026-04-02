@@ -28,6 +28,7 @@ public class AppContainer {
     private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
     private final ProductionRepository productionRepo;
     private final FiringRepository firingRepo;
+    private final FurnaceRepository furnaceRepo;
     private final ProductRepository productRepo;
     private final LineRepository lineRepo;
     private final BlankModelRepository blankModelRepo;
@@ -66,6 +67,7 @@ public class AppContainer {
         this.powderOxideRepo = new PowderOxideRepositoryImpl(sharedConnection);
         this.compositionLayerIngredientRepo = new CompositionLayerIngredientRepositoryImpl(sharedConnection);
         this.firingRepo = new FiringRepositoryImpl(sharedConnection);
+        this.furnaceRepo = new FurnaceRepositoryImpl(sharedConnection);
         this.productionRepo = new ProductionRepositoryImpl(sharedConnection);
         this.productRepo = new ProductRepositoryImpl(sharedConnection);
         this.lineRepo = new LineRepositoryImpl(sharedConnection);
@@ -101,6 +103,7 @@ public class AppContainer {
     public CompositionLayerIngredientRepository compositionLayerIngredientRepo() { return compositionLayerIngredientRepo; }
     public PowderOxideRepository powderOxideRepo() { return powderOxideRepo; }
     public FiringRepository firingRepo() { return firingRepo; }
+    public FurnaceRepository furnaceRepo() { return furnaceRepo; }
     public ProductionRepository productionRepo() { return productionRepo; }
     public ProductRepository productRepo() { return productRepo; }
     public LineRepository lineRepo() { return lineRepo; }
