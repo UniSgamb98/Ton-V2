@@ -98,15 +98,19 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     @Override
     public List<CompositionRankingRow> findCompositionRankingRows() {
         String sql = """
-                WITH available_by_composition AS (
+                SELECT a.composition_id,
+                       a.available_qty,
+                       COALESCE(fs.distinct_furnaces_used, 0) AS distinct_furnaces_used,
+                       COALESCE(fs.total_firings, 0) AS total_firings
+                FROM (
                     SELECT po.composition_id AS composition_id, SUM(pol.quantity) AS available_qty
                     FROM production_order_line pol
                     JOIN production_order po ON po.id = pol.production_order_id
                     LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
                     WHERE pof.production_order_id IS NULL
                     GROUP BY po.composition_id
-                ),
-                firing_stats AS (
+                ) a
+                LEFT JOIN (
                     SELECT po.composition_id AS composition_id,
                            COUNT(DISTINCT f.furnace) AS distinct_furnaces_used,
                            COUNT(*) AS total_firings
@@ -114,13 +118,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                     JOIN production_order_firing pof ON pof.production_order_id = po.id
                     JOIN firing f ON f.id = pof.firing_id
                     GROUP BY po.composition_id
-                )
-                SELECT a.composition_id,
-                       a.available_qty,
-                       COALESCE(fs.distinct_furnaces_used, 0) AS distinct_furnaces_used,
-                       COALESCE(fs.total_firings, 0) AS total_firings
-                FROM available_by_composition a
-                LEFT JOIN firing_stats fs ON fs.composition_id = a.composition_id
+                ) fs ON fs.composition_id = a.composition_id
                 ORDER BY distinct_furnaces_used ASC, total_firings ASC, a.available_qty DESC, a.composition_id ASC
                 """;
 
@@ -146,7 +144,12 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     @Override
     public List<FurnaceItemSuggestionRow> findFurnaceItemSuggestionRows(String furnaceValue, String furnaceDisplayValue) {
         String sql = """
-                WITH available_items AS (
+                SELECT ai.item_id,
+                       ai.item_code,
+                       ai.composition_id,
+                       ai.available_qty,
+                       CAST(ROUND(fh.avg_furnace_temp, 0) AS INTEGER) AS suggested_temperature
+                FROM (
                     SELECT pol.item_id AS item_id,
                            i.code AS item_code,
                            po.composition_id AS composition_id,
@@ -157,8 +160,8 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                     LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
                     WHERE pof.production_order_id IS NULL
                     GROUP BY pol.item_id, i.code, po.composition_id
-                ),
-                furnace_history AS (
+                ) ai
+                JOIN (
                     SELECT pol.item_id AS item_id,
                            po.composition_id AS composition_id,
                            AVG(f.max_temperature) AS avg_furnace_temp
@@ -166,30 +169,17 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                     JOIN production_order po ON po.id = pol.production_order_id
                     JOIN production_order_firing pof ON pof.production_order_id = po.id
                     JOIN firing f ON f.id = pof.firing_id
-                    WHERE f.furnace = ? OR f.furnace = ?
+                    WHERE (f.furnace = ? OR f.furnace = ?)
+                      AND f.max_temperature IS NOT NULL
                     GROUP BY pol.item_id, po.composition_id
-                ),
-                composition_temp AS (
-                    SELECT fh.composition_id AS composition_id,
-                           AVG(fh.avg_furnace_temp) AS composition_avg_temp
-                    FROM furnace_history fh
-                    GROUP BY fh.composition_id
-                )
-                SELECT ai.item_id,
-                       ai.item_code,
-                       ai.composition_id,
-                       ai.available_qty,
-                       CAST(ROUND(fh.avg_furnace_temp, 0) AS INTEGER) AS suggested_temperature,
-                       CAST(ROUND(ct.composition_avg_temp, 0) AS INTEGER) AS composition_average_temperature
-                FROM available_items ai
-                JOIN furnace_history fh
+                ) fh
                     ON fh.item_id = ai.item_id
                    AND fh.composition_id = ai.composition_id
-                LEFT JOIN composition_temp ct ON ct.composition_id = ai.composition_id
                 ORDER BY ai.composition_id ASC, ai.item_code ASC
                 """;
 
         List<FurnaceItemSuggestionRow> rows = new ArrayList<>();
+        List<RawFurnaceItemSuggestionRow> rawRows = new ArrayList<>();
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, furnaceValue);
@@ -197,13 +187,12 @@ public class ProductionRepositoryImpl implements ProductionRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    rows.add(new FurnaceItemSuggestionRow(
+                    rawRows.add(new RawFurnaceItemSuggestionRow(
                             rs.getInt("item_id"),
                             rs.getString("item_code"),
                             rs.getInt("composition_id"),
                             rs.getInt("available_qty"),
-                            (Integer) rs.getObject("suggested_temperature"),
-                            (Integer) rs.getObject("composition_average_temperature")
+                            (Integer) rs.getObject("suggested_temperature")
                     ));
                 }
             }
@@ -211,6 +200,38 @@ public class ProductionRepositoryImpl implements ProductionRepository {
             throw new RuntimeException("Errore durante il caricamento suggerimenti forno selezionato.", e);
         }
 
+        for (RawFurnaceItemSuggestionRow rawRow : rawRows) {
+            Integer compositionAverage = computeCompositionAverage(rawRows, rawRow.compositionId());
+            rows.add(new FurnaceItemSuggestionRow(
+                    rawRow.itemId(),
+                    rawRow.itemCode(),
+                    rawRow.compositionId(),
+                    rawRow.availableQuantity(),
+                    rawRow.suggestedTemperature(),
+                    compositionAverage
+            ));
+        }
+
         return rows;
+    }
+
+    private Integer computeCompositionAverage(List<RawFurnaceItemSuggestionRow> rows, int compositionId) {
+        int total = 0;
+        int count = 0;
+        for (RawFurnaceItemSuggestionRow row : rows) {
+            if (row.compositionId() != compositionId || row.suggestedTemperature() == null) {
+                continue;
+            }
+            total += row.suggestedTemperature();
+            count++;
+        }
+        return count == 0 ? null : Math.round((float) total / count);
+    }
+
+    private record RawFurnaceItemSuggestionRow(int itemId,
+                                               String itemCode,
+                                               int compositionId,
+                                               int availableQuantity,
+                                               Integer suggestedTemperature) {
     }
 }
