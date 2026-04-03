@@ -148,7 +148,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                        ai.item_code,
                        ai.composition_id,
                        ai.available_qty,
-                       CAST(ROUND(fh.avg_furnace_temp, 0) AS INTEGER) AS suggested_temperature
+                       fh.avg_furnace_temp AS suggested_temperature
                 FROM (
                     SELECT pol.item_id AS item_id,
                            i.code AS item_code,
@@ -187,12 +187,13 @@ public class ProductionRepositoryImpl implements ProductionRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    Number suggestedTemperature = (Number) rs.getObject("suggested_temperature");
                     rawRows.add(new RawFurnaceItemSuggestionRow(
                             rs.getInt("item_id"),
                             rs.getString("item_code"),
                             rs.getInt("composition_id"),
                             rs.getInt("available_qty"),
-                            (Integer) rs.getObject("suggested_temperature")
+                            suggestedTemperature == null ? null : suggestedTemperature.doubleValue()
                     ));
                 }
             }
@@ -207,7 +208,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                     rawRow.itemCode(),
                     rawRow.compositionId(),
                     rawRow.availableQuantity(),
-                    rawRow.suggestedTemperature(),
+                    rawRow.suggestedTemperature() == null ? null : Math.round(rawRow.suggestedTemperature().floatValue()),
                     compositionAverage
             ));
         }
@@ -222,7 +223,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
             if (row.compositionId() != compositionId || row.suggestedTemperature() == null) {
                 continue;
             }
-            total += row.suggestedTemperature();
+            total += Math.round(row.suggestedTemperature().floatValue());
             count++;
         }
         return count == 0 ? null : Math.round((float) total / count);
@@ -232,6 +233,6 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                                                String itemCode,
                                                int compositionId,
                                                int availableQuantity,
-                                               Integer suggestedTemperature) {
+                                               Double suggestedTemperature) {
     }
 }
