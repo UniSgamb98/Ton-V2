@@ -23,4 +23,17 @@ public class PresinteringService {
     public List<Furnace> loadFurnaces() {
         return furnaceRepo.findAll();
     }
+
+    public List<ProductionRepository.CompositionRankingRow> loadCompositionRanking() {
+        return productionRepo.findCompositionRankingRows();
+    }
+
+    public List<ProductionRepository.FurnaceItemSuggestionRow> loadFurnaceItemSuggestions(String selectedFurnaceName) {
+        if (selectedFurnaceName == null || selectedFurnaceName.isBlank()) {
+            return List.of();
+        }
+
+        String normalizedFurnace = selectedFurnaceName.replaceFirst("^Forno\\s+", "").trim();
+        return productionRepo.findFurnaceItemSuggestionRows(normalizedFurnace, selectedFurnaceName);
+    }
 }

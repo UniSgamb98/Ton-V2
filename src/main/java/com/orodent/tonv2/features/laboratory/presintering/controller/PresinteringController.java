@@ -25,13 +25,22 @@ public class PresinteringController {
         try {
             List<ProductionRepository.ProducedDiskRow> producedDisks = service.loadProducedDisks();
             List<Furnace> furnaces = service.loadFurnaces();
+            List<ProductionRepository.CompositionRankingRow> compositionRanking = service.loadCompositionRanking();
 
             view.setProducedDisks(producedDisks);
             view.setFurnaces(furnaces);
+            view.setCompositionRankingRows(compositionRanking);
+            view.setFurnaceItemSuggestionRows(List.of());
+            view.setOnFurnaceSelectionChanged(selectedFurnace -> {
+                List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
+                view.setFurnaceItemSuggestionRows(suggestions);
+            });
             view.setFeedback("", false);
         } catch (Exception e) {
             view.setProducedDisks(List.of());
             view.setFurnaces(List.of());
+            view.setCompositionRankingRows(List.of());
+            view.setFurnaceItemSuggestionRows(List.of());
             view.setFeedback("Errore durante il caricamento dati presinterizza.", true);
         }
     }

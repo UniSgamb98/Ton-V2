@@ -17,6 +17,7 @@ import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class PresinteringView extends VBox {
 
@@ -27,8 +28,12 @@ public class PresinteringView extends VBox {
     private final Label feedbackLabel = new Label();
     private final FurnaceCarouselView furnaceCarouselView = new FurnaceCarouselView();
     private final List<DiskPickEntry> diskPickEntries = new ArrayList<>();
+    private final VBox compositionRankingBox = new VBox(6);
+    private final VBox furnaceSuggestionsBox = new VBox(6);
+    private final Label furnaceSuggestionsTitle = new Label("Blocco B · Item consigliati per forno selezionato");
 
     private String selectedFurnaceName;
+    private Consumer<String> onFurnaceSelectionChanged;
 
     public PresinteringView() {
         setSpacing(16);
@@ -63,9 +68,14 @@ public class PresinteringView extends VBox {
         furnaceCarouselView.setOnFurnaceSelectionChanged(furnaceName -> {
             selectedFurnaceName = furnaceName;
             updateInsertButton();
+            updateFurnaceSuggestionsTitle();
+            if (onFurnaceSelectionChanged != null) {
+                onFurnaceSelectionChanged.accept(furnaceName);
+            }
         });
 
-        getChildren().addAll(header, contentSplit, feedbackLabel);
+        VBox insightsSection = buildInsightsSection();
+        getChildren().addAll(header, contentSplit, insightsSection, feedbackLabel);
     }
 
     public AppHeader getHeader() {
@@ -96,6 +106,66 @@ public class PresinteringView extends VBox {
     public void setFeedback(String text, boolean error) {
         feedbackLabel.setText(text);
         feedbackLabel.setStyle(error ? "-fx-text-fill: #b91c1c;" : "-fx-text-fill: #166534;");
+    }
+
+    public void setOnFurnaceSelectionChanged(Consumer<String> onFurnaceSelectionChanged) {
+        this.onFurnaceSelectionChanged = onFurnaceSelectionChanged;
+    }
+
+    public void setCompositionRankingRows(List<ProductionRepository.CompositionRankingRow> rows) {
+        compositionRankingBox.getChildren().clear();
+
+        if (rows == null || rows.isEmpty()) {
+            Label empty = new Label("Nessun gruppo composizione disponibile.");
+            empty.setStyle("-fx-opacity: 0.85;");
+            compositionRankingBox.getChildren().add(empty);
+            return;
+        }
+
+        int rank = 1;
+        for (ProductionRepository.CompositionRankingRow row : rows) {
+            Label line = new Label(
+                    "#" + rank
+                            + " · Composizione " + row.compositionId()
+                            + " · disponibili: " + row.availableQuantity()
+                            + " · forni distinti: " + row.distinctFurnacesUsed()
+                            + " · firing totali: " + row.totalFirings()
+            );
+            line.setWrapText(true);
+            compositionRankingBox.getChildren().add(line);
+            rank++;
+        }
+    }
+
+    public void setFurnaceItemSuggestionRows(List<ProductionRepository.FurnaceItemSuggestionRow> rows) {
+        furnaceSuggestionsBox.getChildren().clear();
+
+        if (rows == null || rows.isEmpty()) {
+            String hint = selectedFurnaceName == null || selectedFurnaceName.isBlank()
+                    ? "Seleziona un forno per vedere gli item con storico disponibile."
+                    : "Nessun item disponibile con storico sul forno selezionato.";
+            Label empty = new Label(hint);
+            empty.setStyle("-fx-opacity: 0.85;");
+            furnaceSuggestionsBox.getChildren().add(empty);
+            return;
+        }
+
+        for (ProductionRepository.FurnaceItemSuggestionRow row : rows) {
+            String temperature = row.suggestedTemperature() == null ? "n.d." : row.suggestedTemperature() + "°C";
+            String compositionAverage = row.compositionAverageTemperature() == null
+                    ? "n.d."
+                    : row.compositionAverageTemperature() + "°C";
+
+            Label line = new Label(
+                    row.itemCode()
+                            + " · comp. " + row.compositionId()
+                            + " · disp: " + row.availableQuantity()
+                            + " · T ideale: " + temperature
+                            + " · media comp.: " + compositionAverage
+            );
+            line.setWrapText(true);
+            furnaceSuggestionsBox.getChildren().add(line);
+        }
     }
 
     private HBox buildDiskRow(ProductionRepository.ProducedDiskRow row) {
@@ -163,6 +233,47 @@ public class PresinteringView extends VBox {
 
         insertDisksButton.setDisable(false);
         insertDisksButton.setText("Inserisci " + requestedDisks + " dischi nel " + selectedFurnaceName);
+    }
+
+    private VBox buildInsightsSection() {
+        Label sectionTitle = new Label("Supporto decisionale presinterizza");
+        sectionTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+
+        Label rankingTitle = new Label("Blocco A · Classifica gruppi composizione");
+        rankingTitle.setStyle("-fx-font-weight: bold;");
+
+        compositionRankingBox.setPadding(new Insets(8));
+        compositionRankingBox.setStyle(
+                "-fx-background-color: rgba(226, 232, 240, 0.25);"
+                        + "-fx-border-color: rgba(148, 163, 184, 0.40);"
+                        + "-fx-border-radius: 8; -fx-background-radius: 8;"
+        );
+
+        furnaceSuggestionsTitle.setStyle("-fx-font-weight: bold;");
+        furnaceSuggestionsBox.setPadding(new Insets(8));
+        furnaceSuggestionsBox.setStyle(
+                "-fx-background-color: rgba(224, 242, 254, 0.28);"
+                        + "-fx-border-color: rgba(56, 189, 248, 0.40);"
+                        + "-fx-border-radius: 8; -fx-background-radius: 8;"
+        );
+        updateFurnaceSuggestionsTitle();
+
+        VBox leftBlock = new VBox(6, rankingTitle, compositionRankingBox);
+        VBox rightBlock = new VBox(6, furnaceSuggestionsTitle, furnaceSuggestionsBox);
+        HBox.setHgrow(leftBlock, Priority.ALWAYS);
+        HBox.setHgrow(rightBlock, Priority.ALWAYS);
+
+        HBox blocks = new HBox(16, leftBlock, rightBlock);
+        VBox section = new VBox(8, sectionTitle, blocks);
+        section.setPadding(new Insets(6, 0, 0, 0));
+        return section;
+    }
+
+    private void updateFurnaceSuggestionsTitle() {
+        String suffix = selectedFurnaceName == null || selectedFurnaceName.isBlank()
+                ? "(nessun forno selezionato)"
+                : "(" + selectedFurnaceName + ")";
+        furnaceSuggestionsTitle.setText("Blocco B · Item consigliati per forno selezionato " + suffix);
     }
 
     private record DiskPickEntry(TextField field, int availableQuantity) {
