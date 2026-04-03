@@ -17,7 +17,14 @@ public class LotRepositoryImpl implements LotRepository {
 
     @Override
     public Lot findByCodeAndItem(String lotCode, int itemId) {
-        String sql = "SELECT * FROM lot WHERE code = ? AND item_id = ?";
+        String sql = """
+                SELECT DISTINCT l.id, l.code, l.firing_id
+                FROM lot l
+                JOIN production_order_firing pof ON pof.firing_id = l.firing_id
+                JOIN production_order_line pol ON pol.production_order_id = pof.production_order_id
+                WHERE l.code = ?
+                  AND pol.item_id = ?
+                """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, lotCode);
             ps.setInt(2, itemId);
@@ -26,7 +33,7 @@ public class LotRepositoryImpl implements LotRepository {
                 return new Lot(
                         rs.getInt("id"),
                         rs.getString("code"),
-                        rs.getInt("item_id")
+                        rs.getInt("firing_id")
                 );
             }
             return null;
@@ -37,7 +44,14 @@ public class LotRepositoryImpl implements LotRepository {
 
     @Override
     public List<Lot> findByItem(int itemId) {
-        String sql = "SELECT id, code AS code, item_id FROM lot WHERE item_id = ? ORDER BY code";
+        String sql = """
+                SELECT DISTINCT l.id, l.code, l.firing_id
+                FROM lot l
+                JOIN production_order_firing pof ON pof.firing_id = l.firing_id
+                JOIN production_order_line pol ON pol.production_order_id = pof.production_order_id
+                WHERE pol.item_id = ?
+                ORDER BY l.code
+                """;
 
         List<Lot> result = new ArrayList<>();
 
@@ -46,12 +60,10 @@ public class LotRepositoryImpl implements LotRepository {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    // uso "code" nella resultset per mantenere compatibilità con i costruttori che
-                    // si aspettano un campo chiamato 'code' (se il tuo Lot ha nomi diversi, adatta)
                     result.add(new Lot(
                             rs.getInt("id"),
                             rs.getString("code"),
-                            rs.getInt("item_id")
+                            rs.getInt("firing_id")
                     ));
                 }
             }
@@ -66,15 +78,15 @@ public class LotRepositoryImpl implements LotRepository {
 
 
     @Override
-    public Lot insert(String lotCode, int itemId) {
-        String sql = "INSERT INTO lot (code, item_id) VALUES (?, ?)";
+    public Lot insert(String lotCode, int firingId) {
+        String sql = "INSERT INTO lot (code, firing_id) VALUES (?, ?)";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, lotCode);
-            ps.setInt(2, itemId);
+            ps.setInt(2, firingId);
             ps.executeUpdate();
             ResultSet keys = ps.getGeneratedKeys();
             keys.next();
-            return new Lot(keys.getInt(1), lotCode, itemId);
+            return new Lot(keys.getInt(1), lotCode, firingId);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

@@ -320,6 +320,23 @@ CREATE TABLE production_order_firing (
 );
 
 ------------------------------------------------------------
+-- TABLE: lot
+------------------------------------------------------------
+CREATE TABLE lot (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    code VARCHAR(50) NOT NULL,
+    firing_id INTEGER NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_lot_firing
+        FOREIGN KEY (firing_id)
+        REFERENCES firing(id),
+
+    CONSTRAINT uq_lot_code UNIQUE (code)
+);
+
+------------------------------------------------------------
 -- TABLE: document_template
 ------------------------------------------------------------
 CREATE TABLE document_template (

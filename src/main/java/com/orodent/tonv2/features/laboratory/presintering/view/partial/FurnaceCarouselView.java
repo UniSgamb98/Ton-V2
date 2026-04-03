@@ -16,10 +16,14 @@ import javafx.util.Duration;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class FurnaceCarouselView extends VBox {
 
-    private static final int FULL_VISIBLE_CARDS = 3;
+    private static final int DEFAULT_VISIBLE_CARDS = 3;
+    private static final int MIN_VISIBLE_CARDS = 2;
+    private static final int CARD_WIDTH = 165;
+    private static final int CARD_GAP = 12;
 
     private final List<FurnaceCardData> furnaceCards = new ArrayList<>();
 
@@ -37,6 +41,8 @@ public class FurnaceCarouselView extends VBox {
     private Timeline rightHoldTimeline;
 
     private int firstVisibleCardIndex = 0;
+    private int selectedCardIndex = -1;
+    private Consumer<String> onFurnaceSelectionChanged;
 
     public FurnaceCarouselView() {
         buildUi();
@@ -52,6 +58,7 @@ public class FurnaceCarouselView extends VBox {
                         ? String.valueOf(furnace.id())
                         : furnace.number();
                 furnaceCards.add(new FurnaceCardData(
+                        furnace.id(),
                         "Forno " + displayNumber,
                         buildPlaceholderItems(displayNumber)
                 ));
@@ -59,7 +66,13 @@ public class FurnaceCarouselView extends VBox {
         }
 
         firstVisibleCardIndex = 0;
+        selectedCardIndex = -1;
+        notifySelectionChanged();
         render();
+    }
+
+    public void setOnFurnaceSelectionChanged(Consumer<String> onFurnaceSelectionChanged) {
+        this.onFurnaceSelectionChanged = onFurnaceSelectionChanged;
     }
 
     private void buildUi() {
@@ -76,12 +89,14 @@ public class FurnaceCarouselView extends VBox {
         leftPilePane.setPrefWidth(95);
         rightPilePane.setMinWidth(95);
         rightPilePane.setPrefWidth(95);
-        centerCardsPane.setMinWidth(520);
+        centerCardsPane.setMinWidth(0);
+        centerCardsPane.setPrefWidth(520);
 
         HBox.setHgrow(centerCardsPane, Priority.ALWAYS);
 
         viewport.setAlignment(Pos.CENTER);
         viewport.getChildren().addAll(leftPilePane, centerCardsPane, rightPilePane);
+        centerCardsPane.widthProperty().addListener((obs, oldWidth, newWidth) -> render());
 
         carouselPane.getChildren().add(viewport);
         carouselPane.setPadding(new Insets(8, 4, 8, 4));
@@ -121,12 +136,14 @@ public class FurnaceCarouselView extends VBox {
             return;
         }
 
-        if (furnaceCards.size() <= 5) {
+        int fullVisibleCards = getFullVisibleCards();
+
+        if (furnaceCards.size() <= fullVisibleCards) {
             firstVisibleCardIndex = 0;
-            HBox allCards = new HBox(12);
+            HBox allCards = new HBox(CARD_GAP);
             allCards.setAlignment(Pos.CENTER);
-            for (FurnaceCardData furnace : furnaceCards) {
-                allCards.getChildren().add(createFullCard(furnace));
+            for (int index = 0; index < furnaceCards.size(); index++) {
+                allCards.getChildren().add(createFullCard(furnaceCards.get(index), index));
             }
             centerCardsPane.getChildren().add(allCards);
             leftArrow.setVisible(false);
@@ -139,16 +156,16 @@ public class FurnaceCarouselView extends VBox {
         firstVisibleCardIndex = clampFirstVisibleIndex(firstVisibleCardIndex);
 
         int leftHiddenCount = firstVisibleCardIndex;
-        int rightHiddenCount = furnaceCards.size() - (firstVisibleCardIndex + FULL_VISIBLE_CARDS);
+        int rightHiddenCount = furnaceCards.size() - (firstVisibleCardIndex + fullVisibleCards);
 
         if (leftHiddenCount > 0) {
             leftPilePane.getChildren().add(createPile(leftHiddenCount, true));
         }
 
-        HBox fullCardsRow = new HBox(12);
+        HBox fullCardsRow = new HBox(CARD_GAP);
         fullCardsRow.setAlignment(Pos.CENTER);
-        for (int index = firstVisibleCardIndex; index < firstVisibleCardIndex + FULL_VISIBLE_CARDS; index++) {
-            fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(index)));
+        for (int index = firstVisibleCardIndex; index < firstVisibleCardIndex + fullVisibleCards; index++) {
+            fullCardsRow.getChildren().add(createFullCard(furnaceCards.get(index), index));
         }
         centerCardsPane.getChildren().add(fullCardsRow);
 
@@ -165,16 +182,13 @@ public class FurnaceCarouselView extends VBox {
         rightArrow.setManaged(canGoRight);
     }
 
-    private VBox createFullCard(FurnaceCardData furnace) {
+    private VBox createFullCard(FurnaceCardData furnace, int absoluteIndex) {
         VBox card = new VBox(8);
-        card.setPrefWidth(165);
-        card.setMinWidth(165);
+        card.setPrefWidth(CARD_WIDTH);
+        card.setMinWidth(CARD_WIDTH);
         card.setPadding(new Insets(10));
-        card.setStyle(
-                "-fx-background-color: rgba(56, 189, 248, 0.18);"
-                        + "-fx-border-color: rgba(125, 211, 252, 0.9);"
-                        + "-fx-border-radius: 10; -fx-background-radius: 10;"
-        );
+        card.setStyle(buildCardStyle(selectedCardIndex == absoluteIndex));
+        card.setOnMouseClicked(e -> selectCard(absoluteIndex));
 
         Label title = new Label(furnace.furnaceName());
         title.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
@@ -188,6 +202,42 @@ public class FurnaceCarouselView extends VBox {
 
         card.getChildren().addAll(title, itemsBox);
         return card;
+    }
+
+    private String buildCardStyle(boolean selected) {
+        if (selected) {
+            return "-fx-background-color: rgba(56, 189, 248, 0.36);"
+                    + "-fx-border-color: rgba(14, 165, 233, 1.0);"
+                    + "-fx-border-width: 2;"
+                    + "-fx-border-radius: 10; -fx-background-radius: 10;";
+        }
+
+        return "-fx-background-color: rgba(56, 189, 248, 0.18);"
+                + "-fx-border-color: rgba(125, 211, 252, 0.9);"
+                + "-fx-border-radius: 10; -fx-background-radius: 10;";
+    }
+
+    private void selectCard(int absoluteIndex) {
+        if (absoluteIndex < 0 || absoluteIndex >= furnaceCards.size() || selectedCardIndex == absoluteIndex) {
+            return;
+        }
+
+        selectedCardIndex = absoluteIndex;
+        notifySelectionChanged();
+        render();
+    }
+
+    private void notifySelectionChanged() {
+        if (onFurnaceSelectionChanged == null) {
+            return;
+        }
+
+        if (selectedCardIndex < 0 || selectedCardIndex >= furnaceCards.size()) {
+            onFurnaceSelectionChanged.accept(null);
+            return;
+        }
+
+        onFurnaceSelectionChanged.accept(furnaceCards.get(selectedCardIndex).furnaceName());
     }
 
     private StackPane createPile(int hiddenCards, boolean leftDirection) {
@@ -265,8 +315,18 @@ public class FurnaceCarouselView extends VBox {
 
     private int clampFirstVisibleIndex(int candidate) {
         int min = 0;
-        int max = furnaceCards.size() - FULL_VISIBLE_CARDS;
+        int max = furnaceCards.size() - getFullVisibleCards();
         return Math.max(min, Math.min(max, candidate));
+    }
+
+    private int getFullVisibleCards() {
+        double availableWidth = centerCardsPane.getWidth();
+        if (availableWidth <= 0) {
+            return Math.max(MIN_VISIBLE_CARDS, DEFAULT_VISIBLE_CARDS);
+        }
+
+        int cardsFromWidth = (int) Math.floor((availableWidth + CARD_GAP) / (CARD_WIDTH + CARD_GAP));
+        return Math.max(MIN_VISIBLE_CARDS, cardsFromWidth);
     }
 
     private List<FurnaceItemData> buildPlaceholderItems(String furnaceNumber) {
@@ -278,7 +338,7 @@ public class FurnaceCarouselView extends VBox {
         );
     }
 
-    private record FurnaceCardData(String furnaceName, List<FurnaceItemData> items) {
+    private record FurnaceCardData(int furnaceId, String furnaceName, List<FurnaceItemData> items) {
     }
 
     private record FurnaceItemData(String itemCode, int temperature) {
