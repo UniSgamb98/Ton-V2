@@ -76,14 +76,20 @@ public class StockRepositoryImpl implements StockRepository {
         SELECT SUM(s.quantity) AS qty
         FROM stock s
         JOIN lot l ON l.id = s.lot_id
-        WHERE l.item_id = ?
-          AND s.depot_id = ?
+        WHERE s.depot_id = ?
+          AND EXISTS (
+                SELECT 1
+                FROM production_order_firing pof
+                JOIN production_order_line pol ON pol.production_order_id = pof.production_order_id
+                WHERE pof.firing_id = l.firing_id
+                  AND pol.item_id = ?
+          )
     """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, itemId);
-            ps.setInt(2, depotId);
+            ps.setInt(1, depotId);
+            ps.setInt(2, itemId);
 
             ResultSet rs = ps.executeQuery();
 
