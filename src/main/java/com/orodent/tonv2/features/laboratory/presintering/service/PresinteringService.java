@@ -102,6 +102,14 @@ public class PresinteringService {
         }
     }
 
+    public void clearSnapshot() {
+        try {
+            Files.deleteIfExists(SNAPSHOT_PATH);
+        } catch (Exception ignored) {
+            // Best effort delete.
+        }
+    }
+
     public ConfirmationResult confirmPresintering(int furnaceId,
                                                   String furnaceName,
                                                   LocalDate firingDate,

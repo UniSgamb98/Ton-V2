@@ -46,6 +46,7 @@ public class PresinteringController {
                             request.maxTemperature(),
                             request.plannedItemsByItemId()
                     );
+                    service.clearSnapshot();
                     loadData();
                     view.setFeedback(
                             "Presinterizzazione confermata. Firing #" + result.firingId()
