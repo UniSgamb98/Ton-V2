@@ -46,7 +46,31 @@ public class BatchProductionService {
     }
 
     public List<Line> findAllLines() {
-        return lineRepo.findAll();
+        Map<String, Line> byName = new LinkedHashMap<>();
+        for (Line line : lineRepo.findAll()) {
+            byName.putIfAbsent(line.name(), line);
+        }
+        return new ArrayList<>(byName.values());
+    }
+
+    public List<Product> findProductsByLineName(String lineName) {
+        if (lineName == null || lineName.isBlank()) {
+            return List.of();
+        }
+
+        Map<Integer, Product> productsById = new LinkedHashMap<>();
+        for (Line line : lineRepo.findAll()) {
+            if (!lineName.equals(line.name())) {
+                continue;
+            }
+
+            Product product = productRepo.findById(line.productId());
+            if (product != null) {
+                productsById.putIfAbsent(product.id(), product);
+            }
+        }
+
+        return new ArrayList<>(productsById.values());
     }
 
     public Product findProductById(int productId) {
@@ -151,7 +175,9 @@ public class BatchProductionService {
             if (item == null) {
                 throw new IllegalArgumentException("Item con id " + entry.getKey() + " non trovato.");
             }
-            if (item.productId() != line.productId()) {
+            boolean itemBelongsToSelectedLine = lineRepo.findByProductId(item.productId()).stream()
+                    .anyMatch(productLine -> productLine.name().equals(line.name()));
+            if (!itemBelongsToSelectedLine) {
                 throw new IllegalArgumentException("L'item " + item.code() + " non appartiene alla linea selezionata.");
             }
 

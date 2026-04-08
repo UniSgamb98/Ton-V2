@@ -43,8 +43,8 @@ public class BatchProductionController {
             return;
         }
 
-        Product lineProduct = service.findProductById(selected.productId());
-        view.setSelectableProducts(lineProduct == null ? List.of() : List.of(lineProduct), null);
+        List<Product> lineProducts = service.findProductsByLineName(selected.name());
+        view.setSelectableProducts(lineProducts, null);
         view.setItemRows(List.of());
         view.setFeedback("", false);
     }
