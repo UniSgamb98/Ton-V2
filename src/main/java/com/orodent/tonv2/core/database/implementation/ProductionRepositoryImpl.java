@@ -99,7 +99,6 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     public List<CompositionRankingRow> findCompositionRankingRows() {
         String sql = """
                 SELECT a.composition_id,
-                       p.name AS composition_name,
                        a.available_qty,
                        COALESCE(fs.distinct_furnaces_used, 0) AS distinct_furnaces_used,
                        COALESCE(fs.total_firings, 0) AS total_firings
@@ -111,8 +110,6 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                     WHERE pof.production_order_id IS NULL
                     GROUP BY po.composition_id
                 ) a
-                JOIN composition c ON c.id = a.composition_id
-                JOIN product p ON p.id = c.product_id
                 LEFT JOIN (
                     SELECT po.composition_id AS composition_id,
                            COUNT(DISTINCT f.furnace) AS distinct_furnaces_used,
@@ -132,7 +129,6 @@ public class ProductionRepositoryImpl implements ProductionRepository {
             while (rs.next()) {
                 rows.add(new CompositionRankingRow(
                         rs.getInt("composition_id"),
-                        rs.getString("composition_name"),
                         rs.getInt("available_qty"),
                         rs.getInt("distinct_furnaces_used"),
                         rs.getInt("total_firings")
