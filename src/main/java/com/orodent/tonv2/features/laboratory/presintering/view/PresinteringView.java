@@ -37,7 +37,7 @@ public class PresinteringView extends VBox {
     private final Map<Integer, String> productNameByItemId = new LinkedHashMap<>();
     private final VBox compositionRankingBox = new VBox(6);
     private final VBox furnaceSuggestionsBox = new VBox(6);
-    private final Label furnaceSuggestionsTitle = new Label("Blocco B · Item consigliati per forno selezionato");
+    private final Label furnaceSuggestionsTitle = new Label("Item consigliati per forno selezionato");
     private final VBox selectedFurnaceCard = new VBox(8);
     private final Label selectedFurnaceCardTitle = new Label();
     private final VBox selectedFurnaceItemsBox = new VBox(6);
@@ -180,7 +180,7 @@ public class PresinteringView extends VBox {
         for (ProductionRepository.CompositionRankingRow row : rows) {
             Label line = new Label(
                     "#" + rank
-                            + " · Composizione " + row.compositionId()
+                            + " · " + row.productName()
                             + " · disponibili: " + row.availableQuantity()
                             + " · forni distinti: " + row.distinctFurnacesUsed()
                             + " · firing totali: " + row.totalFirings()
@@ -450,7 +450,7 @@ public class PresinteringView extends VBox {
         Label sectionTitle = new Label("Supporto decisionale presinterizza");
         sectionTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
 
-        Label rankingTitle = new Label("Blocco A · Classifica gruppi composizione");
+        Label rankingTitle = new Label("Classifica gruppi composizione");
         rankingTitle.setStyle("-fx-font-weight: bold;");
 
         compositionRankingBox.setPadding(new Insets(8));
@@ -484,7 +484,7 @@ public class PresinteringView extends VBox {
         String suffix = selectedFurnaceName == null || selectedFurnaceName.isBlank()
                 ? "(nessun forno selezionato)"
                 : "(" + selectedFurnaceName + ")";
-        furnaceSuggestionsTitle.setText("Blocco B · Item consigliati per forno selezionato " + suffix);
+        furnaceSuggestionsTitle.setText("Item consigliati per forno selezionato " + suffix);
     }
 
     private static final class DiskPickEntry {
