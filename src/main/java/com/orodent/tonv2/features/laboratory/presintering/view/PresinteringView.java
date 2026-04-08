@@ -41,6 +41,7 @@ public class PresinteringView extends VBox {
     private final VBox furnaceSuggestionsBox = new VBox(6);
     private final Label furnaceSuggestionsTitle = new Label("Item consigliati per forno selezionato");
     private final VBox selectedFurnaceCard = new VBox(8);
+    private final HBox selectedFurnaceSection = new HBox(12);
     private final Label selectedFurnaceCardTitle = new Label();
     private final TextField selectedFurnaceMaxTemperatureField = new TextField();
     private final DatePicker selectedFurnaceDepartureDatePicker = new DatePicker();
@@ -78,9 +79,10 @@ public class PresinteringView extends VBox {
 
         buildSelectedFurnaceCard();
 
-        VBox rightColumn = new VBox(10, furnaceCarouselView, selectedFurnaceCard);
+        VBox rightColumn = new VBox(10, furnaceCarouselView, selectedFurnaceSection);
         HBox.setHgrow(rightColumn, Priority.ALWAYS);
-        VBox.setVgrow(selectedFurnaceCard, Priority.ALWAYS);
+        HBox.setHgrow(selectedFurnaceSection, Priority.ALWAYS);
+        VBox.setVgrow(selectedFurnaceSection, Priority.ALWAYS);
 
         HBox contentSplit = new HBox(20, leftColumn, rightColumn);
         contentSplit.setFillHeight(true);
@@ -398,17 +400,18 @@ public class PresinteringView extends VBox {
         Label itemListLabel = new Label("Item pianificati");
         itemListLabel.setStyle("-fx-font-weight: bold;");
 
-        VBox leftContent = new VBox(8, selectedFurnaceCardTitle, fieldsLabel, firingFieldsRow, itemListLabel, selectedFurnaceItemsBox);
-        HBox.setHgrow(leftContent, Priority.ALWAYS);
+        VBox cardContent = new VBox(8, selectedFurnaceCardTitle, fieldsLabel, firingFieldsRow, itemListLabel, selectedFurnaceItemsBox);
+        HBox.setHgrow(cardContent, Priority.ALWAYS);
 
-        confirmPresinteringButton.setPrefWidth(190);
-        confirmPresinteringButton.setMinHeight(180);
+        confirmPresinteringButton.setPrefWidth(120);
+        confirmPresinteringButton.setMinWidth(120);
+        confirmPresinteringButton.setPrefHeight(240);
+        confirmPresinteringButton.setMinHeight(220);
         confirmPresinteringButton.setWrapText(true);
         confirmPresinteringButton.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
         confirmPresinteringButton.setOnAction(e -> confirmPresintering());
-
-        HBox cardMainContent = new HBox(16, leftContent, confirmPresinteringButton);
-        cardMainContent.setAlignment(Pos.TOP_LEFT);
+        confirmPresinteringButton.setVisible(false);
+        confirmPresinteringButton.setManaged(false);
 
         selectedFurnaceCard.setPadding(new Insets(10));
         selectedFurnaceCard.setStyle(
@@ -416,9 +419,12 @@ public class PresinteringView extends VBox {
                         + "-fx-border-color: rgba(56, 189, 248, 0.45);"
                         + "-fx-border-radius: 10; -fx-background-radius: 10;"
         );
-        selectedFurnaceCard.getChildren().add(cardMainContent);
+        selectedFurnaceCard.getChildren().add(cardContent);
         selectedFurnaceCard.setVisible(false);
         selectedFurnaceCard.setManaged(false);
+
+        selectedFurnaceSection.setAlignment(Pos.TOP_LEFT);
+        selectedFurnaceSection.getChildren().addAll(selectedFurnaceCard, confirmPresinteringButton);
     }
 
     private void refreshSelectedFurnaceCard() {
@@ -427,11 +433,15 @@ public class PresinteringView extends VBox {
         if (selectedFurnaceId == null || selectedFurnaceName == null || selectedFurnaceName.isBlank()) {
             selectedFurnaceCard.setVisible(false);
             selectedFurnaceCard.setManaged(false);
+            confirmPresinteringButton.setVisible(false);
+            confirmPresinteringButton.setManaged(false);
             return;
         }
 
         selectedFurnaceCard.setVisible(true);
         selectedFurnaceCard.setManaged(true);
+        confirmPresinteringButton.setVisible(true);
+        confirmPresinteringButton.setManaged(true);
         selectedFurnaceCardTitle.setText(selectedFurnaceName);
         if (selectedFurnaceDepartureDatePicker.getValue() == null) {
             selectedFurnaceDepartureDatePicker.setValue(LocalDate.now());
