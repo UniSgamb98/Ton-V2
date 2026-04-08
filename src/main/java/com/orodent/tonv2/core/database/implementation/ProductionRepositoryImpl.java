@@ -65,14 +65,14 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     @Override
     public List<ProducedDiskRow> findProducedDiskRows() {
         String sql = """
-                SELECT i.id AS item_id, i.code AS item_code, p.name AS product_name, SUM(pol.quantity) AS total_qty
+                SELECT i.id AS item_id, i.code AS item_code, p.code AS product_name, SUM(pol.quantity) AS total_qty
                 FROM production_order_line pol
                 JOIN production_order po ON po.id = pol.production_order_id
                 JOIN item i ON i.id = pol.item_id
                 JOIN product p ON p.id = i.product_id
                 LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
                 WHERE pof.production_order_id IS NULL
-                GROUP BY i.id, i.code, p.name
+                GROUP BY i.id, i.code, p.code
                 ORDER BY i.code ASC
                 """;
 
