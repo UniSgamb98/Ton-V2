@@ -126,7 +126,7 @@ public class PresinteringView extends VBox {
         for (ProductionRepository.CompositionRankingRow row : rows) {
             Label line = new Label(
                     "#" + rank
-                            + " · Composizione " + row.compositionId()
+                            + " · " + row.compositionName() + " (comp. " + row.compositionId() + ")"
                             + " · disponibili: " + row.availableQuantity()
                             + " · forni distinti: " + row.distinctFurnacesUsed()
                             + " · firing totali: " + row.totalFirings()
