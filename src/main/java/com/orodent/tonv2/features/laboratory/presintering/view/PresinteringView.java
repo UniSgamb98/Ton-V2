@@ -42,6 +42,7 @@ public class PresinteringView extends VBox {
     private final Label furnaceSuggestionsTitle = new Label("Item consigliati per forno selezionato");
     private final VBox selectedFurnaceCard = new VBox(8);
     private final HBox selectedFurnaceSection = new HBox(12);
+    private final Region selectedFurnaceSectionSpacer = new Region();
     private final Label selectedFurnaceCardTitle = new Label();
     private final TextField selectedFurnaceMaxTemperatureField = new TextField();
     private final DatePicker selectedFurnaceDepartureDatePicker = new DatePicker();
@@ -424,7 +425,9 @@ public class PresinteringView extends VBox {
         selectedFurnaceCard.setManaged(false);
 
         selectedFurnaceSection.setAlignment(Pos.TOP_LEFT);
-        selectedFurnaceSection.getChildren().addAll(selectedFurnaceCard, confirmPresinteringButton);
+        HBox.setHgrow(selectedFurnaceCard, Priority.ALWAYS);
+        HBox.setHgrow(selectedFurnaceSectionSpacer, Priority.ALWAYS);
+        selectedFurnaceSection.getChildren().addAll(selectedFurnaceCard, selectedFurnaceSectionSpacer, confirmPresinteringButton);
     }
 
     private void refreshSelectedFurnaceCard() {
