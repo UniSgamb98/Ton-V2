@@ -3,6 +3,7 @@ package com.orodent.tonv2.features.laboratory.presintering.view;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringPlanningSnapshot;
 import com.orodent.tonv2.features.laboratory.presintering.view.partial.FurnaceCarouselView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -16,7 +17,9 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class PresinteringView extends VBox {
@@ -28,12 +31,17 @@ public class PresinteringView extends VBox {
     private final Label feedbackLabel = new Label();
     private final FurnaceCarouselView furnaceCarouselView = new FurnaceCarouselView();
     private final List<DiskPickEntry> diskPickEntries = new ArrayList<>();
+    private final Map<Integer, DiskPickEntry> diskEntriesByItemId = new LinkedHashMap<>();
+    private final Map<Integer, Map<Integer, Integer>> plannedByFurnace = new LinkedHashMap<>();
+    private final Map<Integer, String> itemCodeById = new LinkedHashMap<>();
     private final VBox compositionRankingBox = new VBox(6);
     private final VBox furnaceSuggestionsBox = new VBox(6);
     private final Label furnaceSuggestionsTitle = new Label("Blocco B · Item consigliati per forno selezionato");
 
     private String selectedFurnaceName;
+    private Integer selectedFurnaceId;
     private Consumer<String> onFurnaceSelectionChanged;
+    private Consumer<PresinteringPlanningSnapshot> onPlanningSnapshotChanged;
 
     public PresinteringView() {
         setSpacing(16);
@@ -47,7 +55,7 @@ public class PresinteringView extends VBox {
         insertDisksButton.setVisible(false);
         insertDisksButton.setManaged(false);
         insertDisksButton.setStyle("-fx-font-weight: bold;");
-        insertDisksButton.setOnAction(e -> setFeedback(insertDisksButton.getText(), false));
+        insertDisksButton.setOnAction(e -> insertDisksIntoSelectedFurnace());
 
         Label leftTitle = new Label("Dischi prodotti");
         leftTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
@@ -65,12 +73,13 @@ public class PresinteringView extends VBox {
         contentSplit.setFillHeight(true);
         VBox.setVgrow(contentSplit, Priority.ALWAYS);
 
-        furnaceCarouselView.setOnFurnaceSelectionChanged(furnaceName -> {
-            selectedFurnaceName = furnaceName;
+        furnaceCarouselView.setOnFurnaceSelectionChanged(selection -> {
+            selectedFurnaceName = selection == null ? null : selection.furnaceName();
+            selectedFurnaceId = selection == null ? null : selection.furnaceId();
             updateInsertButton();
             updateFurnaceSuggestionsTitle();
             if (onFurnaceSelectionChanged != null) {
-                onFurnaceSelectionChanged.accept(furnaceName);
+                onFurnaceSelectionChanged.accept(selectedFurnaceName);
             }
         });
 
@@ -85,9 +94,13 @@ public class PresinteringView extends VBox {
     public void setProducedDisks(List<ProductionRepository.ProducedDiskRow> rows) {
         rowsBox.getChildren().clear();
         diskPickEntries.clear();
+        diskEntriesByItemId.clear();
+        itemCodeById.clear();
+        plannedByFurnace.clear();
 
         if (rows == null || rows.isEmpty()) {
             rowsBox.getChildren().add(new Label("Nessun disco prodotto disponibile."));
+            furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
             updateInsertButton();
             return;
         }
@@ -96,11 +109,13 @@ public class PresinteringView extends VBox {
             rowsBox.getChildren().add(buildDiskRow(row));
         }
 
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
         updateInsertButton();
     }
 
     public void setFurnaces(List<Furnace> furnaces) {
         furnaceCarouselView.setFurnaces(furnaces);
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
     }
 
     public void setFeedback(String text, boolean error) {
@@ -110,6 +125,33 @@ public class PresinteringView extends VBox {
 
     public void setOnFurnaceSelectionChanged(Consumer<String> onFurnaceSelectionChanged) {
         this.onFurnaceSelectionChanged = onFurnaceSelectionChanged;
+    }
+
+    public void setOnPlanningSnapshotChanged(Consumer<PresinteringPlanningSnapshot> onPlanningSnapshotChanged) {
+        this.onPlanningSnapshotChanged = onPlanningSnapshotChanged;
+    }
+
+    public void applyPlanningSnapshot(PresinteringPlanningSnapshot snapshot) {
+        if (snapshot == null) {
+            return;
+        }
+
+        plannedByFurnace.clear();
+        for (Map.Entry<Integer, Map<Integer, Integer>> entry : snapshot.plannedByFurnace().entrySet()) {
+            plannedByFurnace.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
+        }
+
+        for (Map.Entry<Integer, DiskPickEntry> entry : diskEntriesByItemId.entrySet()) {
+            int itemId = entry.getKey();
+            DiskPickEntry diskEntry = entry.getValue();
+            int available = snapshot.availableByItemId().getOrDefault(itemId, diskEntry.availableQuantity);
+            diskEntry.availableQuantity = Math.max(0, available);
+            diskEntry.quantityLabel.setText(diskEntry.availableQuantity + " pz");
+            diskEntry.pickField.clear();
+        }
+
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        updateInsertButton();
     }
 
     public void setCompositionRankingRows(List<ProductionRepository.CompositionRankingRow> rows) {
@@ -188,7 +230,16 @@ public class PresinteringView extends VBox {
             }
             updateInsertButton();
         });
-        diskPickEntries.add(new DiskPickEntry(pickField, row.totalQuantity()));
+        DiskPickEntry entry = new DiskPickEntry(
+                row.itemId(),
+                row.itemCode(),
+                pickField,
+                quantityLabel,
+                row.totalQuantity()
+        );
+        diskPickEntries.add(entry);
+        diskEntriesByItemId.put(row.itemId(), entry);
+        itemCodeById.put(row.itemId(), row.itemCode());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -207,13 +258,13 @@ public class PresinteringView extends VBox {
     private void updateInsertButton() {
         int requestedDisks = diskPickEntries.stream()
                 .mapToInt(entry -> {
-                    String text = entry.field().getText();
+                    String text = entry.pickField.getText();
                     if (text == null || text.isBlank()) {
                         return 0;
                     }
 
                     int requested = Integer.parseInt(text);
-                    return Math.min(requested, entry.availableQuantity());
+                    return Math.min(requested, entry.availableQuantity);
                 })
                 .sum();
 
@@ -233,6 +284,69 @@ public class PresinteringView extends VBox {
 
         insertDisksButton.setDisable(false);
         insertDisksButton.setText("Inserisci " + requestedDisks + " dischi nel " + selectedFurnaceName);
+    }
+
+    private void insertDisksIntoSelectedFurnace() {
+        if (selectedFurnaceId == null) {
+            setFeedback("Seleziona un forno prima di inserire i dischi.", true);
+            return;
+        }
+
+        Map<Integer, Integer> targetPlan = plannedByFurnace.computeIfAbsent(selectedFurnaceId, ignored -> new LinkedHashMap<>());
+        int inserted = 0;
+
+        for (DiskPickEntry entry : diskPickEntries) {
+            String text = entry.pickField.getText();
+            if (text == null || text.isBlank()) {
+                continue;
+            }
+
+            int requested = Integer.parseInt(text);
+            int toInsert = Math.min(requested, entry.availableQuantity);
+            if (toInsert <= 0) {
+                entry.pickField.clear();
+                continue;
+            }
+
+            entry.availableQuantity -= toInsert;
+            entry.quantityLabel.setText(entry.availableQuantity + " pz");
+            targetPlan.merge(entry.itemId, toInsert, Integer::sum);
+            entry.pickField.clear();
+            inserted += toInsert;
+        }
+
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        updateInsertButton();
+
+        if (inserted > 0) {
+            emitSnapshot();
+            setFeedback("Pianificati " + inserted + " dischi nel " + selectedFurnaceName + ".", false);
+            return;
+        }
+        setFeedback("Nessun disco inserito: controlla quantità disponibili.", true);
+    }
+
+    private void emitSnapshot() {
+        if (onPlanningSnapshotChanged == null) {
+            return;
+        }
+
+        Map<Integer, Integer> availableByItemId = new LinkedHashMap<>();
+        for (DiskPickEntry entry : diskPickEntries) {
+            availableByItemId.put(entry.itemId, entry.availableQuantity);
+        }
+
+        Map<Integer, Map<Integer, Integer>> planCopy = new LinkedHashMap<>();
+        for (Map.Entry<Integer, Map<Integer, Integer>> entry : plannedByFurnace.entrySet()) {
+            planCopy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
+        }
+
+        onPlanningSnapshotChanged.accept(new PresinteringPlanningSnapshot(
+                availableByItemId,
+                planCopy,
+                new LinkedHashMap<>(itemCodeById),
+                null
+        ));
     }
 
     private VBox buildInsightsSection() {
@@ -276,6 +390,23 @@ public class PresinteringView extends VBox {
         furnaceSuggestionsTitle.setText("Blocco B · Item consigliati per forno selezionato " + suffix);
     }
 
-    private record DiskPickEntry(TextField field, int availableQuantity) {
+    private static final class DiskPickEntry {
+        private final int itemId;
+        private final String itemCode;
+        private final TextField pickField;
+        private final Label quantityLabel;
+        private int availableQuantity;
+
+        private DiskPickEntry(int itemId,
+                              String itemCode,
+                              TextField pickField,
+                              Label quantityLabel,
+                              int availableQuantity) {
+            this.itemId = itemId;
+            this.itemCode = itemCode;
+            this.pickField = pickField;
+            this.quantityLabel = quantityLabel;
+            this.availableQuantity = availableQuantity;
+        }
     }
 }

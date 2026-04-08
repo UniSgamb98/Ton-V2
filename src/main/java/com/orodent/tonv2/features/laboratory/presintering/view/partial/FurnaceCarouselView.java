@@ -15,7 +15,9 @@ import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class FurnaceCarouselView extends VBox {
@@ -26,6 +28,7 @@ public class FurnaceCarouselView extends VBox {
     private static final int CARD_GAP = 12;
 
     private final List<FurnaceCardData> furnaceCards = new ArrayList<>();
+    private final Map<Integer, String> itemCodeById = new LinkedHashMap<>();
 
     private final StackPane carouselPane = new StackPane();
     private final HBox viewport = new HBox(14);
@@ -42,7 +45,7 @@ public class FurnaceCarouselView extends VBox {
 
     private int firstVisibleCardIndex = 0;
     private int selectedCardIndex = -1;
-    private Consumer<String> onFurnaceSelectionChanged;
+    private Consumer<FurnaceSelection> onFurnaceSelectionChanged;
 
     public FurnaceCarouselView() {
         buildUi();
@@ -60,7 +63,7 @@ public class FurnaceCarouselView extends VBox {
                 furnaceCards.add(new FurnaceCardData(
                         furnace.id(),
                         "Forno " + displayNumber,
-                        buildPlaceholderItems(displayNumber)
+                        new LinkedHashMap<>()
                 ));
             }
         }
@@ -71,8 +74,35 @@ public class FurnaceCarouselView extends VBox {
         render();
     }
 
-    public void setOnFurnaceSelectionChanged(Consumer<String> onFurnaceSelectionChanged) {
+    public void setOnFurnaceSelectionChanged(Consumer<FurnaceSelection> onFurnaceSelectionChanged) {
         this.onFurnaceSelectionChanged = onFurnaceSelectionChanged;
+    }
+
+    public void setPlannedItems(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
+                                Map<Integer, String> itemCodeById) {
+        this.itemCodeById.clear();
+        if (itemCodeById != null) {
+            this.itemCodeById.putAll(itemCodeById);
+        }
+
+        for (FurnaceCardData furnaceCard : furnaceCards) {
+            furnaceCard.plannedItemQty().clear();
+            Map<Integer, Integer> plannedItems = plannedByFurnace == null
+                    ? null
+                    : plannedByFurnace.get(furnaceCard.furnaceId());
+            if (plannedItems == null) {
+                continue;
+            }
+
+            for (Map.Entry<Integer, Integer> entry : plannedItems.entrySet()) {
+                Integer qty = entry.getValue();
+                if (qty == null || qty <= 0) {
+                    continue;
+                }
+                furnaceCard.plannedItemQty().put(entry.getKey(), qty);
+            }
+        }
+        render();
     }
 
     private void buildUi() {
@@ -194,10 +224,17 @@ public class FurnaceCarouselView extends VBox {
         title.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
         VBox itemsBox = new VBox(4);
-        for (FurnaceItemData item : furnace.items()) {
-            Label row = new Label(item.itemCode() + " — " + item.temperature() + "°C");
-            row.setStyle("-fx-font-size: 12px; -fx-opacity: 0.92;");
+        if (furnace.plannedItemQty().isEmpty()) {
+            Label row = new Label("Nessun disco pianificato.");
+            row.setStyle("-fx-font-size: 12px; -fx-opacity: 0.75;");
             itemsBox.getChildren().add(row);
+        } else {
+            for (Map.Entry<Integer, Integer> entry : furnace.plannedItemQty().entrySet()) {
+                String itemCode = itemCodeById.getOrDefault(entry.getKey(), "Item " + entry.getKey());
+                Label row = new Label(itemCode + " — " + entry.getValue() + " pz");
+                row.setStyle("-fx-font-size: 12px; -fx-opacity: 0.92;");
+                itemsBox.getChildren().add(row);
+            }
         }
 
         card.getChildren().addAll(title, itemsBox);
@@ -237,7 +274,8 @@ public class FurnaceCarouselView extends VBox {
             return;
         }
 
-        onFurnaceSelectionChanged.accept(furnaceCards.get(selectedCardIndex).furnaceName());
+        FurnaceCardData selected = furnaceCards.get(selectedCardIndex);
+        onFurnaceSelectionChanged.accept(new FurnaceSelection(selected.furnaceId(), selected.furnaceName()));
     }
 
     private StackPane createPile(int hiddenCards, boolean leftDirection) {
@@ -329,18 +367,9 @@ public class FurnaceCarouselView extends VBox {
         return Math.max(MIN_VISIBLE_CARDS, cardsFromWidth);
     }
 
-    private List<FurnaceItemData> buildPlaceholderItems(String furnaceNumber) {
-        int seed = Math.abs(furnaceNumber.hashCode());
-        return List.of(
-                new FurnaceItemData("Item A" + furnaceNumber, 1480 + (seed % 5) * 10),
-                new FurnaceItemData("Item B" + furnaceNumber, 1500 + (seed % 4) * 12),
-                new FurnaceItemData("Item C" + furnaceNumber, 1520 + (seed % 3) * 15)
-        );
+    private record FurnaceCardData(int furnaceId, String furnaceName, Map<Integer, Integer> plannedItemQty) {
     }
 
-    private record FurnaceCardData(int furnaceId, String furnaceName, List<FurnaceItemData> items) {
-    }
-
-    private record FurnaceItemData(String itemCode, int temperature) {
+    public record FurnaceSelection(int furnaceId, String furnaceName) {
     }
 }

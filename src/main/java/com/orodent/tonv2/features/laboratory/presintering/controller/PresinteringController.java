@@ -31,10 +31,12 @@ public class PresinteringController {
             view.setFurnaces(furnaces);
             view.setCompositionRankingRows(compositionRanking);
             view.setFurnaceItemSuggestionRows(List.of());
+            service.loadValidSnapshot(producedDisks).ifPresent(view::applyPlanningSnapshot);
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
                 view.setFurnaceItemSuggestionRows(suggestions);
             });
+            view.setOnPlanningSnapshotChanged(service::saveSnapshot);
             view.setFeedback("", false);
         } catch (Exception e) {
             view.setProducedDisks(List.of());
