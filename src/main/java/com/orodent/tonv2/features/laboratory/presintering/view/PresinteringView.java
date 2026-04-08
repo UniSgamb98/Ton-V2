@@ -411,8 +411,8 @@ public class PresinteringView extends VBox {
         confirmPresinteringButton.setWrapText(true);
         confirmPresinteringButton.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
         confirmPresinteringButton.setOnAction(e -> confirmPresintering());
-        confirmPresinteringButton.setVisible(false);
-        confirmPresinteringButton.setManaged(false);
+        confirmPresinteringButton.setVisible(true);
+        confirmPresinteringButton.setManaged(true);
 
         selectedFurnaceCard.setPadding(new Insets(10));
         selectedFurnaceCard.setStyle(
@@ -436,15 +436,13 @@ public class PresinteringView extends VBox {
         if (selectedFurnaceId == null || selectedFurnaceName == null || selectedFurnaceName.isBlank()) {
             selectedFurnaceCard.setVisible(false);
             selectedFurnaceCard.setManaged(false);
-            confirmPresinteringButton.setVisible(false);
-            confirmPresinteringButton.setManaged(false);
+            confirmPresinteringButton.setDisable(true);
             return;
         }
 
         selectedFurnaceCard.setVisible(true);
         selectedFurnaceCard.setManaged(true);
-        confirmPresinteringButton.setVisible(true);
-        confirmPresinteringButton.setManaged(true);
+        confirmPresinteringButton.setDisable(false);
         selectedFurnaceCardTitle.setText(selectedFurnaceName);
         if (selectedFurnaceDepartureDatePicker.getValue() == null) {
             selectedFurnaceDepartureDatePicker.setValue(LocalDate.now());
