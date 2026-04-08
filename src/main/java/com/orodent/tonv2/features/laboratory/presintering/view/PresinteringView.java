@@ -37,6 +37,9 @@ public class PresinteringView extends VBox {
     private final VBox compositionRankingBox = new VBox(6);
     private final VBox furnaceSuggestionsBox = new VBox(6);
     private final Label furnaceSuggestionsTitle = new Label("Blocco B · Item consigliati per forno selezionato");
+    private final VBox selectedFurnaceCard = new VBox(8);
+    private final Label selectedFurnaceCardTitle = new Label();
+    private final VBox selectedFurnaceItemsBox = new VBox(6);
 
     private String selectedFurnaceName;
     private Integer selectedFurnaceId;
@@ -66,8 +69,11 @@ public class PresinteringView extends VBox {
         leftColumn.setAlignment(Pos.TOP_LEFT);
         VBox.setVgrow(leftColumn, Priority.ALWAYS);
 
-        VBox rightColumn = new VBox(furnaceCarouselView);
+        buildSelectedFurnaceCard();
+
+        VBox rightColumn = new VBox(10, furnaceCarouselView, selectedFurnaceCard);
         HBox.setHgrow(rightColumn, Priority.ALWAYS);
+        VBox.setVgrow(selectedFurnaceCard, Priority.ALWAYS);
 
         HBox contentSplit = new HBox(20, leftColumn, rightColumn);
         contentSplit.setFillHeight(true);
@@ -78,6 +84,7 @@ public class PresinteringView extends VBox {
             selectedFurnaceId = selection == null ? null : selection.furnaceId();
             updateInsertButton();
             updateFurnaceSuggestionsTitle();
+            refreshSelectedFurnaceCard();
             if (onFurnaceSelectionChanged != null) {
                 onFurnaceSelectionChanged.accept(selectedFurnaceName);
             }
@@ -110,12 +117,14 @@ public class PresinteringView extends VBox {
         }
 
         furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        refreshSelectedFurnaceCard();
         updateInsertButton();
     }
 
     public void setFurnaces(List<Furnace> furnaces) {
         furnaceCarouselView.setFurnaces(furnaces);
         furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        refreshSelectedFurnaceCard();
     }
 
     public void setFeedback(String text, boolean error) {
@@ -151,6 +160,7 @@ public class PresinteringView extends VBox {
         }
 
         furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        refreshSelectedFurnaceCard();
         updateInsertButton();
     }
 
@@ -316,6 +326,7 @@ public class PresinteringView extends VBox {
         }
 
         furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        refreshSelectedFurnaceCard();
         updateInsertButton();
 
         if (inserted > 0) {
@@ -347,6 +358,88 @@ public class PresinteringView extends VBox {
                 new LinkedHashMap<>(itemCodeById),
                 null
         ));
+    }
+
+    private void buildSelectedFurnaceCard() {
+        selectedFurnaceCardTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        selectedFurnaceCard.setPadding(new Insets(10));
+        selectedFurnaceCard.setStyle(
+                "-fx-background-color: rgba(224, 242, 254, 0.20);"
+                        + "-fx-border-color: rgba(56, 189, 248, 0.45);"
+                        + "-fx-border-radius: 10; -fx-background-radius: 10;"
+        );
+        selectedFurnaceCard.getChildren().addAll(selectedFurnaceCardTitle, selectedFurnaceItemsBox);
+        selectedFurnaceCard.setVisible(false);
+        selectedFurnaceCard.setManaged(false);
+    }
+
+    private void refreshSelectedFurnaceCard() {
+        selectedFurnaceItemsBox.getChildren().clear();
+
+        if (selectedFurnaceId == null || selectedFurnaceName == null || selectedFurnaceName.isBlank()) {
+            selectedFurnaceCard.setVisible(false);
+            selectedFurnaceCard.setManaged(false);
+            return;
+        }
+
+        selectedFurnaceCard.setVisible(true);
+        selectedFurnaceCard.setManaged(true);
+        selectedFurnaceCardTitle.setText(selectedFurnaceName);
+
+        Map<Integer, Integer> plannedItems = plannedByFurnace.getOrDefault(selectedFurnaceId, Map.of());
+        if (plannedItems.isEmpty()) {
+            Label empty = new Label("Nessun item pianificato in questo forno.");
+            empty.setStyle("-fx-opacity: 0.80;");
+            selectedFurnaceItemsBox.getChildren().add(empty);
+            return;
+        }
+
+        for (Map.Entry<Integer, Integer> entry : plannedItems.entrySet()) {
+            int itemId = entry.getKey();
+            int quantity = entry.getValue();
+
+            Button removeButton = new Button("🗑");
+            removeButton.setFocusTraversable(false);
+            removeButton.setOnAction(e -> removeItemFromSelectedFurnace(itemId));
+
+            String itemCode = itemCodeById.getOrDefault(itemId, "Item " + itemId);
+            Label rowLabel = new Label(itemCode + " — " + quantity + " pz");
+
+            HBox row = new HBox(8, removeButton, rowLabel);
+            row.setAlignment(Pos.CENTER_LEFT);
+            selectedFurnaceItemsBox.getChildren().add(row);
+        }
+    }
+
+    private void removeItemFromSelectedFurnace(int itemId) {
+        if (selectedFurnaceId == null) {
+            return;
+        }
+
+        Map<Integer, Integer> plannedItems = plannedByFurnace.get(selectedFurnaceId);
+        if (plannedItems == null) {
+            return;
+        }
+
+        Integer removedQty = plannedItems.remove(itemId);
+        if (removedQty == null || removedQty <= 0) {
+            return;
+        }
+
+        DiskPickEntry diskEntry = diskEntriesByItemId.get(itemId);
+        if (diskEntry != null) {
+            diskEntry.availableQuantity += removedQty;
+            diskEntry.quantityLabel.setText(diskEntry.availableQuantity + " pz");
+        }
+
+        if (plannedItems.isEmpty()) {
+            plannedByFurnace.remove(selectedFurnaceId);
+        }
+
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        refreshSelectedFurnaceCard();
+        updateInsertButton();
+        emitSnapshot();
     }
 
     private VBox buildInsightsSection() {
