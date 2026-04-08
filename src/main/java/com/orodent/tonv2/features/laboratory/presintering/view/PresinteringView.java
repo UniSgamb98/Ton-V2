@@ -34,6 +34,7 @@ public class PresinteringView extends VBox {
     private final Map<Integer, DiskPickEntry> diskEntriesByItemId = new LinkedHashMap<>();
     private final Map<Integer, Map<Integer, Integer>> plannedByFurnace = new LinkedHashMap<>();
     private final Map<Integer, String> itemCodeById = new LinkedHashMap<>();
+    private final Map<Integer, String> productNameByItemId = new LinkedHashMap<>();
     private final VBox compositionRankingBox = new VBox(6);
     private final VBox furnaceSuggestionsBox = new VBox(6);
     private final Label furnaceSuggestionsTitle = new Label("Blocco B · Item consigliati per forno selezionato");
@@ -103,11 +104,12 @@ public class PresinteringView extends VBox {
         diskPickEntries.clear();
         diskEntriesByItemId.clear();
         itemCodeById.clear();
+        productNameByItemId.clear();
         plannedByFurnace.clear();
 
         if (rows == null || rows.isEmpty()) {
             rowsBox.getChildren().add(new Label("Nessun disco prodotto disponibile."));
-            furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+            furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById, productNameByItemId);
             updateInsertButton();
             return;
         }
@@ -116,14 +118,14 @@ public class PresinteringView extends VBox {
             rowsBox.getChildren().add(buildDiskRow(row));
         }
 
-        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById, productNameByItemId);
         refreshSelectedFurnaceCard();
         updateInsertButton();
     }
 
     public void setFurnaces(List<Furnace> furnaces) {
         furnaceCarouselView.setFurnaces(furnaces);
-        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById, productNameByItemId);
         refreshSelectedFurnaceCard();
     }
 
@@ -159,7 +161,7 @@ public class PresinteringView extends VBox {
             diskEntry.pickField.clear();
         }
 
-        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById, productNameByItemId);
         refreshSelectedFurnaceCard();
         updateInsertButton();
     }
@@ -243,6 +245,7 @@ public class PresinteringView extends VBox {
         DiskPickEntry entry = new DiskPickEntry(
                 row.itemId(),
                 row.itemCode(),
+                row.productName(),
                 pickField,
                 quantityLabel,
                 row.totalQuantity()
@@ -250,6 +253,7 @@ public class PresinteringView extends VBox {
         diskPickEntries.add(entry);
         diskEntriesByItemId.put(row.itemId(), entry);
         itemCodeById.put(row.itemId(), row.itemCode());
+        productNameByItemId.put(row.itemId(), row.productName());
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -325,7 +329,7 @@ public class PresinteringView extends VBox {
             inserted += toInsert;
         }
 
-        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById, productNameByItemId);
         refreshSelectedFurnaceCard();
         updateInsertButton();
 
@@ -436,7 +440,7 @@ public class PresinteringView extends VBox {
             plannedByFurnace.remove(selectedFurnaceId);
         }
 
-        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById);
+        furnaceCarouselView.setPlannedItems(plannedByFurnace, itemCodeById, productNameByItemId);
         refreshSelectedFurnaceCard();
         updateInsertButton();
         emitSnapshot();
@@ -486,17 +490,20 @@ public class PresinteringView extends VBox {
     private static final class DiskPickEntry {
         private final int itemId;
         private final String itemCode;
+        private final String productName;
         private final TextField pickField;
         private final Label quantityLabel;
         private int availableQuantity;
 
         private DiskPickEntry(int itemId,
                               String itemCode,
+                              String productName,
                               TextField pickField,
                               Label quantityLabel,
                               int availableQuantity) {
             this.itemId = itemId;
             this.itemCode = itemCode;
+            this.productName = productName;
             this.pickField = pickField;
             this.quantityLabel = quantityLabel;
             this.availableQuantity = availableQuantity;

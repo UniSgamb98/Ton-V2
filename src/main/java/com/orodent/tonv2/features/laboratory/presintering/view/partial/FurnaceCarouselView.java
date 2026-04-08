@@ -29,6 +29,7 @@ public class FurnaceCarouselView extends VBox {
 
     private final List<FurnaceCardData> furnaceCards = new ArrayList<>();
     private final Map<Integer, String> itemCodeById = new LinkedHashMap<>();
+    private final Map<Integer, String> productNameByItemId = new LinkedHashMap<>();
 
     private final StackPane carouselPane = new StackPane();
     private final HBox viewport = new HBox(14);
@@ -79,10 +80,15 @@ public class FurnaceCarouselView extends VBox {
     }
 
     public void setPlannedItems(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
-                                Map<Integer, String> itemCodeById) {
+                                Map<Integer, String> itemCodeById,
+                                Map<Integer, String> productNameByItemId) {
         this.itemCodeById.clear();
         if (itemCodeById != null) {
             this.itemCodeById.putAll(itemCodeById);
+        }
+        this.productNameByItemId.clear();
+        if (productNameByItemId != null) {
+            this.productNameByItemId.putAll(productNameByItemId);
         }
 
         for (FurnaceCardData furnaceCard : furnaceCards) {
@@ -229,9 +235,16 @@ public class FurnaceCarouselView extends VBox {
             row.setStyle("-fx-font-size: 12px; -fx-opacity: 0.75;");
             itemsBox.getChildren().add(row);
         } else {
+            Map<String, Integer> totalsByProduct = new LinkedHashMap<>();
             for (Map.Entry<Integer, Integer> entry : furnace.plannedItemQty().entrySet()) {
-                String itemCode = itemCodeById.getOrDefault(entry.getKey(), "Item " + entry.getKey());
-                Label row = new Label(itemCode + " — " + entry.getValue() + " pz");
+                String productName = productNameByItemId.get(entry.getKey());
+                if (productName == null || productName.isBlank()) {
+                    productName = itemCodeById.getOrDefault(entry.getKey(), "Item " + entry.getKey());
+                }
+                totalsByProduct.merge(productName, entry.getValue(), Integer::sum);
+            }
+            for (Map.Entry<String, Integer> entry : totalsByProduct.entrySet()) {
+                Label row = new Label(entry.getKey() + " — " + entry.getValue() + " pz");
                 row.setStyle("-fx-font-size: 12px; -fx-opacity: 0.92;");
                 itemsBox.getChildren().add(row);
             }
