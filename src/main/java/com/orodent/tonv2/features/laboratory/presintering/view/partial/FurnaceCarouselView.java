@@ -268,7 +268,14 @@ public class FurnaceCarouselView extends VBox {
     }
 
     private void selectCard(int absoluteIndex) {
-        if (absoluteIndex < 0 || absoluteIndex >= furnaceCards.size() || selectedCardIndex == absoluteIndex) {
+        if (absoluteIndex < 0 || absoluteIndex >= furnaceCards.size()) {
+            return;
+        }
+
+        if (selectedCardIndex == absoluteIndex) {
+            selectedCardIndex = -1;
+            notifySelectionChanged();
+            render();
             return;
         }
 
