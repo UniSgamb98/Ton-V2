@@ -12,6 +12,8 @@ public interface ProductionRepository {
     List<ProducedDiskRow> findProducedDiskRows();
     List<CompositionRankingRow> findCompositionRankingRows();
     List<FurnaceItemSuggestionRow> findFurnaceItemSuggestionRows(String furnaceValue, String furnaceDisplayValue);
+    List<OpenProductionOrderLineRow> findOpenProductionOrderLinesByItem(int itemId);
+    void insertProductionOrderFiring(int productionOrderId, int firingId);
 
     record ProducedDiskRow(int itemId, String itemCode, String productName, int totalQuantity) {}
     record CompositionRankingRow(int compositionId,
@@ -25,4 +27,5 @@ public interface ProductionRepository {
                                     int availableQuantity,
                                     Integer suggestedTemperature,
                                     Integer compositionAverageTemperature) {}
+    record OpenProductionOrderLineRow(int productionOrderId, int itemId, int quantity) {}
 }

@@ -222,6 +222,52 @@ public class ProductionRepositoryImpl implements ProductionRepository {
         return rows;
     }
 
+    @Override
+    public List<OpenProductionOrderLineRow> findOpenProductionOrderLinesByItem(int itemId) {
+        String sql = """
+                SELECT pol.production_order_id,
+                       pol.item_id,
+                       pol.quantity
+                FROM production_order_line pol
+                LEFT JOIN production_order_firing pof ON pof.production_order_id = pol.production_order_id
+                WHERE pol.item_id = ?
+                  AND pof.production_order_id IS NULL
+                ORDER BY pol.production_order_id ASC
+                """;
+
+        List<OpenProductionOrderLineRow> rows = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new OpenProductionOrderLineRow(
+                            rs.getInt("production_order_id"),
+                            rs.getInt("item_id"),
+                            rs.getInt("quantity")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore durante il caricamento ordini aperti per item.", e);
+        }
+        return rows;
+    }
+
+    @Override
+    public void insertProductionOrderFiring(int productionOrderId, int firingId) {
+        String sql = """
+                INSERT INTO production_order_firing (production_order_id, firing_id)
+                VALUES (?, ?)
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, productionOrderId);
+            ps.setInt(2, firingId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore inserimento production_order_firing.", e);
+        }
+    }
+
     private Integer computeCompositionAverage(List<RawFurnaceItemSuggestionRow> rows, int compositionId) {
         int total = 0;
         int count = 0;

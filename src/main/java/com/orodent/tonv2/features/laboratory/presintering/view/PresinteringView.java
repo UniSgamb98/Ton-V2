@@ -8,6 +8,7 @@ import com.orodent.tonv2.features.laboratory.presintering.view.partial.FurnaceCa
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 import java.util.function.Consumer;
 
 public class PresinteringView extends VBox {
@@ -40,7 +42,11 @@ public class PresinteringView extends VBox {
     private final Label furnaceSuggestionsTitle = new Label("Item consigliati per forno selezionato");
     private final VBox selectedFurnaceCard = new VBox(8);
     private final Label selectedFurnaceCardTitle = new Label();
+    private final TextField selectedFurnaceMaxTemperatureField = new TextField();
+    private final DatePicker selectedFurnaceDepartureDatePicker = new DatePicker();
     private final VBox selectedFurnaceItemsBox = new VBox(6);
+    private final Button confirmPresinteringButton = new Button("Conferma\nPresinterizzazione");
+    private Consumer<ConfirmPresinteringRequest> onConfirmPresintering;
 
     private String selectedFurnaceName;
     private Integer selectedFurnaceId;
@@ -140,6 +146,10 @@ public class PresinteringView extends VBox {
 
     public void setOnPlanningSnapshotChanged(Consumer<PresinteringPlanningSnapshot> onPlanningSnapshotChanged) {
         this.onPlanningSnapshotChanged = onPlanningSnapshotChanged;
+    }
+
+    public void setOnConfirmPresintering(Consumer<ConfirmPresinteringRequest> onConfirmPresintering) {
+        this.onConfirmPresintering = onConfirmPresintering;
     }
 
     public void applyPlanningSnapshot(PresinteringPlanningSnapshot snapshot) {
@@ -366,13 +376,47 @@ public class PresinteringView extends VBox {
 
     private void buildSelectedFurnaceCard() {
         selectedFurnaceCardTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        selectedFurnaceMaxTemperatureField.setPromptText("Max temperature (°C)");
+        selectedFurnaceMaxTemperatureField.textProperty().addListener((obs, oldValue, newValue) -> {
+            String sanitized = newValue == null ? "" : newValue.replaceAll("[^\\d]", "");
+            if (!sanitized.equals(newValue)) {
+                selectedFurnaceMaxTemperatureField.setText(sanitized);
+            }
+        });
+        selectedFurnaceDepartureDatePicker.setPromptText("Partenza");
+        selectedFurnaceDepartureDatePicker.setValue(LocalDate.now());
+
+        Label fieldsLabel = new Label("Parametri firing");
+        fieldsLabel.setStyle("-fx-font-weight: bold;");
+        HBox firingFieldsRow = new HBox(8,
+                selectedFurnaceMaxTemperatureField,
+                selectedFurnaceDepartureDatePicker
+        );
+        selectedFurnaceMaxTemperatureField.setPrefWidth(180);
+        selectedFurnaceDepartureDatePicker.setPrefWidth(170);
+
+        Label itemListLabel = new Label("Item pianificati");
+        itemListLabel.setStyle("-fx-font-weight: bold;");
+
+        VBox leftContent = new VBox(8, selectedFurnaceCardTitle, fieldsLabel, firingFieldsRow, itemListLabel, selectedFurnaceItemsBox);
+        HBox.setHgrow(leftContent, Priority.ALWAYS);
+
+        confirmPresinteringButton.setPrefWidth(190);
+        confirmPresinteringButton.setMinHeight(180);
+        confirmPresinteringButton.setWrapText(true);
+        confirmPresinteringButton.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+        confirmPresinteringButton.setOnAction(e -> confirmPresintering());
+
+        HBox cardMainContent = new HBox(16, leftContent, confirmPresinteringButton);
+        cardMainContent.setAlignment(Pos.TOP_LEFT);
+
         selectedFurnaceCard.setPadding(new Insets(10));
         selectedFurnaceCard.setStyle(
                 "-fx-background-color: rgba(224, 242, 254, 0.20);"
                         + "-fx-border-color: rgba(56, 189, 248, 0.45);"
                         + "-fx-border-radius: 10; -fx-background-radius: 10;"
         );
-        selectedFurnaceCard.getChildren().addAll(selectedFurnaceCardTitle, selectedFurnaceItemsBox);
+        selectedFurnaceCard.getChildren().add(cardMainContent);
         selectedFurnaceCard.setVisible(false);
         selectedFurnaceCard.setManaged(false);
     }
@@ -389,8 +433,12 @@ public class PresinteringView extends VBox {
         selectedFurnaceCard.setVisible(true);
         selectedFurnaceCard.setManaged(true);
         selectedFurnaceCardTitle.setText(selectedFurnaceName);
+        if (selectedFurnaceDepartureDatePicker.getValue() == null) {
+            selectedFurnaceDepartureDatePicker.setValue(LocalDate.now());
+        }
 
         Map<Integer, Integer> plannedItems = plannedByFurnace.getOrDefault(selectedFurnaceId, Map.of());
+        confirmPresinteringButton.setDisable(plannedItems.isEmpty());
         if (plannedItems.isEmpty()) {
             Label empty = new Label("Nessun item pianificato in questo forno.");
             empty.setStyle("-fx-opacity: 0.80;");
@@ -444,6 +492,42 @@ public class PresinteringView extends VBox {
         refreshSelectedFurnaceCard();
         updateInsertButton();
         emitSnapshot();
+    }
+
+    private void confirmPresintering() {
+        if (onConfirmPresintering == null) {
+            setFeedback("Conferma non disponibile.", true);
+            return;
+        }
+        if (selectedFurnaceId == null || selectedFurnaceName == null || selectedFurnaceName.isBlank()) {
+            setFeedback("Seleziona un forno prima di confermare.", true);
+            return;
+        }
+        String tempText = selectedFurnaceMaxTemperatureField.getText();
+        if (tempText == null || tempText.isBlank()) {
+            setFeedback("Inserisci la max temperature.", true);
+            return;
+        }
+        int maxTemperature = Integer.parseInt(tempText);
+        LocalDate departureDate = selectedFurnaceDepartureDatePicker.getValue();
+        if (departureDate == null) {
+            setFeedback("Inserisci la data di partenza.", true);
+            return;
+        }
+
+        Map<Integer, Integer> plannedItems = plannedByFurnace.getOrDefault(selectedFurnaceId, Map.of());
+        if (plannedItems.isEmpty()) {
+            setFeedback("Nessun item pianificato da confermare.", true);
+            return;
+        }
+
+        onConfirmPresintering.accept(new ConfirmPresinteringRequest(
+                selectedFurnaceId,
+                selectedFurnaceName,
+                maxTemperature,
+                departureDate,
+                new LinkedHashMap<>(plannedItems)
+        ));
     }
 
     private VBox buildInsightsSection() {
@@ -508,5 +592,12 @@ public class PresinteringView extends VBox {
             this.quantityLabel = quantityLabel;
             this.availableQuantity = availableQuantity;
         }
+    }
+
+    public record ConfirmPresinteringRequest(int furnaceId,
+                                             String furnaceName,
+                                             int maxTemperature,
+                                             LocalDate departureDate,
+                                             Map<Integer, Integer> plannedItemsByItemId) {
     }
 }

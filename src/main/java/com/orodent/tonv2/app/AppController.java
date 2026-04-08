@@ -272,7 +272,13 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         configureHeader(view.getHeader());
         new PresinteringController(
                 view,
-                new PresinteringService(app.productionRepo(), app.furnaceRepo())
+                new PresinteringService(
+                        app.productionRepo(),
+                        app.furnaceRepo(),
+                        app.firingRepo(),
+                        app.lotRepo(),
+                        app.database.getConnection()
+                )
         );
 
         stage.setScene(createSceneWithCSS(view));

@@ -37,6 +37,26 @@ public class PresinteringController {
                 view.setFurnaceItemSuggestionRows(suggestions);
             });
             view.setOnPlanningSnapshotChanged(service::saveSnapshot);
+            view.setOnConfirmPresintering(request -> {
+                try {
+                    PresinteringService.ConfirmationResult result = service.confirmPresintering(
+                            request.furnaceId(),
+                            request.furnaceName(),
+                            request.departureDate(),
+                            request.maxTemperature(),
+                            request.plannedItemsByItemId()
+                    );
+                    loadData();
+                    view.setFeedback(
+                            "Presinterizzazione confermata. Firing #" + result.firingId()
+                                    + " · ordini collegati: " + result.linkedProductionOrders()
+                                    + " · lotti creati: " + result.lotCount(),
+                            false
+                    );
+                } catch (Exception e) {
+                    view.setFeedback("Errore conferma presinterizzazione: " + e.getMessage(), true);
+                }
+            });
             view.setFeedback("", false);
         } catch (Exception e) {
             view.setProducedDisks(List.of());
