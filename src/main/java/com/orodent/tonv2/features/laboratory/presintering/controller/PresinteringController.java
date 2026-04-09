@@ -20,6 +20,7 @@ public class PresinteringController {
     private final DocumentBrowserService documentBrowserService;
     private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
+    private final Map<Integer, String> productNameByItemIdState = new LinkedHashMap<>();
     private PresinteringPlanningSnapshot planningState = new PresinteringPlanningSnapshot(
             new LinkedHashMap<>(),
             new LinkedHashMap<>(),
@@ -54,6 +55,7 @@ public class PresinteringController {
             List<ProductionRepository.ProducedDiskRow> producedDisks = service.loadProducedDisks();
             List<Furnace> furnaces = service.loadFurnaces();
             List<ProductionRepository.CompositionRankingRow> compositionRanking = service.loadCompositionRanking();
+            furnaceConfigById.clear();
             furnaceNameByIdState.clear();
             for (Furnace furnace : furnaces) {
                 String displayNumber = furnace.number() == null || furnace.number().isBlank()
@@ -63,9 +65,11 @@ public class PresinteringController {
             }
             Map<Integer, Integer> availableByItem = new LinkedHashMap<>();
             Map<Integer, String> itemCodeById = new LinkedHashMap<>();
+            productNameByItemIdState.clear();
             for (ProductionRepository.ProducedDiskRow row : producedDisks) {
                 availableByItem.put(row.itemId(), row.totalQuantity());
                 itemCodeById.put(row.itemId(), row.itemCode());
+                productNameByItemIdState.put(row.itemId(), row.productName());
             }
             planningState = new PresinteringPlanningSnapshot(
                     availableByItem,
@@ -79,9 +83,9 @@ public class PresinteringController {
             view.setCompositionRankingRows(compositionRanking);
             view.setFurnaceItemSuggestionRows(List.of());
             service.loadValidSnapshot(producedDisks).ifPresent(snapshot -> {
-                view.applyPlanningSnapshot(snapshot);
                 planningState = snapshot;
             });
+            view.renderPlanning(planningState, productNameByItemIdState);
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
                 view.setFurnaceItemSuggestionRows(suggestions);
@@ -93,10 +97,12 @@ public class PresinteringController {
                         config == null ? null : config.maxTemperature(),
                         config == null ? null : config.departureDate()
                 );
+                view.renderPlanning(planningState, productNameByItemIdState);
             });
             refreshTemplateSelector();
             view.setFeedback("", false);
         } catch (Exception e) {
+            productNameByItemIdState.clear();
             view.setProducedDisks(List.of());
             view.setFurnaces(List.of());
             view.setCompositionRankingRows(List.of());
@@ -202,7 +208,7 @@ public class PresinteringController {
     }
 
     private void renderAndPersistPlanningState() {
-        view.applyPlanningSnapshot(planningState);
+        view.renderPlanning(planningState, productNameByItemIdState);
         service.saveSnapshot(planningState);
     }
 }
