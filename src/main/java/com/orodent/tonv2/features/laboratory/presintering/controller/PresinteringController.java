@@ -18,6 +18,8 @@ public class PresinteringController {
     private final PresinteringService service;
     private final DocumentBrowserService documentBrowserService;
     private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
+    private final Map<Integer, Integer> availableByItemState = new LinkedHashMap<>();
+    private final Map<Integer, String> itemCodeByIdState = new LinkedHashMap<>();
     private final Map<Integer, Map<Integer, Integer>> plannedByFurnaceState = new LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
 
@@ -39,6 +41,8 @@ public class PresinteringController {
         view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
                 service.setLastTemplateName(newValue)
         );
+        view.setOnInsertDisksRequested(this::insertDisksIntoSelectedFurnace);
+        view.setOnRemovePlannedItemRequested(this::removePlannedItemFromSelectedFurnace);
     }
 
     private void loadData() {
@@ -53,6 +57,13 @@ public class PresinteringController {
                         : furnace.number();
                 furnaceNameByIdState.put(furnace.id(), "Forno " + displayNumber);
             }
+            availableByItemState.clear();
+            itemCodeByIdState.clear();
+            for (ProductionRepository.ProducedDiskRow row : producedDisks) {
+                availableByItemState.put(row.itemId(), row.totalQuantity());
+                itemCodeByIdState.put(row.itemId(), row.itemCode());
+            }
+            plannedByFurnaceState.clear();
 
             view.setProducedDisks(producedDisks);
             view.setFurnaces(furnaces);
@@ -74,7 +85,6 @@ public class PresinteringController {
                         config == null ? null : config.departureDate()
                 );
             });
-            view.setOnPlanningSnapshotChanged(this::onPlanningSnapshotChanged);
             refreshTemplateSelector();
             view.setFeedback("", false);
         } catch (Exception e) {
@@ -142,18 +152,107 @@ public class PresinteringController {
         );
     }
 
-    private void onPlanningSnapshotChanged(PresinteringPlanningSnapshot snapshot) {
-        syncPlanningStateFromSnapshot(snapshot);
-        service.saveSnapshot(snapshot);
-    }
-
     private void syncPlanningStateFromSnapshot(PresinteringPlanningSnapshot snapshot) {
+        availableByItemState.clear();
         plannedByFurnaceState.clear();
-        if (snapshot == null || snapshot.plannedByFurnace() == null) {
+        if (snapshot == null) {
+            return;
+        }
+        if (snapshot.availableByItemId() != null) {
+            availableByItemState.putAll(snapshot.availableByItemId());
+        }
+        if (snapshot.itemCodeById() != null) {
+            itemCodeByIdState.clear();
+            itemCodeByIdState.putAll(snapshot.itemCodeById());
+        }
+        if (snapshot.plannedByFurnace() == null) {
             return;
         }
         for (Map.Entry<Integer, Map<Integer, Integer>> entry : snapshot.plannedByFurnace().entrySet()) {
             plannedByFurnaceState.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
         }
+    }
+
+    private void insertDisksIntoSelectedFurnace() {
+        Integer selectedFurnaceId = view.getSelectedFurnaceId();
+        String selectedFurnaceName = view.getSelectedFurnaceName();
+        if (selectedFurnaceId == null || selectedFurnaceName == null || selectedFurnaceName.isBlank()) {
+            view.setFeedback("Seleziona un forno prima di inserire i dischi.", true);
+            return;
+        }
+
+        Map<Integer, Integer> requestedByItem = view.getRequestedDiskQuantitiesByItem();
+        if (requestedByItem.isEmpty()) {
+            view.setFeedback("Nessun disco inserito: controlla quantità disponibili.", true);
+            return;
+        }
+
+        Map<Integer, Integer> targetPlan = plannedByFurnaceState.computeIfAbsent(selectedFurnaceId, ignored -> new LinkedHashMap<>());
+        int inserted = 0;
+        for (Map.Entry<Integer, Integer> entry : requestedByItem.entrySet()) {
+            int itemId = entry.getKey();
+            int requested = entry.getValue() == null ? 0 : entry.getValue();
+            int available = availableByItemState.getOrDefault(itemId, 0);
+            int toInsert = Math.min(requested, available);
+            if (toInsert <= 0) {
+                continue;
+            }
+            availableByItemState.put(itemId, available - toInsert);
+            targetPlan.merge(itemId, toInsert, Integer::sum);
+            inserted += toInsert;
+        }
+
+        if (inserted <= 0) {
+            view.setFeedback("Nessun disco inserito: controlla quantità disponibili.", true);
+            view.clearRequestedDiskQuantities();
+            return;
+        }
+
+        view.clearRequestedDiskQuantities();
+        renderAndPersistPlanningState();
+        view.setFeedback("Pianificati " + inserted + " dischi nel " + selectedFurnaceName + ".", false);
+    }
+
+    private void removePlannedItemFromSelectedFurnace(int itemId) {
+        Integer selectedFurnaceId = view.getSelectedFurnaceId();
+        if (selectedFurnaceId == null) {
+            return;
+        }
+
+        Map<Integer, Integer> plannedItems = plannedByFurnaceState.get(selectedFurnaceId);
+        if (plannedItems == null) {
+            return;
+        }
+
+        Integer removedQty = plannedItems.remove(itemId);
+        if (removedQty == null || removedQty <= 0) {
+            return;
+        }
+
+        availableByItemState.merge(itemId, removedQty, Integer::sum);
+        if (plannedItems.isEmpty()) {
+            plannedByFurnaceState.remove(selectedFurnaceId);
+        }
+
+        renderAndPersistPlanningState();
+    }
+
+    private void renderAndPersistPlanningState() {
+        PresinteringPlanningSnapshot snapshot = new PresinteringPlanningSnapshot(
+                new LinkedHashMap<>(availableByItemState),
+                deepCopyPlan(plannedByFurnaceState),
+                new LinkedHashMap<>(itemCodeByIdState),
+                null
+        );
+        view.applyPlanningSnapshot(snapshot);
+        service.saveSnapshot(snapshot);
+    }
+
+    private Map<Integer, Map<Integer, Integer>> deepCopyPlan(Map<Integer, Map<Integer, Integer>> source) {
+        Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
+        for (Map.Entry<Integer, Map<Integer, Integer>> entry : source.entrySet()) {
+            copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
+        }
+        return copy;
     }
 }
