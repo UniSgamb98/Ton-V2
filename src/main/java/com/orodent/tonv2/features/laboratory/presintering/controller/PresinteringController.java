@@ -111,14 +111,11 @@ public class PresinteringController {
 
     private void confirmAllPlannedFurnaces() {
         try {
-            List<PresinteringService.BatchConfirmationRequest> furnaceRequests = service.buildBatchConfirmationRequests(
-                    planningState.plannedByFurnace(),
-                    furnaceNameByIdState,
-                    furnaceConfigById
-            );
             PresinteringService.ConfirmBatchResult result = service.confirmBatch(
                     new PresinteringService.ConfirmBatchCommand(
-                            furnaceRequests,
+                            planningState.plannedByFurnace(),
+                            furnaceNameByIdState,
+                            furnaceConfigById,
                             view.getTemplateSelector().getValue()
                     )
             );

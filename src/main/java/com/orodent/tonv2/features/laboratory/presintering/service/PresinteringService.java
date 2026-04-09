@@ -131,9 +131,9 @@ public class PresinteringService {
         templateEditorService.setLastPresinteringTemplateName(templateName);
     }
 
-    public List<BatchConfirmationRequest> buildBatchConfirmationRequests(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
-                                                                         Map<Integer, String> furnaceNameById,
-                                                                         Map<Integer, FurnaceConfig> furnaceConfigById) {
+    private List<BatchConfirmationRequest> buildBatchConfirmationRequests(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
+                                                                          Map<Integer, String> furnaceNameById,
+                                                                          Map<Integer, FurnaceConfig> furnaceConfigById) {
         if (plannedByFurnace == null || plannedByFurnace.isEmpty()) {
             throw new IllegalArgumentException("Nessun forno con nuovi item da confermare.");
         }
@@ -321,9 +321,14 @@ public class PresinteringService {
     }
 
     public ConfirmBatchResult confirmBatch(ConfirmBatchCommand command) {
-        if (command == null || command.requests() == null || command.requests().isEmpty()) {
+        if (command == null) {
             throw new IllegalArgumentException("Nessun forno con nuovi item da confermare.");
         }
+        List<BatchConfirmationRequest> requests = buildBatchConfirmationRequests(
+                command.plannedByFurnace(),
+                command.furnaceNameById(),
+                command.furnaceConfigById()
+        );
 
         int confirmedFurnaces = 0;
         int totalLinkedOrders = 0;
@@ -331,7 +336,7 @@ public class PresinteringService {
         List<Integer> firingIds = new java.util.ArrayList<>();
         List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
 
-        for (BatchConfirmationRequest furnaceRequest : command.requests()) {
+        for (BatchConfirmationRequest furnaceRequest : requests) {
             ConfirmationResult result = confirmPresintering(
                     furnaceRequest.furnaceId(),
                     furnaceRequest.furnaceName(),
@@ -498,7 +503,9 @@ public class PresinteringService {
                                            Map<Integer, Integer> plannedItemsByItemId) {
     }
 
-    public record ConfirmBatchCommand(List<BatchConfirmationRequest> requests,
+    public record ConfirmBatchCommand(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
+                                      Map<Integer, String> furnaceNameById,
+                                      Map<Integer, FurnaceConfig> furnaceConfigById,
                                       String selectedTemplateName) {
     }
 
