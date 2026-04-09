@@ -3,10 +3,13 @@ package com.orodent.tonv2.features.laboratory.presintering.controller;
 import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringPlanningSnapshot;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PresinteringController {
 
@@ -15,6 +18,8 @@ public class PresinteringController {
     private final PresinteringService service;
     private final DocumentBrowserService documentBrowserService;
     private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
+    private final Map<Integer, Map<Integer, Integer>> plannedByFurnaceState = new LinkedHashMap<>();
+    private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
 
     public PresinteringController(PresinteringView view,
                                   PresinteringService service,
@@ -31,6 +36,9 @@ public class PresinteringController {
         view.getConfirmPresinteringButton().setOnAction(e -> confirmAllPlannedFurnaces());
         view.getSelectedFurnaceMaxTemperatureField().textProperty().addListener((obs, oldValue, newValue) -> syncSelectedFurnaceConfigFromView());
         view.getSelectedFurnaceDepartureDatePicker().valueProperty().addListener((obs, oldValue, newValue) -> syncSelectedFurnaceConfigFromView());
+        view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
+                service.setLastTemplateName(newValue)
+        );
     }
 
     private void loadData() {
@@ -38,12 +46,22 @@ public class PresinteringController {
             List<ProductionRepository.ProducedDiskRow> producedDisks = service.loadProducedDisks();
             List<Furnace> furnaces = service.loadFurnaces();
             List<ProductionRepository.CompositionRankingRow> compositionRanking = service.loadCompositionRanking();
+            furnaceNameByIdState.clear();
+            for (Furnace furnace : furnaces) {
+                String displayNumber = furnace.number() == null || furnace.number().isBlank()
+                        ? String.valueOf(furnace.id())
+                        : furnace.number();
+                furnaceNameByIdState.put(furnace.id(), "Forno " + displayNumber);
+            }
 
             view.setProducedDisks(producedDisks);
             view.setFurnaces(furnaces);
             view.setCompositionRankingRows(compositionRanking);
             view.setFurnaceItemSuggestionRows(List.of());
-            service.loadValidSnapshot(producedDisks).ifPresent(view::applyPlanningSnapshot);
+            service.loadValidSnapshot(producedDisks).ifPresent(snapshot -> {
+                view.applyPlanningSnapshot(snapshot);
+                syncPlanningStateFromSnapshot(snapshot);
+            });
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
                 view.setFurnaceItemSuggestionRows(suggestions);
@@ -56,7 +74,7 @@ public class PresinteringController {
                         config == null ? null : config.departureDate()
                 );
             });
-            view.setOnPlanningSnapshotChanged(service::saveSnapshot);
+            view.setOnPlanningSnapshotChanged(this::onPlanningSnapshotChanged);
             refreshTemplateSelector();
             view.setFeedback("", false);
         } catch (Exception e) {
@@ -70,16 +88,13 @@ public class PresinteringController {
 
     private void refreshTemplateSelector() {
         view.setTemplateNames(service.findTemplateNames(), service.getLastTemplateName());
-        view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
-                service.setLastTemplateName(newValue)
-        );
     }
 
     private void confirmAllPlannedFurnaces() {
         try {
             List<PresinteringService.BatchConfirmationRequest> furnaceRequests = service.buildBatchConfirmationRequests(
-                    view.getPlannedByFurnaceSnapshot(),
-                    view.getFurnaceNameByIdSnapshot(),
+                    plannedByFurnaceState,
+                    furnaceNameByIdState,
                     furnaceConfigById
             );
             PresinteringService.ConfirmBatchResult result = service.confirmBatch(
@@ -125,5 +140,20 @@ public class PresinteringController {
                         view.getSelectedFurnaceDepartureDatePicker().getValue()
                 )
         );
+    }
+
+    private void onPlanningSnapshotChanged(PresinteringPlanningSnapshot snapshot) {
+        syncPlanningStateFromSnapshot(snapshot);
+        service.saveSnapshot(snapshot);
+    }
+
+    private void syncPlanningStateFromSnapshot(PresinteringPlanningSnapshot snapshot) {
+        plannedByFurnaceState.clear();
+        if (snapshot == null || snapshot.plannedByFurnace() == null) {
+            return;
+        }
+        for (Map.Entry<Integer, Map<Integer, Integer>> entry : snapshot.plannedByFurnace().entrySet()) {
+            plannedByFurnaceState.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
+        }
     }
 }
