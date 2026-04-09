@@ -280,8 +280,6 @@ public class PresinteringView extends VBox {
         });
         DiskPickEntry entry = new DiskPickEntry(
                 row.itemId(),
-                row.itemCode(),
-                row.productName(),
                 pickField,
                 quantityLabel,
                 row.totalQuantity()
@@ -436,18 +434,6 @@ public class PresinteringView extends VBox {
         }
     }
 
-    public Map<Integer, Map<Integer, Integer>> getPlannedByFurnaceSnapshot() {
-        Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
-        for (Map.Entry<Integer, Map<Integer, Integer>> entry : plannedByFurnace.entrySet()) {
-            copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
-        }
-        return copy;
-    }
-
-    public Map<Integer, String> getFurnaceNameByIdSnapshot() {
-        return new LinkedHashMap<>(furnaceNameById);
-    }
-
     public Map<Integer, Integer> getRequestedDiskQuantitiesByItem() {
         Map<Integer, Integer> requested = new LinkedHashMap<>();
         for (DiskPickEntry entry : diskPickEntries) {
@@ -467,16 +453,8 @@ public class PresinteringView extends VBox {
         updateInsertButton();
     }
 
-    public Map<Integer, String> getItemCodeByIdSnapshot() {
-        return new LinkedHashMap<>(itemCodeById);
-    }
-
     public Button getConfirmPresinteringButton() {
         return confirmPresinteringButton;
-    }
-
-    public Button getInsertDisksButton() {
-        return insertDisksButton;
     }
 
     public TextField getSelectedFurnaceMaxTemperatureField() {
@@ -543,21 +521,15 @@ public class PresinteringView extends VBox {
 
     private static final class DiskPickEntry {
         private final int itemId;
-        private final String itemCode;
-        private final String productName;
         private final TextField pickField;
         private final Label quantityLabel;
         private int availableQuantity;
 
         private DiskPickEntry(int itemId,
-                              String itemCode,
-                              String productName,
                               TextField pickField,
                               Label quantityLabel,
                               int availableQuantity) {
             this.itemId = itemId;
-            this.itemCode = itemCode;
-            this.productName = productName;
             this.pickField = pickField;
             this.quantityLabel = quantityLabel;
             this.availableQuantity = availableQuantity;

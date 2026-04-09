@@ -16,8 +16,8 @@ public class TemplateEditorWorkflowService {
 
     private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
     private static final String DEFAULT_TEMPLATE_NAME = "NuovoTemplate";
-    private static final String DEFAULT_PRESET_CODE = "Batch Production";
-    private static final String PRESINTERING_PRESET_CODE = "Presintering Furnace";
+    private static final String DEFAULT_PRESET_CODE = "Scheda Miscelazione";
+    private static final String PRESINTERING_PRESET_CODE = "Forni Presinterizzazione";
     private static final String DEFAULT_TEMPLATE_CONTENT = """
             <html>
               <body>
