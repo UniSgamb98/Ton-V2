@@ -7,6 +7,7 @@ import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringPl
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,10 +19,13 @@ public class PresinteringController {
     private final PresinteringService service;
     private final DocumentBrowserService documentBrowserService;
     private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
-    private final Map<Integer, Integer> availableByItemState = new LinkedHashMap<>();
-    private final Map<Integer, String> itemCodeByIdState = new LinkedHashMap<>();
-    private final Map<Integer, Map<Integer, Integer>> plannedByFurnaceState = new LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
+    private PresinteringPlanningSnapshot planningState = new PresinteringPlanningSnapshot(
+            new LinkedHashMap<>(),
+            new LinkedHashMap<>(),
+            new LinkedHashMap<>(),
+            Instant.now()
+    );
 
     public PresinteringController(PresinteringView view,
                                   PresinteringService service,
@@ -57,13 +61,18 @@ public class PresinteringController {
                         : furnace.number();
                 furnaceNameByIdState.put(furnace.id(), "Forno " + displayNumber);
             }
-            availableByItemState.clear();
-            itemCodeByIdState.clear();
+            Map<Integer, Integer> availableByItem = new LinkedHashMap<>();
+            Map<Integer, String> itemCodeById = new LinkedHashMap<>();
             for (ProductionRepository.ProducedDiskRow row : producedDisks) {
-                availableByItemState.put(row.itemId(), row.totalQuantity());
-                itemCodeByIdState.put(row.itemId(), row.itemCode());
+                availableByItem.put(row.itemId(), row.totalQuantity());
+                itemCodeById.put(row.itemId(), row.itemCode());
             }
-            plannedByFurnaceState.clear();
+            planningState = new PresinteringPlanningSnapshot(
+                    availableByItem,
+                    new LinkedHashMap<>(),
+                    itemCodeById,
+                    Instant.now()
+            );
 
             view.setProducedDisks(producedDisks);
             view.setFurnaces(furnaces);
@@ -71,7 +80,7 @@ public class PresinteringController {
             view.setFurnaceItemSuggestionRows(List.of());
             service.loadValidSnapshot(producedDisks).ifPresent(snapshot -> {
                 view.applyPlanningSnapshot(snapshot);
-                syncPlanningStateFromSnapshot(snapshot);
+                planningState = snapshot;
             });
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
@@ -103,7 +112,7 @@ public class PresinteringController {
     private void confirmAllPlannedFurnaces() {
         try {
             List<PresinteringService.BatchConfirmationRequest> furnaceRequests = service.buildBatchConfirmationRequests(
-                    plannedByFurnaceState,
+                    planningState.plannedByFurnace(),
                     furnaceNameByIdState,
                     furnaceConfigById
             );
@@ -152,27 +161,6 @@ public class PresinteringController {
         );
     }
 
-    private void syncPlanningStateFromSnapshot(PresinteringPlanningSnapshot snapshot) {
-        availableByItemState.clear();
-        plannedByFurnaceState.clear();
-        if (snapshot == null) {
-            return;
-        }
-        if (snapshot.availableByItemId() != null) {
-            availableByItemState.putAll(snapshot.availableByItemId());
-        }
-        if (snapshot.itemCodeById() != null) {
-            itemCodeByIdState.clear();
-            itemCodeByIdState.putAll(snapshot.itemCodeById());
-        }
-        if (snapshot.plannedByFurnace() == null) {
-            return;
-        }
-        for (Map.Entry<Integer, Map<Integer, Integer>> entry : snapshot.plannedByFurnace().entrySet()) {
-            plannedByFurnaceState.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
-        }
-    }
-
     private void insertDisksIntoSelectedFurnace() {
         Integer selectedFurnaceId = view.getSelectedFurnaceId();
         String selectedFurnaceName = view.getSelectedFurnaceName();
@@ -187,22 +175,10 @@ public class PresinteringController {
             return;
         }
 
-        Map<Integer, Integer> targetPlan = plannedByFurnaceState.computeIfAbsent(selectedFurnaceId, ignored -> new LinkedHashMap<>());
-        int inserted = 0;
-        for (Map.Entry<Integer, Integer> entry : requestedByItem.entrySet()) {
-            int itemId = entry.getKey();
-            int requested = entry.getValue() == null ? 0 : entry.getValue();
-            int available = availableByItemState.getOrDefault(itemId, 0);
-            int toInsert = Math.min(requested, available);
-            if (toInsert <= 0) {
-                continue;
-            }
-            availableByItemState.put(itemId, available - toInsert);
-            targetPlan.merge(itemId, toInsert, Integer::sum);
-            inserted += toInsert;
-        }
+        PresinteringService.PlanDisksResult result = service.planDisks(planningState, selectedFurnaceId, requestedByItem);
+        planningState = result.state();
 
-        if (inserted <= 0) {
+        if (result.insertedQuantity() <= 0) {
             view.setFeedback("Nessun disco inserito: controlla quantità disponibili.", true);
             view.clearRequestedDiskQuantities();
             return;
@@ -210,7 +186,7 @@ public class PresinteringController {
 
         view.clearRequestedDiskQuantities();
         renderAndPersistPlanningState();
-        view.setFeedback("Pianificati " + inserted + " dischi nel " + selectedFurnaceName + ".", false);
+        view.setFeedback("Pianificati " + result.insertedQuantity() + " dischi nel " + selectedFurnaceName + ".", false);
     }
 
     private void removePlannedItemFromSelectedFurnace(int itemId) {
@@ -219,40 +195,17 @@ public class PresinteringController {
             return;
         }
 
-        Map<Integer, Integer> plannedItems = plannedByFurnaceState.get(selectedFurnaceId);
-        if (plannedItems == null) {
+        PresinteringPlanningSnapshot updatedState = service.removePlannedItem(planningState, selectedFurnaceId, itemId);
+        if (updatedState.equals(planningState)) {
             return;
         }
-
-        Integer removedQty = plannedItems.remove(itemId);
-        if (removedQty == null || removedQty <= 0) {
-            return;
-        }
-
-        availableByItemState.merge(itemId, removedQty, Integer::sum);
-        if (plannedItems.isEmpty()) {
-            plannedByFurnaceState.remove(selectedFurnaceId);
-        }
+        planningState = updatedState;
 
         renderAndPersistPlanningState();
     }
 
     private void renderAndPersistPlanningState() {
-        PresinteringPlanningSnapshot snapshot = new PresinteringPlanningSnapshot(
-                new LinkedHashMap<>(availableByItemState),
-                deepCopyPlan(plannedByFurnaceState),
-                new LinkedHashMap<>(itemCodeByIdState),
-                null
-        );
-        view.applyPlanningSnapshot(snapshot);
-        service.saveSnapshot(snapshot);
-    }
-
-    private Map<Integer, Map<Integer, Integer>> deepCopyPlan(Map<Integer, Map<Integer, Integer>> source) {
-        Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
-        for (Map.Entry<Integer, Map<Integer, Integer>> entry : source.entrySet()) {
-            copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
-        }
-        return copy;
+        view.applyPlanningSnapshot(planningState);
+        service.saveSnapshot(planningState);
     }
 }
