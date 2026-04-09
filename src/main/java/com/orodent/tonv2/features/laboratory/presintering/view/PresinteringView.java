@@ -271,7 +271,7 @@ public class PresinteringView extends VBox {
         pickField.setPromptText("Preleva");
         pickField.setPrefWidth(90);
         pickField.textProperty().addListener((obs, oldValue, newValue) -> {
-            String sanitized = newValue == null ? "" : newValue.replaceAll("[^\\d]", "");
+            String sanitized = newValue == null ? "" : newValue.replaceAll("\\D", "");
             if (!sanitized.equals(newValue)) {
                 pickField.setText(sanitized);
                 return;
@@ -338,7 +338,7 @@ public class PresinteringView extends VBox {
         selectedFurnaceCardTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
         selectedFurnaceMaxTemperatureField.setPromptText("Max temperature (°C)");
         selectedFurnaceMaxTemperatureField.textProperty().addListener((obs, oldValue, newValue) -> {
-            String sanitized = newValue == null ? "" : newValue.replaceAll("[^\\d]", "");
+            String sanitized = newValue == null ? "" : newValue.replaceAll("\\D", "");
             if (!sanitized.equals(newValue)) {
                 selectedFurnaceMaxTemperatureField.setText(sanitized);
             }
