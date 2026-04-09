@@ -51,7 +51,7 @@ public class PresinteringView extends VBox {
     private final DatePicker selectedFurnaceDepartureDatePicker = new DatePicker();
     private final VBox selectedFurnaceItemsBox = new VBox(6);
     private final Button confirmPresinteringButton = new Button("Conferma tutti\ni forni");
-    private Consumer<ConfirmPresinteringRequest> onConfirmPresintering;
+    private Runnable onConfirmRequested;
 
     private String selectedFurnaceName;
     private Integer selectedFurnaceId;
@@ -163,8 +163,8 @@ public class PresinteringView extends VBox {
         this.onPlanningSnapshotChanged = onPlanningSnapshotChanged;
     }
 
-    public void setOnConfirmPresintering(Consumer<ConfirmPresinteringRequest> onConfirmPresintering) {
-        this.onConfirmPresintering = onConfirmPresintering;
+    public void setOnConfirmRequested(Runnable onConfirmRequested) {
+        this.onConfirmRequested = onConfirmRequested;
     }
 
     public ComboBox<String> getTemplateSelector() {
@@ -433,7 +433,11 @@ public class PresinteringView extends VBox {
         confirmPresinteringButton.setMinHeight(220);
         confirmPresinteringButton.setWrapText(true);
         confirmPresinteringButton.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
-        confirmPresinteringButton.setOnAction(e -> confirmPresintering());
+        confirmPresinteringButton.setOnAction(e -> {
+            if (onConfirmRequested != null) {
+                onConfirmRequested.run();
+            }
+        });
         confirmPresinteringButton.setVisible(true);
         confirmPresinteringButton.setManaged(true);
 
@@ -531,47 +535,6 @@ public class PresinteringView extends VBox {
         emitSnapshot();
     }
 
-    private void confirmPresintering() {
-        if (onConfirmPresintering == null) {
-            setFeedback("Conferma non disponibile.", true);
-            return;
-        }
-        List<FurnaceConfirmationRequest> requests = new ArrayList<>();
-        for (Map.Entry<Integer, Map<Integer, Integer>> furnaceEntry : plannedByFurnace.entrySet()) {
-            int furnaceId = furnaceEntry.getKey();
-            Map<Integer, Integer> plannedItems = furnaceEntry.getValue();
-            if (plannedItems == null || plannedItems.isEmpty()) {
-                continue;
-            }
-
-            FurnacePlanningConfig config = furnaceConfigById.get(furnaceId);
-            String furnaceName = furnaceNameById.getOrDefault(furnaceId, "Forno " + furnaceId);
-            if (config == null || config.maxTemperature() == null || config.maxTemperature() <= 0) {
-                setFeedback("Inserisci la max temperature per " + furnaceName + " prima di confermare tutti i forni.", true);
-                return;
-            }
-            if (config.departureDate() == null) {
-                setFeedback("Inserisci la data di partenza per " + furnaceName + " prima di confermare tutti i forni.", true);
-                return;
-            }
-
-            requests.add(new FurnaceConfirmationRequest(
-                    furnaceId,
-                    furnaceName,
-                    config.maxTemperature(),
-                    config.departureDate(),
-                    new LinkedHashMap<>(plannedItems)
-            ));
-        }
-
-        if (requests.isEmpty()) {
-            setFeedback("Nessun forno con nuovi item da confermare.", true);
-            return;
-        }
-
-        onConfirmPresintering.accept(new ConfirmPresinteringRequest(requests));
-    }
-
     private void saveSelectedFurnaceConfig() {
         if (selectedFurnaceId == null) {
             return;
@@ -583,6 +546,27 @@ public class PresinteringView extends VBox {
         }
         LocalDate departureDate = selectedFurnaceDepartureDatePicker.getValue();
         furnaceConfigById.put(selectedFurnaceId, new FurnacePlanningConfig(maxTemperature, departureDate));
+    }
+
+    public Map<Integer, Map<Integer, Integer>> getPlannedByFurnaceSnapshot() {
+        Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
+        for (Map.Entry<Integer, Map<Integer, Integer>> entry : plannedByFurnace.entrySet()) {
+            copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
+        }
+        return copy;
+    }
+
+    public Map<Integer, String> getFurnaceNameByIdSnapshot() {
+        return new LinkedHashMap<>(furnaceNameById);
+    }
+
+    public Map<Integer, FurnaceConfigInput> getFurnaceConfigSnapshot() {
+        Map<Integer, FurnaceConfigInput> copy = new LinkedHashMap<>();
+        for (Map.Entry<Integer, FurnacePlanningConfig> entry : furnaceConfigById.entrySet()) {
+            FurnacePlanningConfig config = entry.getValue();
+            copy.put(entry.getKey(), new FurnaceConfigInput(config.maxTemperature(), config.departureDate()));
+        }
+        return copy;
     }
 
     private VBox buildInsightsSection() {
@@ -652,13 +636,6 @@ public class PresinteringView extends VBox {
     private record FurnacePlanningConfig(Integer maxTemperature, LocalDate departureDate) {
     }
 
-    public record FurnaceConfirmationRequest(int furnaceId,
-                                             String furnaceName,
-                                             int maxTemperature,
-                                             LocalDate departureDate,
-                                             Map<Integer, Integer> plannedItemsByItemId) {
-    }
-
-    public record ConfirmPresinteringRequest(List<FurnaceConfirmationRequest> furnaces) {
+    public record FurnaceConfigInput(Integer maxTemperature, LocalDate departureDate) {
     }
 }

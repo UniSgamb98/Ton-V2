@@ -131,6 +131,48 @@ public class PresinteringService {
         templateEditorService.setLastPresinteringTemplateName(templateName);
     }
 
+    public List<BatchConfirmationRequest> buildBatchConfirmationRequests(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
+                                                                         Map<Integer, String> furnaceNameById,
+                                                                         Map<Integer, FurnaceConfig> furnaceConfigById) {
+        if (plannedByFurnace == null || plannedByFurnace.isEmpty()) {
+            throw new IllegalArgumentException("Nessun forno con nuovi item da confermare.");
+        }
+
+        List<BatchConfirmationRequest> requests = new java.util.ArrayList<>();
+        for (Map.Entry<Integer, Map<Integer, Integer>> furnaceEntry : plannedByFurnace.entrySet()) {
+            int furnaceId = furnaceEntry.getKey();
+            Map<Integer, Integer> plannedItems = furnaceEntry.getValue();
+            if (plannedItems == null || plannedItems.isEmpty()) {
+                continue;
+            }
+
+            FurnaceConfig config = furnaceConfigById == null ? null : furnaceConfigById.get(furnaceId);
+            String furnaceName = furnaceNameById == null
+                    ? "Forno " + furnaceId
+                    : furnaceNameById.getOrDefault(furnaceId, "Forno " + furnaceId);
+
+            if (config == null || config.maxTemperature() == null || config.maxTemperature() <= 0) {
+                throw new IllegalArgumentException("Inserisci la max temperature per " + furnaceName + " prima di confermare tutti i forni.");
+            }
+            if (config.departureDate() == null) {
+                throw new IllegalArgumentException("Inserisci la data di partenza per " + furnaceName + " prima di confermare tutti i forni.");
+            }
+
+            requests.add(new BatchConfirmationRequest(
+                    furnaceId,
+                    furnaceName,
+                    config.maxTemperature(),
+                    config.departureDate(),
+                    new LinkedHashMap<>(plannedItems)
+            ));
+        }
+
+        if (requests.isEmpty()) {
+            throw new IllegalArgumentException("Nessun forno con nuovi item da confermare.");
+        }
+        return requests;
+    }
+
     public ConfirmationResult confirmPresintering(int furnaceId,
                                                   String furnaceName,
                                                   LocalDate firingDate,
@@ -311,5 +353,15 @@ public class PresinteringService {
     }
 
     public record ConfirmationResult(int firingId, int linkedProductionOrders, int lotCount) {
+    }
+
+    public record FurnaceConfig(Integer maxTemperature, LocalDate departureDate) {
+    }
+
+    public record BatchConfirmationRequest(int furnaceId,
+                                           String furnaceName,
+                                           int maxTemperature,
+                                           LocalDate departureDate,
+                                           Map<Integer, Integer> plannedItemsByItemId) {
     }
 }

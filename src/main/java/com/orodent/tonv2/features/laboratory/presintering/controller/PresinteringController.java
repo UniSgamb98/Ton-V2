@@ -42,57 +42,7 @@ public class PresinteringController {
                 view.setFurnaceItemSuggestionRows(suggestions);
             });
             view.setOnPlanningSnapshotChanged(service::saveSnapshot);
-            view.setOnConfirmPresintering(request -> {
-                try {
-                    int confirmedFurnaces = 0;
-                    int totalLinkedOrders = 0;
-                    int totalLots = 0;
-                    List<Integer> firingIds = new java.util.ArrayList<>();
-                    List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
-
-                    for (PresinteringView.FurnaceConfirmationRequest furnaceRequest : request.furnaces()) {
-                        PresinteringService.ConfirmationResult result = service.confirmPresintering(
-                                furnaceRequest.furnaceId(),
-                                furnaceRequest.furnaceName(),
-                                furnaceRequest.departureDate(),
-                                furnaceRequest.maxTemperature(),
-                                furnaceRequest.plannedItemsByItemId()
-                        );
-                        confirmedFurnaces++;
-                        totalLinkedOrders += result.linkedProductionOrders();
-                        totalLots += result.lotCount();
-                        firingIds.add(result.firingId());
-                        furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
-                                result.firingId(),
-                                furnaceRequest.departureDate(),
-                                furnaceRequest.furnaceName(),
-                                furnaceRequest.maxTemperature(),
-                                furnaceRequest.plannedItemsByItemId()
-                        ));
-                    }
-
-                    String documentPath = service.generateBatchDocumentIfTemplateSelected(
-                            view.getTemplateSelector().getValue(),
-                            furnacePayloads
-                    );
-                    if (documentPath != null) {
-                        documentBrowserService.openDocument(documentPath);
-                    }
-
-                    service.clearSnapshot();
-                    loadData();
-                    view.setFeedback(
-                            "Presinterizzazione confermata su " + confirmedFurnaces + " forni."
-                                    + " · firing: " + firingIds
-                                    + " · ordini collegati: " + totalLinkedOrders
-                                    + " · lotti creati: " + totalLots
-                                    + (documentPath == null ? "" : " · documento batch aperto: " + documentPath),
-                            false
-                    );
-                } catch (Exception e) {
-                    view.setFeedback("Errore conferma presinterizzazione: " + e.getMessage(), true);
-                }
-            });
+            view.setOnConfirmRequested(this::confirmAllPlannedFurnaces);
             refreshTemplateSelector();
             view.setFeedback("", false);
         } catch (Exception e) {
@@ -109,5 +59,69 @@ public class PresinteringController {
         view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
                 service.setLastTemplateName(newValue)
         );
+    }
+
+    private void confirmAllPlannedFurnaces() {
+        try {
+            java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfig = new java.util.LinkedHashMap<>();
+            for (java.util.Map.Entry<Integer, PresinteringView.FurnaceConfigInput> entry : view.getFurnaceConfigSnapshot().entrySet()) {
+                PresinteringView.FurnaceConfigInput config = entry.getValue();
+                furnaceConfig.put(entry.getKey(), new PresinteringService.FurnaceConfig(config.maxTemperature(), config.departureDate()));
+            }
+
+            List<PresinteringService.BatchConfirmationRequest> furnaceRequests = service.buildBatchConfirmationRequests(
+                    view.getPlannedByFurnaceSnapshot(),
+                    view.getFurnaceNameByIdSnapshot(),
+                    furnaceConfig
+            );
+
+            int confirmedFurnaces = 0;
+            int totalLinkedOrders = 0;
+            int totalLots = 0;
+            List<Integer> firingIds = new java.util.ArrayList<>();
+            List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
+
+            for (PresinteringService.BatchConfirmationRequest furnaceRequest : furnaceRequests) {
+                PresinteringService.ConfirmationResult result = service.confirmPresintering(
+                        furnaceRequest.furnaceId(),
+                        furnaceRequest.furnaceName(),
+                        furnaceRequest.departureDate(),
+                        furnaceRequest.maxTemperature(),
+                        furnaceRequest.plannedItemsByItemId()
+                );
+                confirmedFurnaces++;
+                totalLinkedOrders += result.linkedProductionOrders();
+                totalLots += result.lotCount();
+                firingIds.add(result.firingId());
+                furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
+                        result.firingId(),
+                        furnaceRequest.departureDate(),
+                        furnaceRequest.furnaceName(),
+                        furnaceRequest.maxTemperature(),
+                        furnaceRequest.plannedItemsByItemId()
+                ));
+            }
+
+            String documentPath = service.generateBatchDocumentIfTemplateSelected(
+                    view.getTemplateSelector().getValue(),
+                    furnacePayloads
+            );
+            if (documentPath != null) {
+                documentBrowserService.openDocument(documentPath);
+            }
+
+            service.clearSnapshot();
+            loadData();
+            view.setFeedback(
+                    "Presinterizzazione confermata su " + confirmedFurnaces + " forni."
+                            + " · firing: " + firingIds
+                            + " · ordini collegati: " + totalLinkedOrders
+                            + " · lotti creati: " + totalLots
+                            + (documentPath == null ? "" : " · documento batch aperto: " + documentPath),
+                    false
+            );
+        } catch (Exception e) {
+            view.setFeedback("Errore conferma presinterizzazione: " + e.getMessage(), true);
+        }
     }
 }
