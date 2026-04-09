@@ -137,7 +137,7 @@ public class PresinteringService {
         }
 
         try {
-            Firing firing = firingRepo.insert(firingDate, furnaceName, maxTemperature, null, "Presinterizzazione forno id=" + furnaceId);
+            Firing firing = firingRepo.insert(firingDate, furnaceName, maxTemperature, "Presinterizzazione forno id=" + furnaceId);
             Set<Integer> productionOrdersToLink = new LinkedHashSet<>();
 
             for (Map.Entry<Integer, Integer> plannedEntry : plannedItemsByItemId.entrySet()) {

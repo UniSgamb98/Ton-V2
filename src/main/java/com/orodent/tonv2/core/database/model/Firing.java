@@ -7,6 +7,5 @@ public record Firing(
         LocalDate firingDate,
         String furnace,
         Integer maxTemperature,
-        Integer durationMinutes,
         String notes
 ) {}

@@ -5,5 +5,5 @@ import com.orodent.tonv2.core.database.model.Firing;
 import java.time.LocalDate;
 
 public interface FiringRepository {
-    Firing insert(LocalDate firingDate, String furnace, Integer maxTemperature, Integer durationMinutes, String notes);
+    Firing insert(LocalDate firingDate, String furnace, Integer maxTemperature, String notes);
 }

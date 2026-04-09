@@ -20,10 +20,10 @@ public class FiringRepositoryImpl implements FiringRepository {
     }
 
     @Override
-    public Firing insert(LocalDate firingDate, String furnace, Integer maxTemperature, Integer durationMinutes, String notes) {
+    public Firing insert(LocalDate firingDate, String furnace, Integer maxTemperature, String notes) {
         String sql = """
-                INSERT INTO firing (firing_date, furnace, max_temperature, duration_minutes, notes)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO firing (firing_date, furnace, max_temperature, notes)
+                VALUES (?, ?, ?, ?)
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setDate(1, Date.valueOf(firingDate));
@@ -33,17 +33,12 @@ public class FiringRepositoryImpl implements FiringRepository {
             } else {
                 ps.setInt(3, maxTemperature);
             }
-            if (durationMinutes == null) {
-                ps.setNull(4, java.sql.Types.INTEGER);
-            } else {
-                ps.setInt(4, durationMinutes);
-            }
-            ps.setString(5, notes);
+            ps.setString(4, notes);
             ps.executeUpdate();
 
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {
-                    return new Firing(keys.getInt(1), firingDate, furnace, maxTemperature, durationMinutes, notes);
+                    return new Firing(keys.getInt(1), firingDate, furnace, maxTemperature, notes);
                 }
             }
             throw new SQLException("Nessun ID restituito per firing");

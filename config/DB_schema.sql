@@ -292,8 +292,6 @@ CREATE TABLE firing (
     furnace VARCHAR(50) NOT NULL,
 
     max_temperature INTEGER,
-    duration_minutes INTEGER,
-
     notes VARCHAR(500),
 
     PRIMARY KEY (id),
@@ -317,6 +315,53 @@ CREATE TABLE production_order_firing (
     CONSTRAINT fk_pof_firing
         FOREIGN KEY (firing_id)
         REFERENCES firing(id)
+);
+
+------------------------------------------------------------
+-- TABLE: cubage (testata minima)
+------------------------------------------------------------
+CREATE TABLE cubage (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    firing_id INTEGER NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_cubage_firing
+        FOREIGN KEY (firing_id)
+        REFERENCES firing(id)
+);
+
+------------------------------------------------------------
+-- TABLE: cubage_measurement (misura per singola unità)
+------------------------------------------------------------
+CREATE TABLE cubage_measurement (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    cubage_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+    unit_index INTEGER NOT NULL,
+
+    volume_mm3 DECIMAL(12,3) NOT NULL,
+    density_g_cm3 DECIMAL(10,5) NOT NULL,
+    mass_g DECIMAL(12,5),
+    firing_temperature_snapshot INTEGER,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_cm_cubage
+        FOREIGN KEY (cubage_id)
+        REFERENCES cubage(id),
+
+    CONSTRAINT fk_cm_item
+        FOREIGN KEY (item_id)
+        REFERENCES item(id),
+
+    CONSTRAINT uq_cm_unit
+        UNIQUE (cubage_id, item_id, unit_index),
+
+    CONSTRAINT ck_cm_unit_index CHECK (unit_index > 0),
+    CONSTRAINT ck_cm_volume CHECK (volume_mm3 > 0),
+    CONSTRAINT ck_cm_density CHECK (density_g_cm3 > 0),
+    CONSTRAINT ck_cm_mass CHECK (mass_g IS NULL OR mass_g > 0)
 );
 
 ------------------------------------------------------------
