@@ -249,6 +249,35 @@ public class PresinteringService {
         }
     }
 
+    public String generateBatchDocumentIfTemplateSelected(String selectedTemplateName,
+                                                          List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnaces) {
+        if (selectedTemplateName == null || selectedTemplateName.isBlank()) {
+            return null;
+        }
+
+        String templateText = templateEditorService.getTemplateContentByName(selectedTemplateName);
+        if (templateText == null || templateText.isBlank()) {
+            throw new IllegalArgumentException("Template selezionato non trovato: " + selectedTemplateName);
+        }
+
+        templateEditorService.setLastPresinteringTemplateName(selectedTemplateName);
+        Map<String, Object> params = documentParamsService.buildBatchParams(furnaces);
+
+        String payloadJson = templateEditorService.toJson(params);
+        TemplateEditorService.PreviewResult renderResult = templateEditorService.previewTemplate(templateText, payloadJson);
+        if (!renderResult.success()) {
+            throw new IllegalArgumentException("Errore generazione documento: " + renderResult.htmlOrError());
+        }
+
+        try {
+            Path outputFile = Files.createTempFile("ton-presintering-batch-document-", ".html");
+            Files.writeString(outputFile, renderResult.htmlOrError());
+            return outputFile.toAbsolutePath().toString();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Documento batch generato ma non salvabile su file temporaneo.");
+        }
+    }
+
     private String buildRandomLotCode(int firingId, int itemId) {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
         return "LOT-F" + firingId + "-I" + itemId + "-" + suffix;
