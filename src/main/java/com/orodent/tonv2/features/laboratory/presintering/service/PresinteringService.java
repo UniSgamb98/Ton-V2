@@ -320,6 +320,53 @@ public class PresinteringService {
         }
     }
 
+    public ConfirmBatchResult confirmBatch(ConfirmBatchCommand command) {
+        if (command == null || command.requests() == null || command.requests().isEmpty()) {
+            throw new IllegalArgumentException("Nessun forno con nuovi item da confermare.");
+        }
+
+        int confirmedFurnaces = 0;
+        int totalLinkedOrders = 0;
+        int totalLots = 0;
+        List<Integer> firingIds = new java.util.ArrayList<>();
+        List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
+
+        for (BatchConfirmationRequest furnaceRequest : command.requests()) {
+            ConfirmationResult result = confirmPresintering(
+                    furnaceRequest.furnaceId(),
+                    furnaceRequest.furnaceName(),
+                    furnaceRequest.departureDate(),
+                    furnaceRequest.maxTemperature(),
+                    furnaceRequest.plannedItemsByItemId()
+            );
+
+            confirmedFurnaces++;
+            totalLinkedOrders += result.linkedProductionOrders();
+            totalLots += result.lotCount();
+            firingIds.add(result.firingId());
+            furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
+                    result.firingId(),
+                    furnaceRequest.departureDate(),
+                    furnaceRequest.furnaceName(),
+                    furnaceRequest.maxTemperature(),
+                    furnaceRequest.plannedItemsByItemId()
+            ));
+        }
+
+        String documentPath = generateBatchDocumentIfTemplateSelected(
+                command.selectedTemplateName(),
+                furnacePayloads
+        );
+
+        return new ConfirmBatchResult(
+                confirmedFurnaces,
+                firingIds,
+                totalLinkedOrders,
+                totalLots,
+                documentPath
+        );
+    }
+
     private String buildRandomLotCode(int firingId, int itemId) {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
         return "LOT-F" + firingId + "-I" + itemId + "-" + suffix;
@@ -363,5 +410,16 @@ public class PresinteringService {
                                            int maxTemperature,
                                            LocalDate departureDate,
                                            Map<Integer, Integer> plannedItemsByItemId) {
+    }
+
+    public record ConfirmBatchCommand(List<BatchConfirmationRequest> requests,
+                                      String selectedTemplateName) {
+    }
+
+    public record ConfirmBatchResult(int confirmedFurnaces,
+                                     List<Integer> firingIds,
+                                     int totalLinkedOrders,
+                                     int totalLots,
+                                     String documentPath) {
     }
 }

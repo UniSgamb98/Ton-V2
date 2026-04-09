@@ -3,7 +3,6 @@ package com.orodent.tonv2.features.laboratory.presintering.controller;
 import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.document.service.DocumentBrowserService;
-import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 
@@ -78,50 +77,24 @@ public class PresinteringController {
                     view.getFurnaceNameByIdSnapshot(),
                     furnaceConfig
             );
-
-            int confirmedFurnaces = 0;
-            int totalLinkedOrders = 0;
-            int totalLots = 0;
-            List<Integer> firingIds = new java.util.ArrayList<>();
-            List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
-
-            for (PresinteringService.BatchConfirmationRequest furnaceRequest : furnaceRequests) {
-                PresinteringService.ConfirmationResult result = service.confirmPresintering(
-                        furnaceRequest.furnaceId(),
-                        furnaceRequest.furnaceName(),
-                        furnaceRequest.departureDate(),
-                        furnaceRequest.maxTemperature(),
-                        furnaceRequest.plannedItemsByItemId()
-                );
-                confirmedFurnaces++;
-                totalLinkedOrders += result.linkedProductionOrders();
-                totalLots += result.lotCount();
-                firingIds.add(result.firingId());
-                furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
-                        result.firingId(),
-                        furnaceRequest.departureDate(),
-                        furnaceRequest.furnaceName(),
-                        furnaceRequest.maxTemperature(),
-                        furnaceRequest.plannedItemsByItemId()
-                ));
-            }
-
-            String documentPath = service.generateBatchDocumentIfTemplateSelected(
-                    view.getTemplateSelector().getValue(),
-                    furnacePayloads
+            PresinteringService.ConfirmBatchResult result = service.confirmBatch(
+                    new PresinteringService.ConfirmBatchCommand(
+                            furnaceRequests,
+                            view.getTemplateSelector().getValue()
+                    )
             );
-            if (documentPath != null) {
-                documentBrowserService.openDocument(documentPath);
+            if (result.documentPath() != null) {
+                documentBrowserService.openDocument(result.documentPath());
             }
 
             service.clearSnapshot();
             loadData();
             view.setFeedback(
-                    "Presinterizzazione confermata su " + confirmedFurnaces + " forni."
-                            + " · firing: " + firingIds
-                            + " · ordini collegati: " + totalLinkedOrders
-                            + " · lotti creati: " + totalLots
-                            + (documentPath == null ? "" : " · documento batch aperto: " + documentPath),
+                    "Presinterizzazione confermata su " + result.confirmedFurnaces() + " forni."
+                            + " · firing: " + result.firingIds()
+                            + " · ordini collegati: " + result.totalLinkedOrders()
+                            + " · lotti creati: " + result.totalLots()
+                            + (result.documentPath() == null ? "" : " · documento batch aperto: " + result.documentPath()),
                     false
             );
         } catch (Exception e) {
