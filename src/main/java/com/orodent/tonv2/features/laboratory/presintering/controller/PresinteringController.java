@@ -23,7 +23,12 @@ public class PresinteringController {
         this.service = service;
         this.documentBrowserService = documentBrowserService;
 
+        setupActions();
         loadData();
+    }
+
+    private void setupActions() {
+        view.getConfirmPresinteringButton().setOnAction(e -> confirmAllPlannedFurnaces());
     }
 
     private void loadData() {
@@ -42,7 +47,6 @@ public class PresinteringController {
                 view.setFurnaceItemSuggestionRows(suggestions);
             });
             view.setOnPlanningSnapshotChanged(service::saveSnapshot);
-            view.setOnConfirmRequested(this::confirmAllPlannedFurnaces);
             refreshTemplateSelector();
             view.setFeedback("", false);
         } catch (Exception e) {

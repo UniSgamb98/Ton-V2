@@ -51,7 +51,6 @@ public class PresinteringView extends VBox {
     private final DatePicker selectedFurnaceDepartureDatePicker = new DatePicker();
     private final VBox selectedFurnaceItemsBox = new VBox(6);
     private final Button confirmPresinteringButton = new Button("Conferma tutti\ni forni");
-    private Runnable onConfirmRequested;
 
     private String selectedFurnaceName;
     private Integer selectedFurnaceId;
@@ -161,10 +160,6 @@ public class PresinteringView extends VBox {
 
     public void setOnPlanningSnapshotChanged(Consumer<PresinteringPlanningSnapshot> onPlanningSnapshotChanged) {
         this.onPlanningSnapshotChanged = onPlanningSnapshotChanged;
-    }
-
-    public void setOnConfirmRequested(Runnable onConfirmRequested) {
-        this.onConfirmRequested = onConfirmRequested;
     }
 
     public ComboBox<String> getTemplateSelector() {
@@ -433,11 +428,6 @@ public class PresinteringView extends VBox {
         confirmPresinteringButton.setMinHeight(220);
         confirmPresinteringButton.setWrapText(true);
         confirmPresinteringButton.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
-        confirmPresinteringButton.setOnAction(e -> {
-            if (onConfirmRequested != null) {
-                onConfirmRequested.run();
-            }
-        });
         confirmPresinteringButton.setVisible(true);
         confirmPresinteringButton.setManaged(true);
 
@@ -567,6 +557,14 @@ public class PresinteringView extends VBox {
             copy.put(entry.getKey(), new FurnaceConfigInput(config.maxTemperature(), config.departureDate()));
         }
         return copy;
+    }
+
+    public Button getConfirmPresinteringButton() {
+        return confirmPresinteringButton;
+    }
+
+    public Button getInsertDisksButton() {
+        return insertDisksButton;
     }
 
     private VBox buildInsightsSection() {
