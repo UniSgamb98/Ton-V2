@@ -6,6 +6,7 @@ import com.orodent.tonv2.core.database.repository.FiringRepository;
 import com.orodent.tonv2.core.database.repository.FurnaceRepository;
 import com.orodent.tonv2.core.database.repository.LotRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
+import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -33,17 +34,23 @@ public class PresinteringService {
     private final FurnaceRepository furnaceRepo;
     private final FiringRepository firingRepo;
     private final LotRepository lotRepo;
+    private final TemplateEditorService templateEditorService;
+    private final PresinteringDocumentParamsService documentParamsService;
     private final Connection conn;
 
     public PresinteringService(ProductionRepository productionRepo,
                                FurnaceRepository furnaceRepo,
                                FiringRepository firingRepo,
                                LotRepository lotRepo,
+                               TemplateEditorService templateEditorService,
+                               PresinteringDocumentParamsService documentParamsService,
                                Connection conn) {
         this.productionRepo = productionRepo;
         this.furnaceRepo = furnaceRepo;
         this.firingRepo = firingRepo;
         this.lotRepo = lotRepo;
+        this.templateEditorService = templateEditorService;
+        this.documentParamsService = documentParamsService;
         this.conn = conn;
     }
 
@@ -108,6 +115,20 @@ public class PresinteringService {
         } catch (Exception ignored) {
             // Best effort delete.
         }
+    }
+
+    public List<String> findTemplateNames() {
+        return templateEditorService.getSavedTemplates().stream()
+                .map(TemplateEditorService.TemplateSnapshot::name)
+                .toList();
+    }
+
+    public String getLastTemplateName() {
+        return templateEditorService.getLastPresinteringTemplateName();
+    }
+
+    public void setLastTemplateName(String templateName) {
+        templateEditorService.setLastPresinteringTemplateName(templateName);
     }
 
     public ConfirmationResult confirmPresintering(int furnaceId,
@@ -184,6 +205,47 @@ public class PresinteringService {
                 // ignore
             }
             throw new RuntimeException("Errore durante conferma presinterizzazione.", e);
+        }
+    }
+
+    public String generateDocumentIfTemplateSelected(String selectedTemplateName,
+                                                     ConfirmationResult confirmationResult,
+                                                     String furnaceName,
+                                                     LocalDate firingDate,
+                                                     Integer maxTemperature,
+                                                     Map<Integer, Integer> plannedItemsByItemId) {
+        if (selectedTemplateName == null || selectedTemplateName.isBlank()) {
+            return null;
+        }
+
+        String templateText = templateEditorService.getTemplateContentByName(selectedTemplateName);
+        if (templateText == null || templateText.isBlank()) {
+            throw new IllegalArgumentException("Template selezionato non trovato: " + selectedTemplateName);
+        }
+
+        templateEditorService.setLastPresinteringTemplateName(selectedTemplateName);
+        Map<String, Object> params = documentParamsService.buildParams(
+                new PresinteringDocumentParamsService.ParamsRequest(
+                        confirmationResult.firingId(),
+                        firingDate,
+                        furnaceName,
+                        maxTemperature,
+                        plannedItemsByItemId
+                )
+        );
+
+        String payloadJson = templateEditorService.toJson(params);
+        TemplateEditorService.PreviewResult renderResult = templateEditorService.previewTemplate(templateText, payloadJson);
+        if (!renderResult.success()) {
+            throw new IllegalArgumentException("Errore generazione documento: " + renderResult.htmlOrError());
+        }
+
+        try {
+            Path outputFile = Files.createTempFile("ton-presintering-document-", ".html");
+            Files.writeString(outputFile, renderResult.htmlOrError());
+            return outputFile.toAbsolutePath().toString();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Documento generato ma non salvabile su file temporaneo.");
         }
     }
 

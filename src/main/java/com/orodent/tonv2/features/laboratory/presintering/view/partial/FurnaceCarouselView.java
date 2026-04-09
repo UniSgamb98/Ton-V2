@@ -7,9 +7,11 @@ import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
@@ -40,6 +42,7 @@ public class FurnaceCarouselView extends VBox {
 
     private final Button leftArrow = new Button("<");
     private final Button rightArrow = new Button(">");
+    private final ComboBox<String> templateSelector = new ComboBox<>();
 
     private Timeline leftHoldTimeline;
     private Timeline rightHoldTimeline;
@@ -117,6 +120,13 @@ public class FurnaceCarouselView extends VBox {
 
         Label sectionTitle = new Label("Guida forni");
         sectionTitle.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        templateSelector.setPromptText("Template documento");
+        templateSelector.setMaxWidth(260);
+
+        Region titleSpacer = new Region();
+        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+        HBox titleRow = new HBox(10, sectionTitle, titleSpacer, templateSelector);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
 
         Label sectionHint = new Label("Scorri i forni per confrontare combinazioni item/temperatura prima di assegnare.");
         sectionHint.setStyle("-fx-opacity: 0.85;");
@@ -152,7 +162,24 @@ public class FurnaceCarouselView extends VBox {
         attachArrowBehaviour(leftArrow, -1);
         attachArrowBehaviour(rightArrow, 1);
 
-        getChildren().addAll(sectionTitle, sectionHint, carouselPane);
+        getChildren().addAll(titleRow, sectionHint, carouselPane);
+    }
+
+    public ComboBox<String> getTemplateSelector() {
+        return templateSelector;
+    }
+
+    public void setTemplateNames(List<String> names, String preselectedName) {
+        templateSelector.getItems().setAll(names);
+        if (preselectedName != null && names.contains(preselectedName)) {
+            templateSelector.setValue(preselectedName);
+            return;
+        }
+        if (!names.isEmpty()) {
+            templateSelector.setValue(names.getFirst());
+            return;
+        }
+        templateSelector.setValue(null);
     }
 
     private void render() {

@@ -3,6 +3,7 @@ package com.orodent.tonv2.features.documents.template.service;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringDocumentParamsService;
 
 import java.lang.reflect.Type;
 import java.sql.Connection;
@@ -16,6 +17,7 @@ public class TemplateEditorWorkflowService {
     private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
     private static final String DEFAULT_TEMPLATE_NAME = "NuovoTemplate";
     private static final String DEFAULT_PRESET_CODE = "Batch Production";
+    private static final String PRESINTERING_PRESET_CODE = "Presintering Furnace";
     private static final String DEFAULT_TEMPLATE_CONTENT = """
             <html>
               <body>
@@ -27,15 +29,18 @@ public class TemplateEditorWorkflowService {
     private final TemplateEditorService templateEditorService;
     private final Supplier<Connection> connectionSupplier;
     private final BatchProductionDocumentParamsService batchPresetService;
+    private final PresinteringDocumentParamsService presinteringPresetService;
     private final Map<String, Map<String, Object>> presetPayloadByCode = new LinkedHashMap<>();
     private final Gson gson = new Gson();
 
     public TemplateEditorWorkflowService(TemplateEditorService templateEditorService,
                                          Supplier<Connection> connectionSupplier,
-                                         BatchProductionDocumentParamsService batchPresetService) {
+                                         BatchProductionDocumentParamsService batchPresetService,
+                                         PresinteringDocumentParamsService presinteringPresetService) {
         this.templateEditorService = templateEditorService;
         this.connectionSupplier = connectionSupplier;
         this.batchPresetService = batchPresetService;
+        this.presinteringPresetService = presinteringPresetService;
 
         loadPresets();
     }
@@ -148,6 +153,10 @@ public class TemplateEditorWorkflowService {
                 BatchProductionDocumentParamsService.ParamsRequest.preset("Preset automatico da DB", 1)
         );
         presetPayloadByCode.put(DEFAULT_PRESET_CODE, batchPreset);
+        presetPayloadByCode.put(
+                PRESINTERING_PRESET_CODE,
+                presinteringPresetService.buildPresetParams("Preset automatico presinterizzazione")
+        );
     }
 
     @SuppressWarnings("unchecked")

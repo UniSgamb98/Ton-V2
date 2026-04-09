@@ -17,6 +17,7 @@ public class TemplateEditorService {
     private final TemplateVariableService variables;
     private final TemplateStorageService storage;
     private String lastBatchTemplateName;
+    private String lastPresinteringTemplateName;
 
     public TemplateEditorService(Supplier<Connection> connectionSupplier) {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -137,6 +138,14 @@ public class TemplateEditorService {
 
     public void setLastBatchTemplateName(String templateName) {
         lastBatchTemplateName = templateName == null || templateName.isBlank() ? null : templateName.trim();
+    }
+
+    public String getLastPresinteringTemplateName() {
+        return lastPresinteringTemplateName;
+    }
+
+    public void setLastPresinteringTemplateName(String templateName) {
+        lastPresinteringTemplateName = templateName == null || templateName.isBlank() ? null : templateName.trim();
     }
 
     private String normalizeTemplateName(String templateName) {

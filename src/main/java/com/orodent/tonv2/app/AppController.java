@@ -28,6 +28,7 @@ import com.orodent.tonv2.features.laboratory.production.service.BatchProductionD
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 import com.orodent.tonv2.features.laboratory.presintering.controller.PresinteringController;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CompositionArchiveController;
@@ -143,8 +144,16 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
                 app.itemRepo(),
                 app.lineRepo()
         );
+        PresinteringDocumentParamsService presinteringPresetService = new PresinteringDocumentParamsService(
+                app.itemRepo()
+        );
 
-        return new TemplateEditorWorkflowService(app.templateEditorService(), app.database::getConnection, batchPresetService);
+        return new TemplateEditorWorkflowService(
+                app.templateEditorService(),
+                app.database::getConnection,
+                batchPresetService,
+                presinteringPresetService
+        );
     }
 
     public void showInventory() {
@@ -277,8 +286,11 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
                         app.furnaceRepo(),
                         app.firingRepo(),
                         app.lotRepo(),
+                        app.templateEditorService(),
+                        new PresinteringDocumentParamsService(app.itemRepo()),
                         app.database.getConnection()
-                )
+                ),
+                app.documentBrowserService()
         );
 
         stage.setScene(createSceneWithCSS(view));

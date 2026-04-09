@@ -8,6 +8,7 @@ import com.orodent.tonv2.features.laboratory.presintering.view.partial.FurnaceCa
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -153,6 +154,14 @@ public class PresinteringView extends VBox {
 
     public void setOnConfirmPresintering(Consumer<ConfirmPresinteringRequest> onConfirmPresintering) {
         this.onConfirmPresintering = onConfirmPresintering;
+    }
+
+    public ComboBox<String> getTemplateSelector() {
+        return furnaceCarouselView.getTemplateSelector();
+    }
+
+    public void setTemplateNames(List<String> names, String preselectedName) {
+        furnaceCarouselView.setTemplateNames(names, preselectedName);
     }
 
     public void applyPlanningSnapshot(PresinteringPlanningSnapshot snapshot) {
