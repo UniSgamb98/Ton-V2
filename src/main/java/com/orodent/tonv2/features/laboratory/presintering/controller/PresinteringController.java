@@ -14,6 +14,7 @@ public class PresinteringController {
 
     private final PresinteringService service;
     private final DocumentBrowserService documentBrowserService;
+    private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
 
     public PresinteringController(PresinteringView view,
                                   PresinteringService service,
@@ -28,6 +29,8 @@ public class PresinteringController {
 
     private void setupActions() {
         view.getConfirmPresinteringButton().setOnAction(e -> confirmAllPlannedFurnaces());
+        view.getSelectedFurnaceMaxTemperatureField().textProperty().addListener((obs, oldValue, newValue) -> syncSelectedFurnaceConfigFromView());
+        view.getSelectedFurnaceDepartureDatePicker().valueProperty().addListener((obs, oldValue, newValue) -> syncSelectedFurnaceConfigFromView());
     }
 
     private void loadData() {
@@ -44,6 +47,14 @@ public class PresinteringController {
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
                 view.setFurnaceItemSuggestionRows(suggestions);
+                Integer selectedFurnaceId = view.getSelectedFurnaceId();
+                PresinteringService.FurnaceConfig config = selectedFurnaceId == null
+                        ? null
+                        : furnaceConfigById.get(selectedFurnaceId);
+                view.setSelectedFurnaceParameters(
+                        config == null ? null : config.maxTemperature(),
+                        config == null ? null : config.departureDate()
+                );
             });
             view.setOnPlanningSnapshotChanged(service::saveSnapshot);
             refreshTemplateSelector();
@@ -66,16 +77,10 @@ public class PresinteringController {
 
     private void confirmAllPlannedFurnaces() {
         try {
-            java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfig = new java.util.LinkedHashMap<>();
-            for (java.util.Map.Entry<Integer, PresinteringView.FurnaceConfigInput> entry : view.getFurnaceConfigSnapshot().entrySet()) {
-                PresinteringView.FurnaceConfigInput config = entry.getValue();
-                furnaceConfig.put(entry.getKey(), new PresinteringService.FurnaceConfig(config.maxTemperature(), config.departureDate()));
-            }
-
             List<PresinteringService.BatchConfirmationRequest> furnaceRequests = service.buildBatchConfirmationRequests(
                     view.getPlannedByFurnaceSnapshot(),
                     view.getFurnaceNameByIdSnapshot(),
-                    furnaceConfig
+                    furnaceConfigById
             );
             PresinteringService.ConfirmBatchResult result = service.confirmBatch(
                     new PresinteringService.ConfirmBatchCommand(
@@ -100,5 +105,25 @@ public class PresinteringController {
         } catch (Exception e) {
             view.setFeedback("Errore conferma presinterizzazione: " + e.getMessage(), true);
         }
+    }
+
+    private void syncSelectedFurnaceConfigFromView() {
+        Integer selectedFurnaceId = view.getSelectedFurnaceId();
+        if (selectedFurnaceId == null) {
+            return;
+        }
+
+        Integer maxTemperature = null;
+        String maxTemperatureText = view.getSelectedFurnaceMaxTemperatureField().getText();
+        if (maxTemperatureText != null && !maxTemperatureText.isBlank()) {
+            maxTemperature = Integer.parseInt(maxTemperatureText);
+        }
+        furnaceConfigById.put(
+                selectedFurnaceId,
+                new PresinteringService.FurnaceConfig(
+                        maxTemperature,
+                        view.getSelectedFurnaceDepartureDatePicker().getValue()
+                )
+        );
     }
 }

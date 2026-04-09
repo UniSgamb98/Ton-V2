@@ -39,7 +39,6 @@ public class PresinteringView extends VBox {
     private final Map<Integer, String> itemCodeById = new LinkedHashMap<>();
     private final Map<Integer, String> productNameByItemId = new LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameById = new LinkedHashMap<>();
-    private final Map<Integer, FurnacePlanningConfig> furnaceConfigById = new LinkedHashMap<>();
     private final VBox compositionRankingBox = new VBox(6);
     private final VBox furnaceSuggestionsBox = new VBox(6);
     private final Label furnaceSuggestionsTitle = new Label("Item consigliati per forno selezionato");
@@ -399,13 +398,10 @@ public class PresinteringView extends VBox {
             String sanitized = newValue == null ? "" : newValue.replaceAll("[^\\d]", "");
             if (!sanitized.equals(newValue)) {
                 selectedFurnaceMaxTemperatureField.setText(sanitized);
-                return;
             }
-            saveSelectedFurnaceConfig();
         });
         selectedFurnaceDepartureDatePicker.setPromptText("Partenza");
         selectedFurnaceDepartureDatePicker.setValue(LocalDate.now());
-        selectedFurnaceDepartureDatePicker.valueProperty().addListener((obs, oldValue, newValue) -> saveSelectedFurnaceConfig());
 
         Label fieldsLabel = new Label("Parametri firing");
         fieldsLabel.setStyle("-fx-font-weight: bold;");
@@ -462,12 +458,9 @@ public class PresinteringView extends VBox {
         selectedFurnaceCard.setManaged(true);
         confirmPresinteringButton.setDisable(!hasPlannedFurnaces);
         selectedFurnaceCardTitle.setText(selectedFurnaceName);
-        FurnacePlanningConfig config = furnaceConfigById.computeIfAbsent(
-                selectedFurnaceId,
-                ignored -> new FurnacePlanningConfig(null, LocalDate.now())
-        );
-        selectedFurnaceMaxTemperatureField.setText(config.maxTemperature() == null ? "" : String.valueOf(config.maxTemperature()));
-        selectedFurnaceDepartureDatePicker.setValue(config.departureDate() == null ? LocalDate.now() : config.departureDate());
+        if (selectedFurnaceDepartureDatePicker.getValue() == null) {
+            selectedFurnaceDepartureDatePicker.setValue(LocalDate.now());
+        }
 
         Map<Integer, Integer> plannedItems = plannedByFurnace.getOrDefault(selectedFurnaceId, Map.of());
         if (plannedItems.isEmpty()) {
@@ -525,19 +518,6 @@ public class PresinteringView extends VBox {
         emitSnapshot();
     }
 
-    private void saveSelectedFurnaceConfig() {
-        if (selectedFurnaceId == null) {
-            return;
-        }
-        Integer maxTemperature = null;
-        String tempText = selectedFurnaceMaxTemperatureField.getText();
-        if (tempText != null && !tempText.isBlank()) {
-            maxTemperature = Integer.parseInt(tempText);
-        }
-        LocalDate departureDate = selectedFurnaceDepartureDatePicker.getValue();
-        furnaceConfigById.put(selectedFurnaceId, new FurnacePlanningConfig(maxTemperature, departureDate));
-    }
-
     public Map<Integer, Map<Integer, Integer>> getPlannedByFurnaceSnapshot() {
         Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
         for (Map.Entry<Integer, Map<Integer, Integer>> entry : plannedByFurnace.entrySet()) {
@@ -550,21 +530,33 @@ public class PresinteringView extends VBox {
         return new LinkedHashMap<>(furnaceNameById);
     }
 
-    public Map<Integer, FurnaceConfigInput> getFurnaceConfigSnapshot() {
-        Map<Integer, FurnaceConfigInput> copy = new LinkedHashMap<>();
-        for (Map.Entry<Integer, FurnacePlanningConfig> entry : furnaceConfigById.entrySet()) {
-            FurnacePlanningConfig config = entry.getValue();
-            copy.put(entry.getKey(), new FurnaceConfigInput(config.maxTemperature(), config.departureDate()));
-        }
-        return copy;
-    }
-
     public Button getConfirmPresinteringButton() {
         return confirmPresinteringButton;
     }
 
     public Button getInsertDisksButton() {
         return insertDisksButton;
+    }
+
+    public TextField getSelectedFurnaceMaxTemperatureField() {
+        return selectedFurnaceMaxTemperatureField;
+    }
+
+    public DatePicker getSelectedFurnaceDepartureDatePicker() {
+        return selectedFurnaceDepartureDatePicker;
+    }
+
+    public Integer getSelectedFurnaceId() {
+        return selectedFurnaceId;
+    }
+
+    public String getSelectedFurnaceName() {
+        return selectedFurnaceName;
+    }
+
+    public void setSelectedFurnaceParameters(Integer maxTemperature, LocalDate departureDate) {
+        selectedFurnaceMaxTemperatureField.setText(maxTemperature == null ? "" : String.valueOf(maxTemperature));
+        selectedFurnaceDepartureDatePicker.setValue(departureDate == null ? LocalDate.now() : departureDate);
     }
 
     private VBox buildInsightsSection() {
@@ -631,9 +623,4 @@ public class PresinteringView extends VBox {
         }
     }
 
-    private record FurnacePlanningConfig(Integer maxTemperature, LocalDate departureDate) {
-    }
-
-    public record FurnaceConfigInput(Integer maxTemperature, LocalDate departureDate) {
-    }
 }
