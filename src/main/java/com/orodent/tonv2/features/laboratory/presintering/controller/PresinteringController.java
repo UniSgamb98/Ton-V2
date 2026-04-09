@@ -43,33 +43,47 @@ public class PresinteringController {
             view.setOnPlanningSnapshotChanged(service::saveSnapshot);
             view.setOnConfirmPresintering(request -> {
                 try {
-                    PresinteringService.ConfirmationResult result = service.confirmPresintering(
-                            request.furnaceId(),
-                            request.furnaceName(),
-                            request.departureDate(),
-                            request.maxTemperature(),
-                            request.plannedItemsByItemId()
-                    );
+                    int confirmedFurnaces = 0;
+                    int totalLinkedOrders = 0;
+                    int totalLots = 0;
+                    List<Integer> firingIds = new java.util.ArrayList<>();
+                    int openedDocuments = 0;
 
-                    String documentPath = service.generateDocumentIfTemplateSelected(
-                            view.getTemplateSelector().getValue(),
-                            result,
-                            request.furnaceName(),
-                            request.departureDate(),
-                            request.maxTemperature(),
-                            request.plannedItemsByItemId()
-                    );
-                    if (documentPath != null) {
-                        documentBrowserService.openDocument(documentPath);
+                    for (PresinteringView.FurnaceConfirmationRequest furnaceRequest : request.furnaces()) {
+                        PresinteringService.ConfirmationResult result = service.confirmPresintering(
+                                furnaceRequest.furnaceId(),
+                                furnaceRequest.furnaceName(),
+                                furnaceRequest.departureDate(),
+                                furnaceRequest.maxTemperature(),
+                                furnaceRequest.plannedItemsByItemId()
+                        );
+                        confirmedFurnaces++;
+                        totalLinkedOrders += result.linkedProductionOrders();
+                        totalLots += result.lotCount();
+                        firingIds.add(result.firingId());
+
+                        String documentPath = service.generateDocumentIfTemplateSelected(
+                                view.getTemplateSelector().getValue(),
+                                result,
+                                furnaceRequest.furnaceName(),
+                                furnaceRequest.departureDate(),
+                                furnaceRequest.maxTemperature(),
+                                furnaceRequest.plannedItemsByItemId()
+                        );
+                        if (documentPath != null) {
+                            documentBrowserService.openDocument(documentPath);
+                            openedDocuments++;
+                        }
                     }
 
                     service.clearSnapshot();
                     loadData();
                     view.setFeedback(
-                            "Presinterizzazione confermata. Firing #" + result.firingId()
-                                    + " · ordini collegati: " + result.linkedProductionOrders()
-                                    + " · lotti creati: " + result.lotCount()
-                                    + (documentPath == null ? "" : " · documento aperto: " + documentPath),
+                            "Presinterizzazione confermata su " + confirmedFurnaces + " forni."
+                                    + " · firing: " + firingIds
+                                    + " · ordini collegati: " + totalLinkedOrders
+                                    + " · lotti creati: " + totalLots
+                                    + (openedDocuments == 0 ? "" : " · documenti aperti: " + openedDocuments),
                             false
                     );
                 } catch (Exception e) {
