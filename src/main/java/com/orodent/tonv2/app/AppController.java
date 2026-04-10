@@ -39,6 +39,7 @@ import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.DiskModelArchiveView;
 import com.orodent.tonv2.features.laboratory.home.view.LaboratoryView;
 import com.orodent.tonv2.features.registers.home.controller.RegistersController;
+import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
 import com.orodent.tonv2.features.registers.home.view.RegistersView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -170,7 +171,16 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
     public void showRegisters() {
         RegistersView view = new RegistersView();
         configureHeader(view.getHeader());
-        new RegistersController(view);
+        new RegistersController(
+                view,
+                new RegistersSearchService(
+                        app.itemRepo(),
+                        app.lotRepo(),
+                        app.firingRepo(),
+                        app.compositionRepo(),
+                        app.templateEditorService()
+                )
+        );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Registri");
