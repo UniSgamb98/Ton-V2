@@ -82,9 +82,6 @@ public class PresinteringController {
             view.setFurnaces(furnaces);
             view.setCompositionRankingRows(compositionRanking);
             view.setFurnaceItemSuggestionRows(List.of());
-            service.loadValidSnapshot(producedDisks).ifPresent(snapshot -> {
-                planningState = snapshot;
-            });
             view.renderPlanning(planningState, productNameByItemIdState);
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
@@ -129,7 +126,6 @@ public class PresinteringController {
                 documentBrowserService.openDocument(result.documentPath());
             }
 
-            service.clearSnapshot();
             loadData();
             view.setFeedback(
                     "Presinterizzazione confermata su " + result.confirmedFurnaces() + " forni."
@@ -209,6 +205,5 @@ public class PresinteringController {
 
     private void renderAndPersistPlanningState() {
         view.renderPlanning(planningState, productNameByItemIdState);
-        service.saveSnapshot(planningState);
     }
 }
