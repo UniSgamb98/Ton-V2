@@ -8,6 +8,7 @@ import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringSe
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +83,7 @@ public class PresinteringController {
             view.setFurnaces(furnaces);
             view.setCompositionRankingRows(compositionRanking);
             view.setFurnaceItemSuggestionRows(List.of());
+            restoreLocalPlanIfStillValid();
             view.renderPlanning(planningState, productNameByItemIdState);
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
@@ -126,6 +128,7 @@ public class PresinteringController {
                 documentBrowserService.openDocument(result.documentPath());
             }
 
+            service.clearLocalPlanState();
             loadData();
             view.setFeedback(
                     "Presinterizzazione confermata su " + result.confirmedFurnaces() + " forni."
@@ -205,5 +208,103 @@ public class PresinteringController {
 
     private void renderAndPersistPlanningState() {
         view.renderPlanning(planningState, productNameByItemIdState);
+        service.saveLocalPlanState(new PresinteringService.LocalPlanState(
+                planningState.plannedByFurnace(),
+                furnaceConfigById,
+                service.findLatestFiringId(),
+                Instant.now()
+        ));
+    }
+
+    private void restoreLocalPlanIfStillValid() {
+        PresinteringService.LocalPlanState localState = service.loadLocalPlanState().orElse(null);
+        if (localState == null) {
+            return;
+        }
+
+        Integer latestFiringId = service.findLatestFiringId();
+        if (!java.util.Objects.equals(localState.lastKnownFiringId(), latestFiringId)) {
+            service.clearLocalPlanState();
+            return;
+        }
+
+        Map<Integer, Integer> restoredAvailableByItem = new LinkedHashMap<>(planningState.availableByItemId());
+        Map<Integer, Map<Integer, Integer>> restoredPlanByFurnace = new LinkedHashMap<>();
+        boolean trimmed = false;
+
+        for (Map.Entry<Integer, Map<Integer, Integer>> furnaceEntry : localState.plannedByFurnace().entrySet()) {
+            Integer furnaceId = furnaceEntry.getKey();
+            if (!furnaceNameByIdState.containsKey(furnaceId)) {
+                trimmed = true;
+                continue;
+            }
+
+            Map<Integer, Integer> restoredByItem = new LinkedHashMap<>();
+            for (Map.Entry<Integer, Integer> itemEntry : furnaceEntry.getValue().entrySet()) {
+                Integer itemId = itemEntry.getKey();
+                int requestedQty = itemEntry.getValue() == null ? 0 : itemEntry.getValue();
+                if (requestedQty <= 0) {
+                    trimmed = true;
+                    continue;
+                }
+                int availableQty = restoredAvailableByItem.getOrDefault(itemId, 0);
+                int acceptedQty = Math.min(requestedQty, availableQty);
+                if (acceptedQty <= 0) {
+                    trimmed = true;
+                    continue;
+                }
+                restoredByItem.put(itemId, acceptedQty);
+                restoredAvailableByItem.put(itemId, availableQty - acceptedQty);
+                if (acceptedQty != requestedQty) {
+                    trimmed = true;
+                }
+            }
+
+            if (!restoredByItem.isEmpty()) {
+                restoredPlanByFurnace.put(furnaceId, restoredByItem);
+            } else {
+                trimmed = true;
+            }
+        }
+
+        Map<Integer, PresinteringService.FurnaceConfig> restoredConfigByFurnace = new LinkedHashMap<>();
+        for (Map.Entry<Integer, PresinteringService.FurnaceConfig> configEntry : localState.furnaceConfigById().entrySet()) {
+            Integer furnaceId = configEntry.getKey();
+            if (!furnaceNameByIdState.containsKey(furnaceId)) {
+                trimmed = true;
+                continue;
+            }
+            PresinteringService.FurnaceConfig config = configEntry.getValue();
+            if (config == null) {
+                trimmed = true;
+                continue;
+            }
+            LocalDate departureDate = config.departureDate();
+            Integer maxTemperature = config.maxTemperature();
+            restoredConfigByFurnace.put(furnaceId, new PresinteringService.FurnaceConfig(maxTemperature, departureDate));
+        }
+
+        if (restoredPlanByFurnace.isEmpty()) {
+            service.clearLocalPlanState();
+            return;
+        }
+
+        planningState = new PresinteringPlanningSnapshot(
+                restoredAvailableByItem,
+                restoredPlanByFurnace,
+                planningState.itemCodeById(),
+                Instant.now()
+        );
+        furnaceConfigById.clear();
+        furnaceConfigById.putAll(restoredConfigByFurnace);
+
+        if (trimmed) {
+            service.saveLocalPlanState(new PresinteringService.LocalPlanState(
+                    restoredPlanByFurnace,
+                    restoredConfigByFurnace,
+                    latestFiringId,
+                    Instant.now()
+            ));
+        }
     }
 }

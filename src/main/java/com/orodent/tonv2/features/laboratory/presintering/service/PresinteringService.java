@@ -8,16 +8,28 @@ import com.orodent.tonv2.core.database.repository.LotRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.sql.Connection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 public class PresinteringService {
+    private static final Path LOCAL_PLAN_PATH = Path.of(
+            System.getProperty("user.home"),
+            ".ton",
+            "presintering-local-plan.bin"
+    );
+
     private final ProductionRepository productionRepo;
     private final FurnaceRepository furnaceRepo;
     private final FiringRepository firingRepo;
@@ -75,6 +87,49 @@ public class PresinteringService {
 
     public void setLastTemplateName(String templateName) {
         templateEditorService.setLastPresinteringTemplateName(templateName);
+    }
+
+    public Integer findLatestFiringId() {
+        return firingRepo.findLatestId();
+    }
+
+    public Optional<LocalPlanState> loadLocalPlanState() {
+        if (!Files.exists(LOCAL_PLAN_PATH)) {
+            return Optional.empty();
+        }
+        try (ObjectInputStream in = new ObjectInputStream(Files.newInputStream(LOCAL_PLAN_PATH))) {
+            Object raw = in.readObject();
+            if (!(raw instanceof LocalPlanState state)) {
+                clearLocalPlanState();
+                return Optional.empty();
+            }
+            return Optional.of(state);
+        } catch (Exception ignored) {
+            clearLocalPlanState();
+            return Optional.empty();
+        }
+    }
+
+    public void saveLocalPlanState(LocalPlanState state) {
+        if (state == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(LOCAL_PLAN_PATH.getParent());
+            try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(LOCAL_PLAN_PATH))) {
+                out.writeObject(state);
+            }
+        } catch (Exception ignored) {
+            // Best effort local save.
+        }
+    }
+
+    public void clearLocalPlanState() {
+        try {
+            Files.deleteIfExists(LOCAL_PLAN_PATH);
+        } catch (Exception ignored) {
+            // Best effort local delete.
+        }
     }
 
     private List<BatchConfirmationRequest> buildBatchConfirmationRequests(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
@@ -485,7 +540,33 @@ public class PresinteringService {
     public record ConfirmationResult(int firingId, int linkedProductionOrders, int lotCount) {
     }
 
-    public record FurnaceConfig(Integer maxTemperature, LocalDate departureDate) {
+    public record FurnaceConfig(Integer maxTemperature, LocalDate departureDate) implements java.io.Serializable {
+    }
+
+    public record LocalPlanState(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
+                                 Map<Integer, FurnaceConfig> furnaceConfigById,
+                                 Integer lastKnownFiringId,
+                                 Instant savedAt) implements java.io.Serializable {
+        public LocalPlanState {
+            plannedByFurnace = plannedByFurnace == null
+                    ? new LinkedHashMap<>()
+                    : deepCopy(plannedByFurnace);
+            furnaceConfigById = furnaceConfigById == null
+                    ? new LinkedHashMap<>()
+                    : new LinkedHashMap<>(furnaceConfigById);
+            savedAt = savedAt == null ? Instant.now() : savedAt;
+        }
+
+        private static Map<Integer, Map<Integer, Integer>> deepCopy(Map<Integer, Map<Integer, Integer>> source) {
+            Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
+            if (source == null) {
+                return copy;
+            }
+            for (Map.Entry<Integer, Map<Integer, Integer>> entry : source.entrySet()) {
+                copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
+            }
+            return copy;
+        }
     }
 
     public record BatchConfirmationRequest(int furnaceId,

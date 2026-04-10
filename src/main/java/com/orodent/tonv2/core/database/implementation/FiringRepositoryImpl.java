@@ -46,4 +46,19 @@ public class FiringRepositoryImpl implements FiringRepository {
             throw new RuntimeException("Errore inserimento firing", e);
         }
     }
+
+    @Override
+    public Integer findLatestId() {
+        String sql = "SELECT MAX(id) AS latest_id FROM firing";
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            if (!rs.next()) {
+                return null;
+            }
+            int latestId = rs.getInt("latest_id");
+            return rs.wasNull() ? null : latestId;
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore caricamento ultimo firing id.", e);
+        }
+    }
 }
