@@ -65,23 +65,31 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     @Override
     public List<ProducedDiskRow> findProducedDiskRows() {
         String sql = """
-                SELECT i.id AS item_id,
+                SELECT rl.item_id,
                        i.code AS item_code,
                        p.code AS product_name,
-                       SUM(pol.quantity - COALESCE(polf.assigned_qty, 0)) AS total_qty
-                FROM production_order_line pol
-                JOIN production_order po ON po.id = pol.production_order_id
-                JOIN item i ON i.id = pol.item_id
+                       SUM(rl.remaining_qty) AS total_qty
+                FROM (
+                    SELECT pol.production_order_id,
+                           pol.item_id,
+                           CASE
+                               WHEN pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
+                                   THEN pol.quantity - COALESCE(polf.assigned_qty, 0)
+                               ELSE 0
+                           END AS remaining_qty
+                    FROM production_order_line pol
+                    LEFT JOIN (
+                        SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
+                        FROM production_order_line_firing
+                        GROUP BY production_order_id, item_id
+                    ) polf
+                        ON polf.production_order_id = pol.production_order_id
+                       AND polf.item_id = pol.item_id
+                ) rl
+                JOIN item i ON i.id = rl.item_id
                 JOIN product p ON p.id = i.product_id
-                LEFT JOIN (
-                    SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
-                    FROM production_order_line_firing
-                    GROUP BY production_order_id, item_id
-                ) polf
-                    ON polf.production_order_id = pol.production_order_id
-                   AND polf.item_id = pol.item_id
-                WHERE pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
-                GROUP BY i.id, i.code, p.code
+                WHERE rl.remaining_qty > 0
+                GROUP BY rl.item_id, i.code, p.code
                 ORDER BY i.code ASC
                 """;
 
