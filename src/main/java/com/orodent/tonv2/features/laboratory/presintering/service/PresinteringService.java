@@ -173,11 +173,11 @@ public class PresinteringService {
         return requests;
     }
 
-    public ConfirmationResult confirmPresintering(int furnaceId,
-                                                  String furnaceName,
-                                                  LocalDate firingDate,
-                                                  Integer maxTemperature,
-                                                  Map<Integer, Integer> plannedItemsByItemId) {
+    private ConfirmationResult confirmPresinteringInCurrentTransaction(int furnaceId,
+                                                                       String furnaceName,
+                                                                       LocalDate firingDate,
+                                                                       Integer maxTemperature,
+                                                                       Map<Integer, Integer> plannedItemsByItemId) {
         if (furnaceName == null || furnaceName.isBlank()) {
             throw new IllegalArgumentException("Forno non valido.");
         }
@@ -191,63 +191,39 @@ public class PresinteringService {
             throw new IllegalArgumentException("Nessun item pianificato da confermare.");
         }
 
-        boolean previousAutoCommit;
-        try {
-            previousAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit(false);
-        } catch (Exception e) {
-            throw new RuntimeException("Impossibile iniziare la transazione di conferma presinterizzazione.", e);
+        Firing firing = firingRepo.insert(firingDate, furnaceName, maxTemperature, "Presinterizzazione forno id=" + furnaceId);
+        Set<Integer> productionOrdersToLink = new LinkedHashSet<>();
+
+        for (Map.Entry<Integer, Integer> plannedEntry : plannedItemsByItemId.entrySet()) {
+            int itemId = plannedEntry.getKey();
+            int requestedQty = plannedEntry.getValue() == null ? 0 : plannedEntry.getValue();
+            if (requestedQty <= 0) {
+                continue;
+            }
+
+            List<ProductionRepository.OpenProductionOrderLineRow> openOrderLines = productionRepo.findOpenProductionOrderLinesByItem(itemId);
+            int coveredQty = 0;
+            for (ProductionRepository.OpenProductionOrderLineRow orderLine : openOrderLines) {
+                if (coveredQty >= requestedQty) {
+                    break;
+                }
+                productionOrdersToLink.add(orderLine.productionOrderId());
+                coveredQty += orderLine.quantity();
+            }
+
+            if (coveredQty < requestedQty) {
+                throw new IllegalStateException("Quantità pianificata non coerente per item " + itemId + ".");
+            }
+
+            String lotCode = buildRandomLotCode(firing.id(), itemId);
+            lotRepo.insert(lotCode, firing.id());
         }
 
-        try {
-            Firing firing = firingRepo.insert(firingDate, furnaceName, maxTemperature, "Presinterizzazione forno id=" + furnaceId);
-            Set<Integer> productionOrdersToLink = new LinkedHashSet<>();
-
-            for (Map.Entry<Integer, Integer> plannedEntry : plannedItemsByItemId.entrySet()) {
-                int itemId = plannedEntry.getKey();
-                int requestedQty = plannedEntry.getValue() == null ? 0 : plannedEntry.getValue();
-                if (requestedQty <= 0) {
-                    continue;
-                }
-
-                List<ProductionRepository.OpenProductionOrderLineRow> openOrderLines = productionRepo.findOpenProductionOrderLinesByItem(itemId);
-                int coveredQty = 0;
-                for (ProductionRepository.OpenProductionOrderLineRow orderLine : openOrderLines) {
-                    if (coveredQty >= requestedQty) {
-                        break;
-                    }
-                    productionOrdersToLink.add(orderLine.productionOrderId());
-                    coveredQty += orderLine.quantity();
-                }
-
-                if (coveredQty < requestedQty) {
-                    throw new IllegalStateException("Quantità pianificata non coerente per item " + itemId + ".");
-                }
-
-                String lotCode = buildRandomLotCode(firing.id(), itemId);
-                lotRepo.insert(lotCode, firing.id());
-            }
-
-            for (Integer productionOrderId : productionOrdersToLink) {
-                productionRepo.insertProductionOrderFiring(productionOrderId, firing.id());
-            }
-
-            conn.commit();
-            conn.setAutoCommit(previousAutoCommit);
-            return new ConfirmationResult(firing.id(), productionOrdersToLink.size(), plannedItemsByItemId.size());
-        } catch (Exception e) {
-            try {
-                conn.rollback();
-            } catch (Exception ignored) {
-                // best effort rollback
-            }
-            try {
-                conn.setAutoCommit(previousAutoCommit);
-            } catch (Exception ignored) {
-                // ignore
-            }
-            throw new RuntimeException("Errore durante conferma presinterizzazione.", e);
+        for (Integer productionOrderId : productionOrdersToLink) {
+            productionRepo.insertProductionOrderFiring(productionOrderId, firing.id());
         }
+
+        return new ConfirmationResult(firing.id(), productionOrdersToLink.size(), plannedItemsByItemId.size());
     }
 
     public String generateDocumentIfTemplateSelected(String selectedTemplateName,
@@ -330,46 +306,94 @@ public class PresinteringService {
                 command.furnaceConfigById()
         );
 
-        int confirmedFurnaces = 0;
-        int totalLinkedOrders = 0;
-        int totalLots = 0;
-        List<Integer> firingIds = new java.util.ArrayList<>();
-        List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
-
-        for (BatchConfirmationRequest furnaceRequest : requests) {
-            ConfirmationResult result = confirmPresintering(
-                    furnaceRequest.furnaceId(),
-                    furnaceRequest.furnaceName(),
-                    furnaceRequest.departureDate(),
-                    furnaceRequest.maxTemperature(),
-                    furnaceRequest.plannedItemsByItemId()
-            );
-
-            confirmedFurnaces++;
-            totalLinkedOrders += result.linkedProductionOrders();
-            totalLots += result.lotCount();
-            firingIds.add(result.firingId());
-            furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
-                    result.firingId(),
-                    furnaceRequest.departureDate(),
-                    furnaceRequest.furnaceName(),
-                    furnaceRequest.maxTemperature(),
-                    furnaceRequest.plannedItemsByItemId()
-            ));
+        boolean previousAutoCommit;
+        try {
+            previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+        } catch (Exception e) {
+            throw new RuntimeException("Impossibile iniziare la transazione di conferma presinterizzazione.", e);
         }
 
-        String documentPath = generateBatchDocumentIfTemplateSelected(
-                command.selectedTemplateName(),
-                furnacePayloads
-        );
+        try {
+            int confirmedFurnaces = 0;
+            int totalLinkedOrders = 0;
+            int totalLots = 0;
+            List<Integer> firingIds = new java.util.ArrayList<>();
+            List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
 
-        return new ConfirmBatchResult(
-                confirmedFurnaces,
-                firingIds,
-                totalLinkedOrders,
-                totalLots,
-                documentPath
-        );
+            for (BatchConfirmationRequest furnaceRequest : requests) {
+                ConfirmationResult result;
+                try {
+                    result = confirmPresinteringInCurrentTransaction(
+                            furnaceRequest.furnaceId(),
+                            furnaceRequest.furnaceName(),
+                            furnaceRequest.departureDate(),
+                            furnaceRequest.maxTemperature(),
+                            furnaceRequest.plannedItemsByItemId()
+                    );
+                } catch (Exception e) {
+                    throw new IllegalStateException(
+                            "Errore nel " + furnaceRequest.furnaceName() + ": " + extractMostSpecificMessage(e),
+                            e
+                    );
+                }
+
+                confirmedFurnaces++;
+                totalLinkedOrders += result.linkedProductionOrders();
+                totalLots += result.lotCount();
+                firingIds.add(result.firingId());
+                furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
+                        result.firingId(),
+                        furnaceRequest.departureDate(),
+                        furnaceRequest.furnaceName(),
+                        furnaceRequest.maxTemperature(),
+                        furnaceRequest.plannedItemsByItemId()
+                ));
+            }
+
+            conn.commit();
+            conn.setAutoCommit(previousAutoCommit);
+
+            String documentPath = generateBatchDocumentIfTemplateSelected(
+                    command.selectedTemplateName(),
+                    furnacePayloads
+            );
+
+            return new ConfirmBatchResult(
+                    confirmedFurnaces,
+                    firingIds,
+                    totalLinkedOrders,
+                    totalLots,
+                    documentPath
+            );
+        } catch (Exception e) {
+            try {
+                conn.rollback();
+            } catch (Exception ignored) {
+                // best effort rollback
+            }
+            try {
+                conn.setAutoCommit(previousAutoCommit);
+            } catch (Exception ignored) {
+                // ignore
+            }
+            throw new RuntimeException("Errore durante conferma presinterizzazione batch: " + extractMostSpecificMessage(e), e);
+        }
+    }
+
+    private String extractMostSpecificMessage(Throwable throwable) {
+        if (throwable == null) {
+            return "Errore sconosciuto.";
+        }
+        Throwable cursor = throwable;
+        String message = null;
+        while (cursor != null) {
+            if (cursor.getMessage() != null && !cursor.getMessage().isBlank()) {
+                message = cursor.getMessage();
+            }
+            cursor = cursor.getCause();
+        }
+        return message == null ? "Errore sconosciuto." : message;
     }
 
     public PlanDisksResult planDisks(PresinteringPlanningSnapshot currentState,
