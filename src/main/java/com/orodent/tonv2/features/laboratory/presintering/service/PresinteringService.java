@@ -305,6 +305,7 @@ public class PresinteringService {
                 command.furnaceNameById(),
                 command.furnaceConfigById()
         );
+        validateBatchDemandAgainstOpenOrders(requests);
 
         boolean previousAutoCommit;
         try {
@@ -394,6 +395,37 @@ public class PresinteringService {
             cursor = cursor.getCause();
         }
         return message == null ? "Errore sconosciuto." : message;
+    }
+
+    private void validateBatchDemandAgainstOpenOrders(List<BatchConfirmationRequest> requests) {
+        Map<Integer, Integer> requestedByItem = new LinkedHashMap<>();
+        for (BatchConfirmationRequest request : requests) {
+            for (Map.Entry<Integer, Integer> plannedEntry : request.plannedItemsByItemId().entrySet()) {
+                int itemId = plannedEntry.getKey();
+                int quantity = plannedEntry.getValue() == null ? 0 : Math.max(0, plannedEntry.getValue());
+                if (quantity <= 0) {
+                    continue;
+                }
+                requestedByItem.merge(itemId, quantity, Integer::sum);
+            }
+        }
+
+        for (Map.Entry<Integer, Integer> requestedEntry : requestedByItem.entrySet()) {
+            int itemId = requestedEntry.getKey();
+            int requested = requestedEntry.getValue();
+            int available = productionRepo.findOpenProductionOrderLinesByItem(itemId).stream()
+                    .mapToInt(ProductionRepository.OpenProductionOrderLineRow::quantity)
+                    .sum();
+
+            if (requested > available) {
+                throw new IllegalStateException(
+                        "Quantità pianificata non coerente per item " + itemId
+                                + ": pianificati " + requested
+                                + ", copertura ordini aperti " + available
+                                + ". Riduci la quantità o aggiorna gli ordini."
+                );
+            }
+        }
     }
 
     public PlanDisksResult planDisks(PresinteringPlanningSnapshot currentState,
