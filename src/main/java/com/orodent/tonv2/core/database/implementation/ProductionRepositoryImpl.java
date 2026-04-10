@@ -260,20 +260,29 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     @Override
     public List<OpenProductionOrderLineRow> findOpenProductionOrderLinesByItem(int itemId) {
         String sql = """
-                SELECT pol.production_order_id,
-                       pol.item_id,
-                       pol.quantity - COALESCE(polf.assigned_qty, 0) AS quantity
-                FROM production_order_line pol
-                LEFT JOIN (
-                    SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
-                    FROM production_order_line_firing
-                    GROUP BY production_order_id, item_id
-                ) polf
-                    ON polf.production_order_id = pol.production_order_id
-                   AND polf.item_id = pol.item_id
-                WHERE pol.item_id = ?
-                  AND pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
-                ORDER BY pol.production_order_id ASC
+                SELECT rl.production_order_id,
+                       rl.item_id,
+                       rl.remaining_qty AS quantity
+                FROM (
+                    SELECT pol.production_order_id,
+                           pol.item_id,
+                           CASE
+                               WHEN pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
+                                   THEN pol.quantity - COALESCE(polf.assigned_qty, 0)
+                               ELSE 0
+                           END AS remaining_qty
+                    FROM production_order_line pol
+                    LEFT JOIN (
+                        SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
+                        FROM production_order_line_firing
+                        GROUP BY production_order_id, item_id
+                    ) polf
+                        ON polf.production_order_id = pol.production_order_id
+                       AND polf.item_id = pol.item_id
+                    WHERE pol.item_id = ?
+                ) rl
+                WHERE rl.remaining_qty > 0
+                ORDER BY rl.production_order_id ASC
                 """;
 
         List<OpenProductionOrderLineRow> rows = new ArrayList<>();
