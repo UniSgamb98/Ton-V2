@@ -161,6 +161,12 @@ public class PresinteringController {
                         view.getSelectedFurnaceDepartureDatePicker().getValue()
                 )
         );
+        service.saveLocalPlanState(new PresinteringService.LocalPlanState(
+                planningState.plannedByFurnace(),
+                furnaceConfigById,
+                service.findLatestFiringId(),
+                Instant.now()
+        ));
     }
 
     private void insertDisksIntoSelectedFurnace() {
