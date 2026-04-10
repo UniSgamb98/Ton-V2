@@ -38,6 +38,8 @@ import com.orodent.tonv2.features.laboratory.diskmodel.controller.DiskModelArchi
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.DiskModelArchiveView;
 import com.orodent.tonv2.features.laboratory.home.view.LaboratoryView;
+import com.orodent.tonv2.features.registers.home.controller.RegistersController;
+import com.orodent.tonv2.features.registers.home.view.RegistersView;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
@@ -163,6 +165,15 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Inventario");
+    }
+
+    public void showRegisters() {
+        RegistersView view = new RegistersView();
+        configureHeader(view.getHeader());
+        new RegistersController(view);
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Registri");
     }
 
     @Override
@@ -403,6 +414,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         header.getInventoryButton().setOnAction( e -> showInventory());
         header.getLaboratoryButton().setOnAction(e -> showLaboratory());
         header.getDocumentsButton().setOnAction(e -> showDocuments());
+        header.getRegistersButton().setOnAction(e -> showRegisters());
     }
 
     public void shutdown() {
