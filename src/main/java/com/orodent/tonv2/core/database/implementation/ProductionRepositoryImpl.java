@@ -65,13 +65,22 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     @Override
     public List<ProducedDiskRow> findProducedDiskRows() {
         String sql = """
-                SELECT i.id AS item_id, i.code AS item_code, p.code AS product_name, SUM(pol.quantity) AS total_qty
+                SELECT i.id AS item_id,
+                       i.code AS item_code,
+                       p.code AS product_name,
+                       SUM(pol.quantity - COALESCE(polf.assigned_qty, 0)) AS total_qty
                 FROM production_order_line pol
                 JOIN production_order po ON po.id = pol.production_order_id
                 JOIN item i ON i.id = pol.item_id
                 JOIN product p ON p.id = i.product_id
-                LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
-                WHERE pof.production_order_id IS NULL
+                LEFT JOIN (
+                    SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
+                    FROM production_order_line_firing
+                    GROUP BY production_order_id, item_id
+                ) polf
+                    ON polf.production_order_id = pol.production_order_id
+                   AND polf.item_id = pol.item_id
+                WHERE pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
                 GROUP BY i.id, i.code, p.code
                 ORDER BY i.code ASC
                 """;
@@ -106,11 +115,18 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                        COALESCE(fs.distinct_furnaces_used, 0) AS distinct_furnaces_used,
                        COALESCE(fs.total_firings, 0) AS total_firings
                 FROM (
-                    SELECT po.composition_id AS composition_id, SUM(pol.quantity) AS available_qty
+                    SELECT po.composition_id AS composition_id,
+                           SUM(pol.quantity - COALESCE(polf.assigned_qty, 0)) AS available_qty
                     FROM production_order_line pol
                     JOIN production_order po ON po.id = pol.production_order_id
-                    LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
-                    WHERE pof.production_order_id IS NULL
+                    LEFT JOIN (
+                        SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
+                        FROM production_order_line_firing
+                        GROUP BY production_order_id, item_id
+                    ) polf
+                        ON polf.production_order_id = pol.production_order_id
+                       AND polf.item_id = pol.item_id
+                    WHERE pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
                     GROUP BY po.composition_id
                 ) a
                 JOIN composition c ON c.id = a.composition_id
@@ -120,8 +136,11 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                            COUNT(DISTINCT f.furnace) AS distinct_furnaces_used,
                            COUNT(*) AS total_firings
                     FROM production_order po
-                    JOIN production_order_firing pof ON pof.production_order_id = po.id
-                    JOIN firing f ON f.id = pof.firing_id
+                    JOIN production_order_line pol ON pol.production_order_id = po.id
+                    JOIN production_order_line_firing polf
+                        ON polf.production_order_id = pol.production_order_id
+                       AND polf.item_id = pol.item_id
+                    JOIN firing f ON f.id = polf.firing_id
                     GROUP BY po.composition_id
                 ) fs ON fs.composition_id = a.composition_id
                 ORDER BY distinct_furnaces_used ASC, total_firings ASC, a.available_qty DESC, a.composition_id ASC
@@ -159,12 +178,18 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                     SELECT pol.item_id AS item_id,
                            i.code AS item_code,
                            po.composition_id AS composition_id,
-                           SUM(pol.quantity) AS available_qty
+                           SUM(pol.quantity - COALESCE(polf.assigned_qty, 0)) AS available_qty
                     FROM production_order_line pol
                     JOIN production_order po ON po.id = pol.production_order_id
                     JOIN item i ON i.id = pol.item_id
-                    LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
-                    WHERE pof.production_order_id IS NULL
+                    LEFT JOIN (
+                        SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
+                        FROM production_order_line_firing
+                        GROUP BY production_order_id, item_id
+                    ) polf
+                        ON polf.production_order_id = pol.production_order_id
+                       AND polf.item_id = pol.item_id
+                    WHERE pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
                     GROUP BY pol.item_id, i.code, po.composition_id
                 ) ai
                 JOIN (
@@ -173,8 +198,10 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                            AVG(f.max_temperature) AS avg_furnace_temp
                     FROM production_order_line pol
                     JOIN production_order po ON po.id = pol.production_order_id
-                    JOIN production_order_firing pof ON pof.production_order_id = po.id
-                    JOIN firing f ON f.id = pof.firing_id
+                    JOIN production_order_line_firing polf
+                        ON polf.production_order_id = pol.production_order_id
+                       AND polf.item_id = pol.item_id
+                    JOIN firing f ON f.id = polf.firing_id
                     WHERE (f.furnace = ? OR f.furnace = ?)
                       AND f.max_temperature IS NOT NULL
                     GROUP BY pol.item_id, po.composition_id
@@ -227,11 +254,17 @@ public class ProductionRepositoryImpl implements ProductionRepository {
         String sql = """
                 SELECT pol.production_order_id,
                        pol.item_id,
-                       pol.quantity
+                       pol.quantity - COALESCE(polf.assigned_qty, 0) AS quantity
                 FROM production_order_line pol
-                LEFT JOIN production_order_firing pof ON pof.production_order_id = pol.production_order_id
+                LEFT JOIN (
+                    SELECT production_order_id, item_id, SUM(quantity) AS assigned_qty
+                    FROM production_order_line_firing
+                    GROUP BY production_order_id, item_id
+                ) polf
+                    ON polf.production_order_id = pol.production_order_id
+                   AND polf.item_id = pol.item_id
                 WHERE pol.item_id = ?
-                  AND pof.production_order_id IS NULL
+                  AND pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
                 ORDER BY pol.production_order_id ASC
                 """;
 
@@ -254,17 +287,19 @@ public class ProductionRepositoryImpl implements ProductionRepository {
     }
 
     @Override
-    public void insertProductionOrderFiring(int productionOrderId, int firingId) {
+    public void insertProductionOrderLineFiring(int productionOrderId, int itemId, int firingId, int quantity) {
         String sql = """
-                INSERT INTO production_order_firing (production_order_id, firing_id)
-                VALUES (?, ?)
+                INSERT INTO production_order_line_firing (production_order_id, item_id, firing_id, quantity)
+                VALUES (?, ?, ?, ?)
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, productionOrderId);
-            ps.setInt(2, firingId);
+            ps.setInt(2, itemId);
+            ps.setInt(3, firingId);
+            ps.setInt(4, quantity);
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException("Errore inserimento production_order_firing.", e);
+            throw new RuntimeException("Errore inserimento production_order_line_firing.", e);
         }
     }
 

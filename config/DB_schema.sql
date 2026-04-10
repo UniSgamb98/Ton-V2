@@ -299,22 +299,25 @@ CREATE TABLE firing (
     CONSTRAINT uq_firing UNIQUE (firing_date, furnace)
 );
 
+-- TABLE: production_order_line_firing
 ------------------------------------------------------------
--- TABLE: production_order_firing
-------------------------------------------------------------
-CREATE TABLE production_order_firing (
+CREATE TABLE production_order_line_firing (
     production_order_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
     firing_id INTEGER NOT NULL,
+    quantity INTEGER NOT NULL,
 
-    PRIMARY KEY (production_order_id, firing_id),
+    PRIMARY KEY (production_order_id, item_id, firing_id),
 
-    CONSTRAINT fk_pof_order
-        FOREIGN KEY (production_order_id)
-        REFERENCES production_order(id),
+    CONSTRAINT fk_polf_line
+        FOREIGN KEY (production_order_id, item_id)
+        REFERENCES production_order_line(production_order_id, item_id),
 
-    CONSTRAINT fk_pof_firing
+    CONSTRAINT fk_polf_firing
         FOREIGN KEY (firing_id)
-        REFERENCES firing(id)
+        REFERENCES firing(id),
+
+    CONSTRAINT ck_polf_qty CHECK (quantity > 0)
 );
 
 ------------------------------------------------------------

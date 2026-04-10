@@ -79,10 +79,9 @@ public class StockRepositoryImpl implements StockRepository {
         WHERE s.depot_id = ?
           AND EXISTS (
                 SELECT 1
-                FROM production_order_firing pof
-                JOIN production_order_line pol ON pol.production_order_id = pof.production_order_id
-                WHERE pof.firing_id = l.firing_id
-                  AND pol.item_id = ?
+                FROM production_order_line_firing polf
+                WHERE polf.firing_id = l.firing_id
+                  AND polf.item_id = ?
           )
     """;
 

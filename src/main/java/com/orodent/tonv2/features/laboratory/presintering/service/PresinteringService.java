@@ -138,7 +138,8 @@ public class PresinteringService {
         }
 
         Firing firing = firingRepo.insert(firingDate, furnaceName, maxTemperature, "Presinterizzazione forno id=" + furnaceId);
-        Set<Integer> productionOrdersToLink = new LinkedHashSet<>();
+        Set<Integer> linkedProductionOrderIds = new LinkedHashSet<>();
+        Map<LineAllocationKey, Integer> quantityByLineAllocation = new LinkedHashMap<>();
 
         for (Map.Entry<Integer, Integer> plannedEntry : plannedItemsByItemId.entrySet()) {
             int itemId = plannedEntry.getKey();
@@ -148,16 +149,26 @@ public class PresinteringService {
             }
 
             List<ProductionRepository.OpenProductionOrderLineRow> openOrderLines = productionRepo.findOpenProductionOrderLinesByItem(itemId);
-            int coveredQty = 0;
+            int remainingQty = requestedQty;
             for (ProductionRepository.OpenProductionOrderLineRow orderLine : openOrderLines) {
-                if (coveredQty >= requestedQty) {
+                if (remainingQty <= 0) {
                     break;
                 }
-                productionOrdersToLink.add(orderLine.productionOrderId());
-                coveredQty += orderLine.quantity();
+                int availableQty = orderLine.quantity();
+                int allocatedQty = Math.min(remainingQty, availableQty);
+                if (allocatedQty <= 0) {
+                    continue;
+                }
+                linkedProductionOrderIds.add(orderLine.productionOrderId());
+                quantityByLineAllocation.merge(
+                        new LineAllocationKey(orderLine.productionOrderId(), orderLine.itemId()),
+                        allocatedQty,
+                        Integer::sum
+                );
+                remainingQty -= allocatedQty;
             }
 
-            if (coveredQty < requestedQty) {
+            if (remainingQty > 0) {
                 throw new IllegalStateException("Quantità pianificata non coerente per item " + itemId + ".");
             }
 
@@ -165,11 +176,17 @@ public class PresinteringService {
             lotRepo.insert(lotCode, firing.id());
         }
 
-        for (Integer productionOrderId : productionOrdersToLink) {
-            productionRepo.insertProductionOrderFiring(productionOrderId, firing.id());
+        for (Map.Entry<LineAllocationKey, Integer> allocationEntry : quantityByLineAllocation.entrySet()) {
+            LineAllocationKey allocation = allocationEntry.getKey();
+            productionRepo.insertProductionOrderLineFiring(
+                    allocation.productionOrderId(),
+                    allocation.itemId(),
+                    firing.id(),
+                    allocationEntry.getValue()
+            );
         }
 
-        return new ConfirmationResult(firing.id(), productionOrdersToLink.size(), plannedItemsByItemId.size());
+        return new ConfirmationResult(firing.id(), linkedProductionOrderIds.size(), plannedItemsByItemId.size());
     }
 
     public String generateDocumentIfTemplateSelected(String selectedTemplateName,
@@ -489,6 +506,9 @@ public class PresinteringService {
                                      int totalLinkedOrders,
                                      int totalLots,
                                      String documentPath) {
+    }
+
+    private record LineAllocationKey(int productionOrderId, int itemId) {
     }
 
     public record PlanDisksResult(PresinteringPlanningSnapshot state, int insertedQuantity) {

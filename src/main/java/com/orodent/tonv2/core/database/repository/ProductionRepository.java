@@ -13,7 +13,7 @@ public interface ProductionRepository {
     List<CompositionRankingRow> findCompositionRankingRows();
     List<FurnaceItemSuggestionRow> findFurnaceItemSuggestionRows(String furnaceValue, String furnaceDisplayValue);
     List<OpenProductionOrderLineRow> findOpenProductionOrderLinesByItem(int itemId);
-    void insertProductionOrderFiring(int productionOrderId, int firingId);
+    void insertProductionOrderLineFiring(int productionOrderId, int itemId, int firingId, int quantity);
 
     record ProducedDiskRow(int itemId, String itemCode, String productName, int totalQuantity) {}
     record CompositionRankingRow(int compositionId,

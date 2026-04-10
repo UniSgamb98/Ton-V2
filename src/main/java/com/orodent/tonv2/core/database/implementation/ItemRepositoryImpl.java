@@ -52,10 +52,8 @@ public class ItemRepositoryImpl implements ItemRepository {
         String sql = """
         SELECT DISTINCT i.id, i.code, i.product_id, i.blank_model_id, i.height_mm
         FROM item i
-        JOIN production_order_line pol ON pol.item_id = i.id
-        JOIN production_order po ON po.id = pol.production_order_id
-        JOIN production_order_firing pof ON pof.production_order_id = po.id
-        JOIN firing f ON f.id = pof.firing_id
+        JOIN production_order_line_firing polf ON polf.item_id = i.id
+        JOIN firing f ON f.id = polf.firing_id
         JOIN lot l ON l.firing_id = f.id
         JOIN stock s ON s.lot_id = l.id
         JOIN depot d ON d.id = s.depot_id

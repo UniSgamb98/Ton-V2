@@ -20,10 +20,9 @@ public class LotRepositoryImpl implements LotRepository {
         String sql = """
                 SELECT DISTINCT l.id, l.code, l.firing_id
                 FROM lot l
-                JOIN production_order_firing pof ON pof.firing_id = l.firing_id
-                JOIN production_order_line pol ON pol.production_order_id = pof.production_order_id
+                JOIN production_order_line_firing polf ON polf.firing_id = l.firing_id
                 WHERE l.code = ?
-                  AND pol.item_id = ?
+                  AND polf.item_id = ?
                 """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, lotCode);
@@ -47,9 +46,8 @@ public class LotRepositoryImpl implements LotRepository {
         String sql = """
                 SELECT DISTINCT l.id, l.code, l.firing_id
                 FROM lot l
-                JOIN production_order_firing pof ON pof.firing_id = l.firing_id
-                JOIN production_order_line pol ON pol.production_order_id = pof.production_order_id
-                WHERE pol.item_id = ?
+                JOIN production_order_line_firing polf ON polf.firing_id = l.firing_id
+                WHERE polf.item_id = ?
                 ORDER BY l.code
                 """;
 
