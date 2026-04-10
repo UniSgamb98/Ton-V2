@@ -64,7 +64,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
 
     @Override
     public List<ProducedDiskRow> findProducedDiskRows() {
-        String sql = """
+        String lineLevelSql = """
                 SELECT i.id AS item_id,
                        i.code AS item_code,
                        p.code AS product_name,
@@ -84,10 +84,21 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                 GROUP BY i.id, i.code, p.code
                 ORDER BY i.code ASC
                 """;
+        String legacySql = """
+                SELECT i.id AS item_id, i.code AS item_code, p.code AS product_name, SUM(pol.quantity) AS total_qty
+                FROM production_order_line pol
+                JOIN production_order po ON po.id = pol.production_order_id
+                JOIN item i ON i.id = pol.item_id
+                JOIN product p ON p.id = i.product_id
+                LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
+                WHERE pof.production_order_id IS NULL
+                GROUP BY i.id, i.code, p.code
+                ORDER BY i.code ASC
+                """;
 
         List<ProducedDiskRow> rows = new ArrayList<>();
 
-        try (PreparedStatement ps = conn.prepareStatement(sql);
+        try (PreparedStatement ps = conn.prepareStatement(lineLevelSql);
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
@@ -100,7 +111,23 @@ public class ProductionRepositoryImpl implements ProductionRepository {
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Errore durante il caricamento dei dischi prodotti.", e);
+            if (!isMissingLineFiringTable(e)) {
+                throw new RuntimeException("Errore durante il caricamento dei dischi prodotti.", e);
+            }
+            rows.clear();
+            try (PreparedStatement ps = conn.prepareStatement(legacySql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new ProducedDiskRow(
+                            rs.getInt("item_id"),
+                            rs.getString("item_code"),
+                            rs.getString("product_name"),
+                            rs.getInt("total_qty")
+                    ));
+                }
+            } catch (SQLException ex) {
+                throw new RuntimeException("Errore durante il caricamento dei dischi prodotti.", ex);
+            }
         }
 
         return rows;
@@ -108,7 +135,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
 
     @Override
     public List<CompositionRankingRow> findCompositionRankingRows() {
-        String sql = """
+        String lineLevelSql = """
                 SELECT a.composition_id,
                        p.code AS product_name,
                        a.available_qty,
@@ -145,10 +172,37 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                 ) fs ON fs.composition_id = a.composition_id
                 ORDER BY distinct_furnaces_used ASC, total_firings ASC, a.available_qty DESC, a.composition_id ASC
                 """;
+        String legacySql = """
+                SELECT a.composition_id,
+                       p.code AS product_name,
+                       a.available_qty,
+                       COALESCE(fs.distinct_furnaces_used, 0) AS distinct_furnaces_used,
+                       COALESCE(fs.total_firings, 0) AS total_firings
+                FROM (
+                    SELECT po.composition_id AS composition_id, SUM(pol.quantity) AS available_qty
+                    FROM production_order_line pol
+                    JOIN production_order po ON po.id = pol.production_order_id
+                    LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
+                    WHERE pof.production_order_id IS NULL
+                    GROUP BY po.composition_id
+                ) a
+                JOIN composition c ON c.id = a.composition_id
+                JOIN product p ON p.id = c.product_id
+                LEFT JOIN (
+                    SELECT po.composition_id AS composition_id,
+                           COUNT(DISTINCT f.furnace) AS distinct_furnaces_used,
+                           COUNT(*) AS total_firings
+                    FROM production_order po
+                    JOIN production_order_firing pof ON pof.production_order_id = po.id
+                    JOIN firing f ON f.id = pof.firing_id
+                    GROUP BY po.composition_id
+                ) fs ON fs.composition_id = a.composition_id
+                ORDER BY distinct_furnaces_used ASC, total_firings ASC, a.available_qty DESC, a.composition_id ASC
+                """;
 
         List<CompositionRankingRow> rows = new ArrayList<>();
 
-        try (PreparedStatement ps = conn.prepareStatement(sql);
+        try (PreparedStatement ps = conn.prepareStatement(lineLevelSql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 rows.add(new CompositionRankingRow(
@@ -160,7 +214,24 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                 ));
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Errore durante il caricamento classifica composizioni.", e);
+            if (!isMissingLineFiringTable(e)) {
+                throw new RuntimeException("Errore durante il caricamento classifica composizioni.", e);
+            }
+            rows.clear();
+            try (PreparedStatement ps = conn.prepareStatement(legacySql);
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rows.add(new CompositionRankingRow(
+                            rs.getInt("composition_id"),
+                            rs.getString("product_name"),
+                            rs.getInt("available_qty"),
+                            rs.getInt("distinct_furnaces_used"),
+                            rs.getInt("total_firings")
+                    ));
+                }
+            } catch (SQLException ex) {
+                throw new RuntimeException("Errore durante il caricamento classifica composizioni.", ex);
+            }
         }
 
         return rows;
@@ -168,7 +239,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
 
     @Override
     public List<FurnaceItemSuggestionRow> findFurnaceItemSuggestionRows(String furnaceValue, String furnaceDisplayValue) {
-        String sql = """
+        String lineLevelSql = """
                 SELECT ai.item_id,
                        ai.item_code,
                        ai.composition_id,
@@ -210,11 +281,45 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                    AND fh.composition_id = ai.composition_id
                 ORDER BY ai.composition_id ASC, ai.item_code ASC
                 """;
+        String legacySql = """
+                SELECT ai.item_id,
+                       ai.item_code,
+                       ai.composition_id,
+                       ai.available_qty,
+                       fh.avg_furnace_temp AS suggested_temperature
+                FROM (
+                    SELECT pol.item_id AS item_id,
+                           i.code AS item_code,
+                           po.composition_id AS composition_id,
+                           SUM(pol.quantity) AS available_qty
+                    FROM production_order_line pol
+                    JOIN production_order po ON po.id = pol.production_order_id
+                    JOIN item i ON i.id = pol.item_id
+                    LEFT JOIN production_order_firing pof ON pof.production_order_id = po.id
+                    WHERE pof.production_order_id IS NULL
+                    GROUP BY pol.item_id, i.code, po.composition_id
+                ) ai
+                JOIN (
+                    SELECT pol.item_id AS item_id,
+                           po.composition_id AS composition_id,
+                           AVG(f.max_temperature) AS avg_furnace_temp
+                    FROM production_order_line pol
+                    JOIN production_order po ON po.id = pol.production_order_id
+                    JOIN production_order_firing pof ON pof.production_order_id = po.id
+                    JOIN firing f ON f.id = pof.firing_id
+                    WHERE (f.furnace = ? OR f.furnace = ?)
+                      AND f.max_temperature IS NOT NULL
+                    GROUP BY pol.item_id, po.composition_id
+                ) fh
+                    ON fh.item_id = ai.item_id
+                   AND fh.composition_id = ai.composition_id
+                ORDER BY ai.composition_id ASC, ai.item_code ASC
+                """;
 
         List<FurnaceItemSuggestionRow> rows = new ArrayList<>();
         List<RawFurnaceItemSuggestionRow> rawRows = new ArrayList<>();
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(lineLevelSql)) {
             ps.setString(1, furnaceValue);
             ps.setString(2, furnaceDisplayValue);
 
@@ -231,7 +336,28 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Errore durante il caricamento suggerimenti forno selezionato.", e);
+            if (!isMissingLineFiringTable(e)) {
+                throw new RuntimeException("Errore durante il caricamento suggerimenti forno selezionato.", e);
+            }
+            rawRows.clear();
+            try (PreparedStatement ps = conn.prepareStatement(legacySql)) {
+                ps.setString(1, furnaceValue);
+                ps.setString(2, furnaceDisplayValue);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        Number suggestedTemperature = (Number) rs.getObject("suggested_temperature");
+                        rawRows.add(new RawFurnaceItemSuggestionRow(
+                                rs.getInt("item_id"),
+                                rs.getString("item_code"),
+                                rs.getInt("composition_id"),
+                                rs.getInt("available_qty"),
+                                suggestedTemperature == null ? null : suggestedTemperature.doubleValue()
+                        ));
+                    }
+                }
+            } catch (SQLException ex) {
+                throw new RuntimeException("Errore durante il caricamento suggerimenti forno selezionato.", ex);
+            }
         }
 
         for (RawFurnaceItemSuggestionRow rawRow : rawRows) {
@@ -251,7 +377,7 @@ public class ProductionRepositoryImpl implements ProductionRepository {
 
     @Override
     public List<OpenProductionOrderLineRow> findOpenProductionOrderLinesByItem(int itemId) {
-        String sql = """
+        String lineLevelSql = """
                 SELECT pol.production_order_id,
                        pol.item_id,
                        pol.quantity - COALESCE(polf.assigned_qty, 0) AS quantity
@@ -267,9 +393,19 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                   AND pol.quantity - COALESCE(polf.assigned_qty, 0) > 0
                 ORDER BY pol.production_order_id ASC
                 """;
+        String legacySql = """
+                SELECT pol.production_order_id,
+                       pol.item_id,
+                       pol.quantity
+                FROM production_order_line pol
+                LEFT JOIN production_order_firing pof ON pof.production_order_id = pol.production_order_id
+                WHERE pol.item_id = ?
+                  AND pof.production_order_id IS NULL
+                ORDER BY pol.production_order_id ASC
+                """;
 
         List<OpenProductionOrderLineRow> rows = new ArrayList<>();
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(lineLevelSql)) {
             ps.setInt(1, itemId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -281,7 +417,24 @@ public class ProductionRepositoryImpl implements ProductionRepository {
                 }
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Errore durante il caricamento ordini aperti per item.", e);
+            if (!isMissingLineFiringTable(e)) {
+                throw new RuntimeException("Errore durante il caricamento ordini aperti per item.", e);
+            }
+            rows.clear();
+            try (PreparedStatement ps = conn.prepareStatement(legacySql)) {
+                ps.setInt(1, itemId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        rows.add(new OpenProductionOrderLineRow(
+                                rs.getInt("production_order_id"),
+                                rs.getInt("item_id"),
+                                rs.getInt("quantity")
+                        ));
+                    }
+                }
+            } catch (SQLException ex) {
+                throw new RuntimeException("Errore durante il caricamento ordini aperti per item.", ex);
+            }
         }
         return rows;
     }
@@ -299,8 +452,36 @@ public class ProductionRepositoryImpl implements ProductionRepository {
             ps.setInt(4, quantity);
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException("Errore inserimento production_order_line_firing.", e);
+            if (!isMissingLineFiringTable(e)) {
+                throw new RuntimeException("Errore inserimento production_order_line_firing.", e);
+            }
+            String legacySql = """
+                    INSERT INTO production_order_firing (production_order_id, firing_id)
+                    VALUES (?, ?)
+                    """;
+            try (PreparedStatement ps = conn.prepareStatement(legacySql)) {
+                ps.setInt(1, productionOrderId);
+                ps.setInt(2, firingId);
+                ps.executeUpdate();
+            } catch (SQLException ex) {
+                if (isConstraintViolation(ex)) {
+                    return;
+                }
+                throw new RuntimeException("Errore inserimento production_order_firing.", ex);
+            }
         }
+    }
+
+    private boolean isMissingLineFiringTable(SQLException e) {
+        String state = e.getSQLState();
+        String message = e.getMessage();
+        return "42X05".equals(state)
+                || (message != null && message.toLowerCase().contains("production_order_line_firing"));
+    }
+
+    private boolean isConstraintViolation(SQLException e) {
+        String state = e.getSQLState();
+        return "23505".equals(state) || "23503".equals(state);
     }
 
     private Integer computeCompositionAverage(List<RawFurnaceItemSuggestionRow> rows, int compositionId) {
