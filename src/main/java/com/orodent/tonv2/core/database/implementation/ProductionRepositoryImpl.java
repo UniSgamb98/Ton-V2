@@ -17,35 +17,6 @@ public class ProductionRepositoryImpl implements ProductionRepository {
 
     public ProductionRepositoryImpl(Connection conn) {
         this.conn = conn;
-        ensureLineFiringSchema();
-    }
-
-    private void ensureLineFiringSchema() {
-        String sql = """
-                CREATE TABLE production_order_line_firing (
-                    production_order_id INTEGER NOT NULL,
-                    item_id INTEGER NOT NULL,
-                    firing_id INTEGER NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    PRIMARY KEY (production_order_id, item_id, firing_id),
-                    CONSTRAINT fk_polf_line
-                        FOREIGN KEY (production_order_id, item_id)
-                        REFERENCES production_order_line(production_order_id, item_id),
-                    CONSTRAINT fk_polf_firing
-                        FOREIGN KEY (firing_id)
-                        REFERENCES firing(id),
-                    CONSTRAINT ck_polf_qty CHECK (quantity > 0)
-                )
-                """;
-        try (Statement statement = conn.createStatement()) {
-            statement.execute(sql);
-        } catch (SQLException e) {
-            String state = e.getSQLState();
-            if ("X0Y32".equals(state) || "42Y55".equals(state)) {
-                return;
-            }
-            throw new RuntimeException("Errore allineamento schema: production_order_line_firing.", e);
-        }
     }
 
     @Override
