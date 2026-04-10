@@ -23,7 +23,7 @@ DELETE FROM APP.powder;
 
 
 DROP TABLE production_order_line;
-DROP TABLE production_order_firing;
+DROP TABLE production_order_line_firing;
 DROP TABLE production_order;
 DROP TABLE product_active_composition;
 DROP TABLE composition_layer_ingredient;
@@ -146,6 +146,5 @@ INSERT INTO item (code, product_id, blank_model_id, height_mm) VALUES
 ('ZR9820MSTA1', 1, 1, 20.1),
 ('ZR9822MSTA1', 1, 1, 22.1),
 ('ZR9825MSTA1', 1, 1, 25.1);
-
 
 
