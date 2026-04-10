@@ -31,6 +31,22 @@ public class ItemRepositoryImpl implements ItemRepository {
         }
     }
 
+
+    @Override
+    public Item findByCode(String code) {
+        String sql = "SELECT id, code, product_id, blank_model_id, height_mm FROM item WHERE code = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, code);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return mapItem(rs);
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public Item findByProductAndHeight(int productId, double heightMm) {
         String sql = "SELECT id, code, product_id, blank_model_id, height_mm FROM item WHERE product_id = ? AND height_mm = ?";

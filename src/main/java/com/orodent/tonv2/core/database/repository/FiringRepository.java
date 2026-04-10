@@ -6,5 +6,6 @@ import java.time.LocalDate;
 
 public interface FiringRepository {
     Firing insert(LocalDate firingDate, String furnace, Integer maxTemperature, String notes);
+    Firing findById(int id);
     Integer findLatestId();
 }

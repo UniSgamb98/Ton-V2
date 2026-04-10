@@ -47,6 +47,35 @@ public class FiringRepositoryImpl implements FiringRepository {
         }
     }
 
+
+    @Override
+    public Firing findById(int id) {
+        String sql = "SELECT id, firing_date, furnace, max_temperature, notes FROM firing WHERE id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+
+                Date firingDateRaw = rs.getDate("firing_date");
+                LocalDate firingDate = firingDateRaw == null ? null : firingDateRaw.toLocalDate();
+
+                Integer maxTemperature = (Integer) rs.getObject("max_temperature");
+
+                return new Firing(
+                        rs.getInt("id"),
+                        firingDate,
+                        rs.getString("furnace"),
+                        maxTemperature,
+                        rs.getString("notes")
+                );
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore caricamento firing per id.", e);
+        }
+    }
+
     @Override
     public Integer findLatestId() {
         String sql = "SELECT MAX(id) AS latest_id FROM firing";

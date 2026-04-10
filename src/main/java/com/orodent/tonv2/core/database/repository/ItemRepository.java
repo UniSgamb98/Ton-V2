@@ -6,6 +6,7 @@ import java.util.List;
 
 public interface ItemRepository {
     Item findById(int id);
+    Item findByCode(String code);
     Item findByProductAndHeight(int productId, double heightMm);
     Item insert(String code, int productId, int blankModelId, double heightMm);
     List<Item> findAll();
