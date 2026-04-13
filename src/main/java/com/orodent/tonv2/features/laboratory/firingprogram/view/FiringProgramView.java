@@ -33,6 +33,7 @@ public class FiringProgramView extends VBox {
         VBox programNameBox = new VBox(6, programNameLabel, programNameField);
 
         stepsBox = new VBox(8);
+        stepsBox.setStyle("-fx-text-fill: #000000;");
         ScrollPane stepsScroll = new ScrollPane(stepsBox);
         stepsScroll.setFitToWidth(true);
         stepsScroll.setPrefViewportHeight(420);
@@ -107,14 +108,18 @@ public class FiringProgramView extends VBox {
 
         public StepRow() {
             titleLabel = new Label("Step 01:");
+            titleLabel.setStyle("-fx-text-fill: #000000;");
             targetTemperatureField = new TextField();
             targetTemperatureField.setPromptText("Temperatura di arrivo");
+            targetTemperatureField.setStyle("-fx-text-fill: #000000; -fx-prompt-text-fill: #444444;");
 
             rampTimeField = new TextField();
             rampTimeField.setPromptText("Tempo di Rampa (min)");
+            rampTimeField.setStyle("-fx-text-fill: #000000; -fx-prompt-text-fill: #444444;");
 
             holdTimeField = new TextField();
             holdTimeField.setPromptText("Tempo di mantenuta (min)");
+            holdTimeField.setStyle("-fx-text-fill: #000000; -fx-prompt-text-fill: #444444;");
 
             removeButton = new Button("Rimuovi");
 
