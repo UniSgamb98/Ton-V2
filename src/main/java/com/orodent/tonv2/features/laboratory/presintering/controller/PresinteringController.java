@@ -44,6 +44,7 @@ public class PresinteringController {
         view.getConfirmPresinteringButton().setOnAction(e -> confirmAllPlannedFurnaces());
         view.getSelectedFurnaceMaxTemperatureField().textProperty().addListener((obs, oldValue, newValue) -> syncSelectedFurnaceConfigFromView());
         view.getSelectedFurnaceDepartureDatePicker().valueProperty().addListener((obs, oldValue, newValue) -> syncSelectedFurnaceConfigFromView());
+        view.getSelectedFurnaceLotCodeField().textProperty().addListener((obs, oldValue, newValue) -> syncSelectedFurnaceConfigFromView());
         view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
                 service.setLastTemplateName(newValue)
         );
@@ -94,7 +95,8 @@ public class PresinteringController {
                         : furnaceConfigById.get(selectedFurnaceId);
                 view.setSelectedFurnaceParameters(
                         config == null ? null : config.maxTemperature(),
-                        config == null ? null : config.departureDate()
+                        config == null ? null : config.departureDate(),
+                        config == null ? null : config.lotCode()
                 );
                 view.renderPlanning(planningState, productNameByItemIdState);
             });
@@ -154,11 +156,13 @@ public class PresinteringController {
         if (maxTemperatureText != null && !maxTemperatureText.isBlank()) {
             maxTemperature = Integer.parseInt(maxTemperatureText);
         }
+        String lotCode = view.getSelectedFurnaceLotCodeField().getText();
         furnaceConfigById.put(
                 selectedFurnaceId,
                 new PresinteringService.FurnaceConfig(
                         maxTemperature,
-                        view.getSelectedFurnaceDepartureDatePicker().getValue()
+                        view.getSelectedFurnaceDepartureDatePicker().getValue(),
+                        lotCode == null ? null : lotCode.trim()
                 )
         );
         service.saveLocalPlanState(new PresinteringService.LocalPlanState(
@@ -287,7 +291,7 @@ public class PresinteringController {
             }
             LocalDate departureDate = config.departureDate();
             Integer maxTemperature = config.maxTemperature();
-            restoredConfigByFurnace.put(furnaceId, new PresinteringService.FurnaceConfig(maxTemperature, departureDate));
+            restoredConfigByFurnace.put(furnaceId, new PresinteringService.FurnaceConfig(maxTemperature, departureDate, config.lotCode()));
         }
 
         if (restoredPlanByFurnace.isEmpty()) {

@@ -45,6 +45,7 @@ public class PresinteringView extends VBox {
     private final Label selectedFurnaceCardTitle = new Label();
     private final TextField selectedFurnaceMaxTemperatureField = new TextField();
     private final DatePicker selectedFurnaceDepartureDatePicker = new DatePicker();
+    private final TextField selectedFurnaceLotCodeField = new TextField();
     private final VBox selectedFurnaceItemsBox = new VBox(6);
     private final Button confirmPresinteringButton = new Button("Conferma tutti\ni forni");
     private Runnable onInsertDisksRequested;
@@ -330,15 +331,18 @@ public class PresinteringView extends VBox {
         });
         selectedFurnaceDepartureDatePicker.setPromptText("Partenza");
         selectedFurnaceDepartureDatePicker.setValue(LocalDate.now());
+        selectedFurnaceLotCodeField.setPromptText("Lotto: ");
 
         Label fieldsLabel = new Label("Parametri firing");
         fieldsLabel.setStyle("-fx-font-weight: bold;");
         HBox firingFieldsRow = new HBox(8,
                 selectedFurnaceMaxTemperatureField,
-                selectedFurnaceDepartureDatePicker
+                selectedFurnaceDepartureDatePicker,
+                selectedFurnaceLotCodeField
         );
-        selectedFurnaceMaxTemperatureField.setPrefWidth(180);
+        selectedFurnaceMaxTemperatureField.setPrefWidth(160);
         selectedFurnaceDepartureDatePicker.setPrefWidth(170);
+        selectedFurnaceLotCodeField.setPrefWidth(180);
 
         Label itemListLabel = new Label("Item pianificati");
         itemListLabel.setStyle("-fx-font-weight: bold;");
@@ -450,6 +454,10 @@ public class PresinteringView extends VBox {
         return selectedFurnaceDepartureDatePicker;
     }
 
+    public TextField getSelectedFurnaceLotCodeField() {
+        return selectedFurnaceLotCodeField;
+    }
+
     public Integer getSelectedFurnaceId() {
         return selectedFurnaceId;
     }
@@ -458,9 +466,10 @@ public class PresinteringView extends VBox {
         return selectedFurnaceName;
     }
 
-    public void setSelectedFurnaceParameters(Integer maxTemperature, LocalDate departureDate) {
+    public void setSelectedFurnaceParameters(Integer maxTemperature, LocalDate departureDate, String lotCode) {
         selectedFurnaceMaxTemperatureField.setText(maxTemperature == null ? "" : String.valueOf(maxTemperature));
         selectedFurnaceDepartureDatePicker.setValue(departureDate == null ? LocalDate.now() : departureDate);
+        selectedFurnaceLotCodeField.setText(lotCode == null ? "" : lotCode);
     }
 
     private VBox buildInsightsSection() {

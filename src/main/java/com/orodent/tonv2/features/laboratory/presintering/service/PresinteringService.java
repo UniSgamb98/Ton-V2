@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 public class PresinteringService {
     private static final Path LOCAL_PLAN_PATH = Path.of(
@@ -158,12 +157,16 @@ public class PresinteringService {
             if (config.departureDate() == null) {
                 throw new IllegalArgumentException("Inserisci la data di partenza per " + furnaceName + " prima di confermare tutti i forni.");
             }
+            if (config.lotCode() == null || config.lotCode().isBlank()) {
+                throw new IllegalArgumentException("Indicare il lotto per " + furnaceName);
+            }
 
             requests.add(new BatchConfirmationRequest(
                     furnaceId,
                     furnaceName,
                     config.maxTemperature(),
                     config.departureDate(),
+                    config.lotCode().trim(),
                     new LinkedHashMap<>(plannedItems)
             ));
         }
@@ -178,6 +181,7 @@ public class PresinteringService {
                                                                        String furnaceName,
                                                                        LocalDate firingDate,
                                                                        Integer maxTemperature,
+                                                                       String lotCode,
                                                                        Map<Integer, Integer> plannedItemsByItemId) {
         if (furnaceName == null || furnaceName.isBlank()) {
             throw new IllegalArgumentException("Forno non valido.");
@@ -191,8 +195,13 @@ public class PresinteringService {
         if (plannedItemsByItemId == null || plannedItemsByItemId.isEmpty()) {
             throw new IllegalArgumentException("Nessun item pianificato da confermare.");
         }
+        if (lotCode == null || lotCode.isBlank()) {
+            throw new IllegalArgumentException("Lotto obbligatorio.");
+        }
 
         Firing firing = firingRepo.insert(firingDate, furnaceName, maxTemperature, "Presinterizzazione forno id=" + furnaceId);
+        lotRepo.insert(lotCode.trim(), firing.id());
+
         Set<Integer> linkedProductionOrderIds = new LinkedHashSet<>();
         Map<LineAllocationKey, Integer> quantityByLineAllocation = new LinkedHashMap<>();
 
@@ -226,9 +235,6 @@ public class PresinteringService {
             if (remainingQty > 0) {
                 throw new IllegalStateException("Quantità pianificata non coerente per item " + itemId + ".");
             }
-
-            String lotCode = buildRandomLotCode(firing.id(), itemId);
-            lotRepo.insert(lotCode, firing.id());
         }
 
         for (Map.Entry<LineAllocationKey, Integer> allocationEntry : quantityByLineAllocation.entrySet()) {
@@ -241,7 +247,7 @@ public class PresinteringService {
             );
         }
 
-        return new ConfirmationResult(firing.id(), linkedProductionOrderIds.size(), plannedItemsByItemId.size());
+        return new ConfirmationResult(firing.id(), linkedProductionOrderIds.size(), 1);
     }
 
     public String generateDocumentIfTemplateSelected(String selectedTemplateName,
@@ -348,6 +354,7 @@ public class PresinteringService {
                             furnaceRequest.furnaceName(),
                             furnaceRequest.departureDate(),
                             furnaceRequest.maxTemperature(),
+                            furnaceRequest.lotCode(),
                             furnaceRequest.plannedItemsByItemId()
                     );
                 } catch (Exception e) {
@@ -521,11 +528,6 @@ public class PresinteringService {
         );
     }
 
-    private String buildRandomLotCode(int firingId, int itemId) {
-        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
-        return "LOT-F" + firingId + "-I" + itemId + "-" + suffix;
-    }
-
     private Map<Integer, Map<Integer, Integer>> deepCopyPlan(Map<Integer, Map<Integer, Integer>> source) {
         Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
         if (source == null) {
@@ -540,7 +542,7 @@ public class PresinteringService {
     public record ConfirmationResult(int firingId, int linkedProductionOrders, int lotCount) {
     }
 
-    public record FurnaceConfig(Integer maxTemperature, LocalDate departureDate) implements java.io.Serializable {
+    public record FurnaceConfig(Integer maxTemperature, LocalDate departureDate, String lotCode) implements java.io.Serializable {
     }
 
     public record LocalPlanState(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
@@ -573,6 +575,7 @@ public class PresinteringService {
                                            String furnaceName,
                                            int maxTemperature,
                                            LocalDate departureDate,
+                                           String lotCode,
                                            Map<Integer, Integer> plannedItemsByItemId) {
     }
 
