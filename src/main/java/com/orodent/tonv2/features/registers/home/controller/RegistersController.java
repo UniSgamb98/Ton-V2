@@ -1,5 +1,7 @@
 package com.orodent.tonv2.features.registers.home.controller;
 
+import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.registers.home.service.RegistersDocumentService;
 import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
 import com.orodent.tonv2.features.registers.home.view.RegistersView;
 import javafx.animation.PauseTransition;
@@ -14,14 +16,21 @@ public class RegistersController {
 
     private final RegistersView view;
     private final RegistersSearchService searchService;
+    private final RegistersDocumentService documentService;
+    private final DocumentBrowserService documentBrowserService;
     private final PauseTransition itemDebounce;
     private final PauseTransition lotDebounce;
 
     private boolean updatingSuggestions;
 
-    public RegistersController(RegistersView view, RegistersSearchService searchService) {
+    public RegistersController(RegistersView view,
+                               RegistersSearchService searchService,
+                               RegistersDocumentService documentService,
+                               DocumentBrowserService documentBrowserService) {
         this.view = view;
         this.searchService = searchService;
+        this.documentService = documentService;
+        this.documentBrowserService = documentBrowserService;
         this.itemDebounce = new PauseTransition(Duration.millis(250));
         this.lotDebounce = new PauseTransition(Duration.millis(250));
 
@@ -62,6 +71,9 @@ public class RegistersController {
             }
             itemDebounce.playFromStart();
         });
+
+        view.getBuildCompositionDocumentButton().setOnAction(e -> generateCompositionDocument());
+        view.getBuildFiringDocumentButton().setOnAction(e -> generateFiringDocument());
     }
 
     private void bootstrapSuggestions() {
@@ -131,6 +143,33 @@ public class RegistersController {
     private String getEditorText(ComboBox<String> comboBox) {
         String text = comboBox.getEditor().getText();
         return text == null ? "" : text.trim();
+    }
+
+
+    private void generateCompositionDocument() {
+        try {
+            String documentPath = documentService.generateCompositionDocument(
+                    getEditorText(view.getArticleComboBox()),
+                    getEditorText(view.getLotComboBox())
+            );
+            documentBrowserService.openDocument(documentPath);
+            view.getDocumentsPreviewArea().setText("Documento composizione generato e aperto: " + documentPath);
+        } catch (IllegalArgumentException ex) {
+            view.getDocumentsPreviewArea().setText(ex.getMessage());
+        }
+    }
+
+    private void generateFiringDocument() {
+        try {
+            String documentPath = documentService.generateFiringDocument(
+                    getEditorText(view.getArticleComboBox()),
+                    getEditorText(view.getLotComboBox())
+            );
+            documentBrowserService.openDocument(documentPath);
+            view.getDocumentsPreviewArea().setText("Documento firing generato e aperto: " + documentPath);
+        } catch (IllegalArgumentException ex) {
+            view.getDocumentsPreviewArea().setText(ex.getMessage());
+        }
     }
 
     private void runSearch() {
