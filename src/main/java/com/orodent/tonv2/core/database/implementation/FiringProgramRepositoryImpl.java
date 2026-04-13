@@ -22,44 +22,6 @@ public class FiringProgramRepositoryImpl implements FiringProgramRepository {
     }
 
     @Override
-    public void ensureTables() {
-        String firingProgramSql = """
-                CREATE TABLE firing_program (
-                    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """;
-
-        String firingProgramStepSql = """
-                CREATE TABLE firing_program_step (
-                    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-                    firing_program_id INT NOT NULL,
-                    step_order INT NOT NULL,
-                    target_temperature DOUBLE NOT NULL,
-                    ramp_time_minutes INT NOT NULL,
-                    hold_time_minutes INT NOT NULL,
-                    CONSTRAINT fk_firing_program_step_program
-                        FOREIGN KEY (firing_program_id) REFERENCES firing_program(id) ON DELETE CASCADE
-                )
-                """;
-
-        createTableIfMissing(firingProgramSql);
-        createTableIfMissing(firingProgramStepSql);
-    }
-
-    private void createTableIfMissing(String sql) {
-        try (Statement statement = conn.createStatement()) {
-            statement.executeUpdate(sql);
-        } catch (SQLException e) {
-            String sqlState = e.getSQLState();
-            if (!"X0Y32".equals(sqlState)) {
-                throw new RuntimeException("Errore creazione tabelle firing program.", e);
-            }
-        }
-    }
-
-    @Override
     public FiringProgram insertProgram(String name) {
         String sql = "INSERT INTO firing_program (name) VALUES (?)";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {

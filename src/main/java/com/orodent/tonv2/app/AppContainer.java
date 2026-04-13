@@ -76,7 +76,6 @@ public class AppContainer {
         this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(sharedConnection);
         this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(sharedConnection);
         this.firingProgramRepo = new FiringProgramRepositoryImpl(sharedConnection);
-        this.firingProgramRepo.ensureTables();
         System.out.println("Caricati le repository.");
 
         // SHARED SERVICES

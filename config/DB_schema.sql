@@ -406,3 +406,40 @@ CREATE TABLE document_template_usage (
     CONSTRAINT fk_dtu_template
         FOREIGN KEY (template_id) REFERENCES document_template(id)
 );
+
+
+------------------------------------------------------------
+-- TABLE: firing_program
+------------------------------------------------------------
+CREATE TABLE firing_program (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    CONSTRAINT uq_firing_program_name UNIQUE (name)
+);
+
+------------------------------------------------------------
+-- TABLE: firing_program_step
+------------------------------------------------------------
+CREATE TABLE firing_program_step (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    firing_program_id INTEGER NOT NULL,
+    step_order INTEGER NOT NULL,
+    target_temperature DOUBLE NOT NULL,
+    ramp_time_minutes INTEGER NOT NULL,
+    hold_time_minutes INTEGER NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_fps_program
+        FOREIGN KEY (firing_program_id)
+        REFERENCES firing_program(id),
+
+    CONSTRAINT uq_fps_program_step UNIQUE (firing_program_id, step_order),
+    CONSTRAINT ck_fps_step_order CHECK (step_order > 0),
+    CONSTRAINT ck_fps_target_temperature CHECK (target_temperature > 0),
+    CONSTRAINT ck_fps_ramp_time CHECK (ramp_time_minutes >= 0),
+    CONSTRAINT ck_fps_hold_time CHECK (hold_time_minutes >= 0)
+);
