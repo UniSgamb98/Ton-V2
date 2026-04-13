@@ -1,6 +1,7 @@
 package com.orodent.tonv2.features.laboratory.firingprogram.controller;
 
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
+import com.orodent.tonv2.core.ui.form.FieldParsers;
 import com.orodent.tonv2.features.laboratory.firingprogram.service.FiringProgramService;
 import com.orodent.tonv2.features.laboratory.firingprogram.view.FiringProgramView;
 
@@ -53,37 +54,31 @@ public class FiringProgramController {
         List<FiringProgramService.StepInput> steps = new ArrayList<>();
         int index = 1;
         for (FiringProgramView.StepRow row : view.getStepRows()) {
-            double targetTemp = parseDouble(row.getTargetTemperatureField().getText(), "Step " + index + ": temperatura di arrivo non valida.");
-            int ramp = parseInt(row.getRampTimeField().getText(), "Step " + index + ": tempo di rampa non valido.");
-            int hold = parseInt(row.getHoldTimeField().getText(), "Step " + index + ": tempo di mantenuta non valido.");
+            double targetTemp = parseRequiredDouble(row.getTargetTemperatureField().getText(), index, "temperatura di arrivo");
+            int ramp = parseRequiredInt(row.getRampTimeField().getText(), index, "tempo di rampa");
+            int hold = parseRequiredInt(row.getHoldTimeField().getText(), index, "tempo di mantenuta");
             steps.add(new FiringProgramService.StepInput(targetTemp, ramp, hold));
             index++;
         }
         return steps;
     }
 
-    private int parseInt(String value, String errorMessage) {
-        try {
-            return Integer.parseInt(normalize(value));
-        } catch (Exception e) {
-            throw new IllegalArgumentException(errorMessage);
+    private int parseRequiredInt(String value, int stepIndex, String fieldLabel) {
+        String fieldName = "Step " + stepIndex + " - " + fieldLabel;
+        Integer parsed = FieldParsers.parseInteger(value, fieldName);
+        if (parsed == null) {
+            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
         }
+        return parsed;
     }
 
-    private double parseDouble(String value, String errorMessage) {
-        try {
-            return Double.parseDouble(normalize(value).replace(',', '.'));
-        } catch (Exception e) {
-            throw new IllegalArgumentException(errorMessage);
+    private double parseRequiredDouble(String value, int stepIndex, String fieldLabel) {
+        String fieldName = "Step " + stepIndex + " - " + fieldLabel;
+        Double parsed = FieldParsers.parseDouble(value, fieldName);
+        if (parsed == null) {
+            throw new IllegalArgumentException(fieldName + " è obbligatorio.");
         }
-    }
-
-    private String normalize(String value) {
-        String normalized = value == null ? "" : value.trim();
-        if (normalized.isBlank()) {
-            throw new IllegalArgumentException("Campo obbligatorio.");
-        }
-        return normalized;
+        return parsed;
     }
 
     public FiringProgramView getView() {
