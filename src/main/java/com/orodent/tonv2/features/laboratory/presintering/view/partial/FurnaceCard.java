@@ -2,6 +2,9 @@ package com.orodent.tonv2.features.laboratory.presintering.view.partial;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import java.util.LinkedHashMap;
@@ -10,6 +13,7 @@ import java.util.Map;
 public class FurnaceCard extends VBox {
 
     public FurnaceCard(String furnaceName,
+                       String lotCode,
                        Map<Integer, Integer> plannedItemQty,
                        Map<Integer, String> itemCodeById,
                        Map<Integer, String> productNameByItemId,
@@ -24,6 +28,14 @@ public class FurnaceCard extends VBox {
 
         Label title = new Label(furnaceName);
         title.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label lotLabel = new Label((lotCode == null || lotCode.isBlank()) ? "" : lotCode);
+        lotLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-opacity: 0.90;");
+
+        HBox headerRow = new HBox(6, title, spacer, lotLabel);
+        headerRow.setAlignment(javafx.geometry.Pos.TOP_LEFT);
 
         VBox itemsBox = new VBox(4);
         if (plannedItemQty == null || plannedItemQty.isEmpty()) {
@@ -47,7 +59,7 @@ public class FurnaceCard extends VBox {
             }
         }
 
-        getChildren().addAll(title, itemsBox);
+        getChildren().addAll(headerRow, itemsBox);
     }
 
     private String buildCardStyle(boolean selected) {

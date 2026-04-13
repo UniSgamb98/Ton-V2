@@ -124,7 +124,7 @@ public class PresinteringView extends VBox {
 
         if (rows == null || rows.isEmpty()) {
             rowsBox.getChildren().add(new Label("Nessun disco prodotto disponibile."));
-            renderPlanning(EMPTY_SNAPSHOT, Map.of());
+            renderPlanning(EMPTY_SNAPSHOT, Map.of(), Map.of());
             updateInsertButton();
             return;
         }
@@ -133,13 +133,13 @@ public class PresinteringView extends VBox {
             rowsBox.getChildren().add(buildDiskRow(row));
         }
 
-        renderPlanning(EMPTY_SNAPSHOT, Map.of());
+        renderPlanning(EMPTY_SNAPSHOT, Map.of(), Map.of());
         updateInsertButton();
     }
 
     public void setFurnaces(List<Furnace> furnaces) {
         furnaceCarouselView.setFurnaces(furnaces);
-        renderPlanning(EMPTY_SNAPSHOT, Map.of());
+        renderPlanning(EMPTY_SNAPSHOT, Map.of(), Map.of());
     }
 
     public void setFeedback(String text, boolean error) {
@@ -168,7 +168,8 @@ public class PresinteringView extends VBox {
     }
 
     public void renderPlanning(PresinteringPlanningSnapshot snapshot,
-                               Map<Integer, String> productNameByItemId) {
+                               Map<Integer, String> productNameByItemId,
+                               Map<Integer, String> lotCodeByFurnace) {
         if (snapshot == null) {
             return;
         }
@@ -185,7 +186,8 @@ public class PresinteringView extends VBox {
         furnaceCarouselView.setPlannedItems(
                 snapshot.plannedByFurnace(),
                 snapshot.itemCodeById(),
-                productNameByItemId
+                productNameByItemId,
+                lotCodeByFurnace
         );
         refreshSelectedFurnaceCard(snapshot);
         updateInsertButton();

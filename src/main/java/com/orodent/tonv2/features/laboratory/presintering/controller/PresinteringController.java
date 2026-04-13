@@ -85,7 +85,7 @@ public class PresinteringController {
             view.setCompositionRankingRows(compositionRanking);
             view.setFurnaceItemSuggestionRows(List.of());
             restoreLocalPlanIfStillValid();
-            view.renderPlanning(planningState, productNameByItemIdState);
+            view.renderPlanning(planningState, productNameByItemIdState, buildLotCodeByFurnace());
             view.setOnFurnaceSelectionChanged(selectedFurnace -> {
                 List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
                 view.setFurnaceItemSuggestionRows(suggestions);
@@ -98,7 +98,7 @@ public class PresinteringController {
                         config == null ? null : config.departureDate(),
                         config == null ? null : config.lotCode()
                 );
-                view.renderPlanning(planningState, productNameByItemIdState);
+                view.renderPlanning(planningState, productNameByItemIdState, buildLotCodeByFurnace());
             });
             refreshTemplateSelector();
             view.setFeedback("", false);
@@ -217,13 +217,25 @@ public class PresinteringController {
     }
 
     private void renderAndPersistPlanningState() {
-        view.renderPlanning(planningState, productNameByItemIdState);
+        view.renderPlanning(planningState, productNameByItemIdState, buildLotCodeByFurnace());
         service.saveLocalPlanState(new PresinteringService.LocalPlanState(
                 planningState.plannedByFurnace(),
                 furnaceConfigById,
                 service.findLatestFiringId(),
                 Instant.now()
         ));
+    }
+
+    private Map<Integer, String> buildLotCodeByFurnace() {
+        Map<Integer, String> lotCodes = new LinkedHashMap<>();
+        for (Map.Entry<Integer, PresinteringService.FurnaceConfig> entry : furnaceConfigById.entrySet()) {
+            PresinteringService.FurnaceConfig config = entry.getValue();
+            if (config == null || config.lotCode() == null || config.lotCode().isBlank()) {
+                continue;
+            }
+            lotCodes.put(entry.getKey(), config.lotCode().trim());
+        }
+        return lotCodes;
     }
 
     private void restoreLocalPlanIfStillValid() {
