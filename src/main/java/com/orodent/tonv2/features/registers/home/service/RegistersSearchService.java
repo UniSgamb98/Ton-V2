@@ -1,12 +1,19 @@
 package com.orodent.tonv2.features.registers.home.service;
 
+import com.orodent.tonv2.core.database.model.BlankModelLayer;
+import com.orodent.tonv2.core.database.model.Composition;
+import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
 import com.orodent.tonv2.core.database.model.Firing;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Lot;
+import com.orodent.tonv2.core.database.model.Powder;
+import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
+import com.orodent.tonv2.core.database.repository.CompositionLayerIngredientRepository;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
 import com.orodent.tonv2.core.database.repository.FiringRepository;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LotRepository;
+import com.orodent.tonv2.core.database.repository.PowderRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
 import java.util.Comparator;
@@ -19,17 +26,26 @@ public class RegistersSearchService {
     private final LotRepository lotRepository;
     private final FiringRepository firingRepository;
     private final CompositionRepository compositionRepository;
+    private final CompositionLayerIngredientRepository compositionLayerIngredientRepository;
+    private final BlankModelLayerRepository blankModelLayerRepository;
+    private final PowderRepository powderRepository;
     private final TemplateEditorService templateEditorService;
 
     public RegistersSearchService(ItemRepository itemRepository,
                                   LotRepository lotRepository,
                                   FiringRepository firingRepository,
                                   CompositionRepository compositionRepository,
+                                  CompositionLayerIngredientRepository compositionLayerIngredientRepository,
+                                  BlankModelLayerRepository blankModelLayerRepository,
+                                  PowderRepository powderRepository,
                                   TemplateEditorService templateEditorService) {
         this.itemRepository = itemRepository;
         this.lotRepository = lotRepository;
         this.firingRepository = firingRepository;
         this.compositionRepository = compositionRepository;
+        this.compositionLayerIngredientRepository = compositionLayerIngredientRepository;
+        this.blankModelLayerRepository = blankModelLayerRepository;
+        this.powderRepository = powderRepository;
         this.templateEditorService = templateEditorService;
     }
 
@@ -112,13 +128,76 @@ public class RegistersSearchService {
         builder.append("Articolo: ").append(item.code()).append(System.lineSeparator());
         builder.append("Item ID: ").append(item.id()).append(System.lineSeparator());
         builder.append("Product ID: ").append(item.productId()).append(System.lineSeparator());
+
+        if (activeCompositionId.isEmpty()) {
+            builder.append("Versione: non trovata").append(System.lineSeparator());
+            builder.append("Blank Model ID: ").append(item.blankModelId()).append(System.lineSeparator());
+            builder.append("Altezza (mm): ").append(item.heightMm()).append(System.lineSeparator());
+            builder.append(System.lineSeparator());
+            builder.append("Composizione:").append(System.lineSeparator());
+            builder.append("Nessuna composizione attiva trovata.");
+            return builder.toString();
+        }
+
+        int compositionId = activeCompositionId.get();
+        Optional<Composition> composition = compositionRepository.findById(compositionId);
+
+        builder.append("Versione: ")
+                .append(composition.map(Composition::version).map(String::valueOf).orElse("n/d"))
+                .append(System.lineSeparator());
         builder.append("Blank Model ID: ").append(item.blankModelId()).append(System.lineSeparator());
         builder.append("Altezza (mm): ").append(item.heightMm()).append(System.lineSeparator());
         builder.append(System.lineSeparator());
-        builder.append("Composizione attiva: ");
-        builder.append(activeCompositionId.map(String::valueOf).orElse("non trovata"));
+        builder.append("Composizione:").append(System.lineSeparator());
 
-        return builder.toString();
+        List<CompositionLayerIngredient> ingredients = compositionLayerIngredientRepository.findByCompositionId(compositionId);
+        Integer blankModelId = compositionRepository.findBlankModelIdByCompositionId(compositionId).orElse(item.blankModelId());
+        List<BlankModelLayer> blankLayers = blankModelLayerRepository.findByBlankModelId(blankModelId);
+
+        if (blankLayers.isEmpty()) {
+            builder.append("Nessuno strato blank model trovato.");
+            return builder.toString();
+        }
+
+        for (BlankModelLayer layer : blankLayers) {
+            builder.append("Strato ")
+                    .append(layer.layerNumber())
+                    .append(" (")
+                    .append(layer.diskPercentage())
+                    .append("%)")
+                    .append(":")
+                    .append(System.lineSeparator());
+
+            List<CompositionLayerIngredient> layerIngredients = ingredients.stream()
+                    .filter(ingredient -> ingredient.layerNumber() == layer.layerNumber())
+                    .toList();
+
+            if (layerIngredients.isEmpty()) {
+                builder.append("- Nessuna polvere associata").append(System.lineSeparator());
+                continue;
+            }
+
+            for (CompositionLayerIngredient ingredient : layerIngredients) {
+                Powder powder = powderRepository.findById(ingredient.powderId());
+                String powderLabel;
+                if (powder == null) {
+                    powderLabel = "polvere #" + ingredient.powderId();
+                } else if (powder.name() != null && !powder.name().isBlank()) {
+                    powderLabel = powder.name();
+                } else {
+                    powderLabel = powder.code();
+                }
+
+                builder.append("- ")
+                        .append(powderLabel)
+                        .append(" - ")
+                        .append(ingredient.percentage())
+                        .append("%")
+                        .append(System.lineSeparator());
+            }
+        }
+
+        return builder.toString().trim();
     }
 
     private String buildFiringSummary(Item item, Lot lot, Firing firing) {
