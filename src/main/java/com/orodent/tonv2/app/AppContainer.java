@@ -34,6 +34,7 @@ public class AppContainer {
     private final BlankModelRepository blankModelRepo;
     private final BlankModelLayerRepository blankModelLayerRepo;
     private final BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo;
+    private final FiringProgramRepository firingProgramRepo;
 
     // --- Shared services ---
     private final TemplateEditorService templateEditorService;
@@ -74,6 +75,8 @@ public class AppContainer {
         this.blankModelRepo = new BlankModelRepositoryImpl(sharedConnection);
         this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(sharedConnection);
         this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(sharedConnection);
+        this.firingProgramRepo = new FiringProgramRepositoryImpl(sharedConnection);
+        this.firingProgramRepo.ensureTables();
         System.out.println("Caricati le repository.");
 
         // SHARED SERVICES
@@ -110,6 +113,7 @@ public class AppContainer {
     public BlankModelRepository blankModelRepo() { return blankModelRepo; }
     public BlankModelLayerRepository blankModelLayerRepo() { return blankModelLayerRepo; }
     public BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepo() { return blankModelHeightOvermaterialRepo; }
+    public FiringProgramRepository firingProgramRepo() { return firingProgramRepo; }
 
     public TemplateEditorService templateEditorService() { return templateEditorService; }
     public DocumentBrowserService documentBrowserService() { return documentBrowserService; }

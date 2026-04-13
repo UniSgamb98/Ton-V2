@@ -16,6 +16,7 @@ public class LaboratoryView extends VBox {
     private final Button archiveCompositionsButton;
     private final Button produceButton;
     private final Button createArticleButton;
+    private final Button createFiringCycleButton;
     private final Button presinterButton;
 
     public LaboratoryView() {
@@ -26,13 +27,14 @@ public class LaboratoryView extends VBox {
         archiveDiskModelsButton = new Button("Archivio Dischi");
         archiveCompositionsButton = new Button("Archivio Composizioni");
         createArticleButton = new Button("Nuovo Articolo");
+        createFiringCycleButton = new Button("Nuovo Ciclo Sinterizzazione");
         produceButton = new Button("Produzione");
         presinterButton = new Button("Presinterizza");
 
         setSpacing(20);
         setPadding(new Insets(20));
 
-        HBox primaryActions = new HBox(20, createCompositionButton, createDiskModelButton, createArticleButton);
+        HBox primaryActions = new HBox(20, createCompositionButton, createDiskModelButton, createArticleButton, createFiringCycleButton);
         HBox archiveActions = new HBox(20, archiveCompositionsButton, archiveDiskModelsButton);
         HBox secondaryActions = new HBox(20, produceButton, presinterButton);
 
@@ -59,6 +61,9 @@ public class LaboratoryView extends VBox {
     }
     public Button getCreateArticleButton() {
         return createArticleButton;
+    }
+    public Button getCreateFiringCycleButton() {
+        return createFiringCycleButton;
     }
     public Button getPresinterButton() {
         return presinterButton;

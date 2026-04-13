@@ -9,6 +9,7 @@ public interface LaboratoryNavigator {
     void showLaboratoryCompositionArchive();
     void showLaboratoryDiskModelArchive();
     void showItemSetup();
+    void showCreateFiringProgram();
     void showBatchProduction();
     void showPresintering();
 }

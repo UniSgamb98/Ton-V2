@@ -19,6 +19,9 @@ import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositi
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.DiskModelArchiveService;
+import com.orodent.tonv2.features.laboratory.firingprogram.controller.FiringProgramController;
+import com.orodent.tonv2.features.laboratory.firingprogram.service.FiringProgramService;
+import com.orodent.tonv2.features.laboratory.firingprogram.view.FiringProgramView;
 import com.orodent.tonv2.features.laboratory.home.controller.LaboratoryController;
 import com.orodent.tonv2.features.laboratory.itemsetup.controller.ItemSetupController;
 import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
@@ -319,6 +322,22 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Setup Item");
+    }
+
+
+    @Override
+    public void showCreateFiringProgram() {
+        FiringProgramView view = new FiringProgramView();
+        configureHeader(view.getHeader());
+
+        new FiringProgramController(
+                view,
+                new FiringProgramService(app.database.getConnection(), app.firingProgramRepo()),
+                this
+        );
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Nuovo Ciclo Sinterizzazione");
     }
 
     @Override

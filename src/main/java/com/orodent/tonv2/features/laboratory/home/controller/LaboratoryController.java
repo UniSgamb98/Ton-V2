@@ -14,6 +14,7 @@ public class LaboratoryController {
         view.getArchiveDiskModelsButton().setOnAction(e -> navigator.showLaboratoryDiskModelArchive());
         view.getArchiveCompositionsButton().setOnAction(e -> navigator.showLaboratoryCompositionArchive());
         view.getCreateArticleButton().setOnAction(e -> navigator.showItemSetup());
+        view.getCreateFiringCycleButton().setOnAction(e -> navigator.showCreateFiringProgram());
         view.getProduceButton().setOnAction(e -> navigator.showBatchProduction());
         view.getPresinterButton().setOnAction(e -> navigator.showPresintering());
     }
