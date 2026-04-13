@@ -3,21 +3,21 @@ package com.orodent.tonv2.features.registers.home.view;
 import com.orodent.tonv2.core.components.AppHeader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
 public class RegistersView extends VBox {
     private final AppHeader header;
-    private final TextField articleField;
-    private final TextField lotField;
+    private final ComboBox<String> articleComboBox;
+    private final ComboBox<String> lotComboBox;
     private final Button searchButton;
     private final TabPane historyTabs;
     private final TextArea compositionSummaryArea;
@@ -28,18 +28,22 @@ public class RegistersView extends VBox {
 
     public RegistersView() {
         header = new AppHeader("Registri");
-        articleField = new TextField();
-        lotField = new TextField();
+        articleComboBox = new ComboBox<>();
+        lotComboBox = new ComboBox<>();
         searchButton = new Button("Cerca");
 
-        articleField.setPromptText("Codice articolo");
-        lotField.setPromptText("Codice lotto");
+        articleComboBox.setEditable(true);
+        lotComboBox.setEditable(true);
+        articleComboBox.setPromptText("Codice articolo");
+        lotComboBox.setPromptText("Codice lotto");
+        articleComboBox.setPrefWidth(260);
+        lotComboBox.setPrefWidth(260);
 
         setSpacing(20);
         setPadding(new Insets(20));
 
-        VBox articleBox = new VBox(8, new Label("Articolo"), articleField);
-        VBox lotBox = new VBox(8, new Label("Lotto"), lotField);
+        VBox articleBox = new VBox(8, new Label("Articolo"), articleComboBox);
+        VBox lotBox = new VBox(8, new Label("Lotto"), lotComboBox);
         HBox filtersBox = new HBox(20, articleBox, lotBox, searchButton);
 
         Separator separator = new Separator();
@@ -85,12 +89,12 @@ public class RegistersView extends VBox {
         return header;
     }
 
-    public TextField getArticleField() {
-        return articleField;
+    public ComboBox<String> getArticleComboBox() {
+        return articleComboBox;
     }
 
-    public TextField getLotField() {
-        return lotField;
+    public ComboBox<String> getLotComboBox() {
+        return lotComboBox;
     }
 
     public Button getSearchButton() {

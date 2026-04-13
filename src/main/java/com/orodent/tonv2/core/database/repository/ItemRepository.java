@@ -11,5 +11,7 @@ public interface ItemRepository {
     Item insert(String code, int productId, int blankModelId, double heightMm);
     List<Item> findAll();
     List<Item> findByProduct(int productId);
+    List<Item> findByCodePrefix(String codePrefix, int limit);
+    List<Item> findByLotCodePrefix(String lotCodePrefix, int limit);
     List<Item> findByDepot(String depotName);
 }

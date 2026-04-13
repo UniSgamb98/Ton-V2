@@ -63,6 +63,48 @@ public class RegistersSearchService {
         return SearchResult.success(compositionSummary, firingSummary, documentsSummary);
     }
 
+    public List<String> suggestItemCodesByPrefix(String itemCodePrefix, int limit) {
+        return itemRepository.findByCodePrefix(itemCodePrefix, limit).stream()
+                .map(Item::code)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    public List<String> suggestItemCodesByLotPrefix(String lotCodePrefix, int limit) {
+        return itemRepository.findByLotCodePrefix(lotCodePrefix, limit).stream()
+                .map(Item::code)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    public List<String> suggestLotCodesByPrefix(String lotCodePrefix, int limit) {
+        return lotRepository.findByCodePrefix(lotCodePrefix, limit).stream()
+                .map(Lot::code)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    public List<String> suggestLotCodesByItemCode(String itemCode, String lotCodePrefix, int limit) {
+        String normalizedItemCode = normalize(itemCode);
+        if (normalizedItemCode == null) {
+            return List.of();
+        }
+
+        Item item = itemRepository.findByCode(normalizedItemCode);
+        if (item == null) {
+            return List.of();
+        }
+
+        return lotRepository.findByCodePrefixAndItem(lotCodePrefix, item.id(), limit).stream()
+                .map(Lot::code)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
+    }
+
     private String buildCompositionSummary(Item item) {
         Optional<Integer> activeCompositionId = compositionRepository.findActiveCompositionId(item.productId());
 

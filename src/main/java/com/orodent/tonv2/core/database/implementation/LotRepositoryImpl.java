@@ -75,6 +75,78 @@ public class LotRepositoryImpl implements LotRepository {
 
 
 
+
+    @Override
+    public List<Lot> findByCodePrefix(String lotCodePrefix, int limit) {
+        String normalizedPrefix = lotCodePrefix == null ? "" : lotCodePrefix.trim();
+        int safeLimit = Math.max(1, limit);
+
+        String sql = """
+                SELECT l.id, l.code, l.firing_id
+                FROM lot l
+                WHERE UPPER(l.code) LIKE UPPER(?)
+                ORDER BY l.code ASC
+                FETCH FIRST ? ROWS ONLY
+                """;
+
+        List<Lot> result = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, normalizedPrefix + "%");
+            ps.setInt(2, safeLimit);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new Lot(
+                            rs.getInt("id"),
+                            rs.getString("code"),
+                            rs.getInt("firing_id")
+                    ));
+                }
+            }
+
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<Lot> findByCodePrefixAndItem(String lotCodePrefix, int itemId, int limit) {
+        String normalizedPrefix = lotCodePrefix == null ? "" : lotCodePrefix.trim();
+        int safeLimit = Math.max(1, limit);
+
+        String sql = """
+                SELECT DISTINCT l.id, l.code, l.firing_id
+                FROM lot l
+                JOIN production_order_line_firing polf ON polf.firing_id = l.firing_id
+                WHERE polf.item_id = ?
+                  AND UPPER(l.code) LIKE UPPER(?)
+                ORDER BY l.code ASC
+                FETCH FIRST ? ROWS ONLY
+                """;
+
+        List<Lot> result = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            ps.setString(2, normalizedPrefix + "%");
+            ps.setInt(3, safeLimit);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new Lot(
+                            rs.getInt("id"),
+                            rs.getString("code"),
+                            rs.getInt("firing_id")
+                    ));
+                }
+            }
+
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public Lot insert(String lotCode, int firingId) {
         String sql = "INSERT INTO lot (code, firing_id) VALUES (?, ?)";

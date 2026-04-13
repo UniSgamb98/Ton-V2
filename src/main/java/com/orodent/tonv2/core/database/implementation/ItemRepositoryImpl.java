@@ -133,6 +133,69 @@ public class ItemRepositoryImpl implements ItemRepository {
         }
     }
 
+
+    @Override
+    public List<Item> findByCodePrefix(String codePrefix, int limit) {
+        String normalizedPrefix = codePrefix == null ? "" : codePrefix.trim();
+        int safeLimit = Math.max(1, limit);
+
+        String sql = """
+                SELECT id, code, product_id, blank_model_id, height_mm
+                FROM item
+                WHERE UPPER(code) LIKE UPPER(?)
+                ORDER BY code ASC
+                FETCH FIRST ? ROWS ONLY
+                """;
+
+        List<Item> result = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, normalizedPrefix + "%");
+            ps.setInt(2, safeLimit);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapItem(rs));
+                }
+            }
+
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<Item> findByLotCodePrefix(String lotCodePrefix, int limit) {
+        String normalizedPrefix = lotCodePrefix == null ? "" : lotCodePrefix.trim();
+        int safeLimit = Math.max(1, limit);
+
+        String sql = """
+                SELECT DISTINCT i.id, i.code, i.product_id, i.blank_model_id, i.height_mm
+                FROM item i
+                JOIN production_order_line_firing polf ON polf.item_id = i.id
+                JOIN lot l ON l.firing_id = polf.firing_id
+                WHERE UPPER(l.code) LIKE UPPER(?)
+                ORDER BY i.code ASC
+                FETCH FIRST ? ROWS ONLY
+                """;
+
+        List<Item> result = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, normalizedPrefix + "%");
+            ps.setInt(2, safeLimit);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapItem(rs));
+                }
+            }
+
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public Item insert(String code, int productId, int blankModelId, double heightMm) {
         String sql = "INSERT INTO item (code, product_id, blank_model_id, height_mm) VALUES (?, ?, ?, ?)";

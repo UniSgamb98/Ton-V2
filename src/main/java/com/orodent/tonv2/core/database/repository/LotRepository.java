@@ -8,4 +8,6 @@ public interface LotRepository {
     Lot findByCodeAndItem(String lotCode, int itemId);
     Lot insert(String lotCode, int firingId);
     List<Lot> findByItem(int itemId);
+    List<Lot> findByCodePrefix(String lotCodePrefix, int limit);
+    List<Lot> findByCodePrefixAndItem(String lotCodePrefix, int itemId, int limit);
 }
