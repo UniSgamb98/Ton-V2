@@ -14,5 +14,8 @@ public interface ItemRepository {
     List<Item> findByCodePrefix(String codePrefix, int limit);
     List<Item> findByLotCodePrefix(String lotCodePrefix, int limit);
     List<Item> findByFiringId(int firingId);
+    List<ItemFiringQuantityRow> findItemQuantitiesByFiringId(int firingId);
     List<Item> findByDepot(String depotName);
+
+    record ItemFiringQuantityRow(int itemId, String itemCode, int quantity) {}
 }

@@ -138,18 +138,18 @@ public class RegistersSearchService {
         builder.append(firing.furnace()).append(System.lineSeparator());
         builder.append("Temperatura max: ").append(firing.maxTemperature()).append(System.lineSeparator());
 
-        List<String> itemCodes = itemRepository.findByFiringId(firing.id()).stream()
-                .map(Item::code)
-                .filter(code -> code != null && !code.isBlank())
-                .distinct()
-                .toList();
+        List<ItemRepository.ItemFiringQuantityRow> itemQuantities = itemRepository.findItemQuantitiesByFiringId(firing.id());
 
         builder.append(System.lineSeparator());
-        builder.append("Item nello stesso firing:").append(System.lineSeparator());
-        if (itemCodes.isEmpty()) {
+        if (itemQuantities.isEmpty()) {
             builder.append("- Nessun item trovato.");
         } else {
-            itemCodes.forEach(code -> builder.append("- ").append(code).append(System.lineSeparator()));
+            itemQuantities.forEach(row -> builder
+                    .append("- ")
+                    .append(row.itemCode())
+                    .append(" · qty: ")
+                    .append(row.quantity())
+                    .append(System.lineSeparator()));
         }
 
         return builder.toString().trim();

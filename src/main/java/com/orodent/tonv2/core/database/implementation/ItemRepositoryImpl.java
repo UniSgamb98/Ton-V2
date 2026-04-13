@@ -221,6 +221,38 @@ public class ItemRepositoryImpl implements ItemRepository {
         }
     }
 
+
+    @Override
+    public List<ItemFiringQuantityRow> findItemQuantitiesByFiringId(int firingId) {
+        String sql = """
+                SELECT i.id AS item_id,
+                       i.code AS item_code,
+                       SUM(polf.quantity) AS qty
+                FROM production_order_line_firing polf
+                JOIN item i ON i.id = polf.item_id
+                WHERE polf.firing_id = ?
+                GROUP BY i.id, i.code
+                ORDER BY i.code ASC
+                """;
+
+        List<ItemFiringQuantityRow> result = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, firingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new ItemFiringQuantityRow(
+                            rs.getInt("item_id"),
+                            rs.getString("item_code"),
+                            rs.getInt("qty")
+                    ));
+                }
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore durante il caricamento quantità item per firing.", e);
+        }
+    }
+
     @Override
     public Item insert(String code, int productId, int blankModelId, double heightMm) {
         String sql = "INSERT INTO item (code, product_id, blank_model_id, height_mm) VALUES (?, ?, ?, ?)";
