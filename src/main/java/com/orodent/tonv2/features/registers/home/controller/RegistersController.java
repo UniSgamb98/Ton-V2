@@ -73,7 +73,6 @@ public class RegistersController {
         });
 
         view.getBuildCompositionDocumentButton().setOnAction(e -> generateCompositionDocument());
-        view.getBuildFiringDocumentButton().setOnAction(e -> generateFiringDocument());
     }
 
     private void bootstrapSuggestions() {
@@ -153,22 +152,8 @@ public class RegistersController {
                     getEditorText(view.getLotComboBox())
             );
             documentBrowserService.openDocument(documentPath);
-            view.getDocumentsPreviewArea().setText("Documento composizione generato e aperto: " + documentPath);
         } catch (IllegalArgumentException ex) {
-            view.getDocumentsPreviewArea().setText(ex.getMessage());
-        }
-    }
-
-    private void generateFiringDocument() {
-        try {
-            String documentPath = documentService.generateFiringDocument(
-                    getEditorText(view.getArticleComboBox()),
-                    getEditorText(view.getLotComboBox())
-            );
-            documentBrowserService.openDocument(documentPath);
-            view.getDocumentsPreviewArea().setText("Documento firing generato e aperto: " + documentPath);
-        } catch (IllegalArgumentException ex) {
-            view.getDocumentsPreviewArea().setText(ex.getMessage());
+            view.getCompositionSummaryArea().setText(ex.getMessage());
         }
     }
 
