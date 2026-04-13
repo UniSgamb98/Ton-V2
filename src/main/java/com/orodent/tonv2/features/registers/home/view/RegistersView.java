@@ -59,8 +59,8 @@ public class RegistersView extends VBox {
         historyTabs.getTabs().add(createTab("Firing", firingSummaryArea));
         historyTabs.getTabs().add(createTab("Documenti", documentsPreviewArea));
 
-        buildCompositionDocumentButton = new Button("Genera documento composizione");
-        buildFiringDocumentButton = new Button("Genera documento firing");
+        buildCompositionDocumentButton = new Button("Rigenera documento composizione");
+        buildFiringDocumentButton = new Button("Rigenera documento firing");
         HBox actionsBox = new HBox(12, buildCompositionDocumentButton, buildFiringDocumentButton);
 
         getChildren().addAll(header, filtersBox, separator, historyTabs, actionsBox);
