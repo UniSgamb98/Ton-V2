@@ -196,6 +196,31 @@ public class ItemRepositoryImpl implements ItemRepository {
         }
     }
 
+
+    @Override
+    public List<Item> findByFiringId(int firingId) {
+        String sql = """
+                SELECT DISTINCT i.id, i.code, i.product_id, i.blank_model_id, i.height_mm
+                FROM item i
+                JOIN production_order_line_firing polf ON polf.item_id = i.id
+                WHERE polf.firing_id = ?
+                ORDER BY i.code ASC
+                """;
+
+        List<Item> result = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, firingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapItem(rs));
+                }
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore durante il caricamento item per firing.", e);
+        }
+    }
+
     @Override
     public Item insert(String code, int productId, int blankModelId, double heightMm) {
         String sql = "INSERT INTO item (code, product_id, blank_model_id, height_mm) VALUES (?, ?, ?, ?)";

@@ -13,5 +13,6 @@ public interface ItemRepository {
     List<Item> findByProduct(int productId);
     List<Item> findByCodePrefix(String codePrefix, int limit);
     List<Item> findByLotCodePrefix(String lotCodePrefix, int limit);
+    List<Item> findByFiringId(int firingId);
     List<Item> findByDepot(String depotName);
 }

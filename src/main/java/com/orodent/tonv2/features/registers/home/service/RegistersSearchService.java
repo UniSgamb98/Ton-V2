@@ -125,7 +125,7 @@ public class RegistersSearchService {
         StringBuilder builder = new StringBuilder();
         builder.append("Articolo: ").append(item.code()).append(System.lineSeparator());
         builder.append("Lotto: ").append(lot.code()).append(System.lineSeparator());
-        builder.append("Firing ID (da lotto): ").append(lot.firingId()).append(System.lineSeparator());
+        builder.append("Firing ID: ").append(lot.firingId()).append(System.lineSeparator());
 
         if (firing == null) {
             builder.append(System.lineSeparator());
@@ -135,11 +135,24 @@ public class RegistersSearchService {
 
         builder.append(System.lineSeparator());
         builder.append("Data firing: ").append(firing.firingDate()).append(System.lineSeparator());
-        builder.append("Forno: ").append(firing.furnace()).append(System.lineSeparator());
+        builder.append(firing.furnace()).append(System.lineSeparator());
         builder.append("Temperatura max: ").append(firing.maxTemperature()).append(System.lineSeparator());
-        builder.append("Note: ").append(firing.notes() == null ? "" : firing.notes());
 
-        return builder.toString();
+        List<String> itemCodes = itemRepository.findByFiringId(firing.id()).stream()
+                .map(Item::code)
+                .filter(code -> code != null && !code.isBlank())
+                .distinct()
+                .toList();
+
+        builder.append(System.lineSeparator());
+        builder.append("Item nello stesso firing:").append(System.lineSeparator());
+        if (itemCodes.isEmpty()) {
+            builder.append("- Nessun item trovato.");
+        } else {
+            itemCodes.forEach(code -> builder.append("- ").append(code).append(System.lineSeparator()));
+        }
+
+        return builder.toString().trim();
     }
 
     private String buildDocumentsSummary(Item item, Lot lot, Firing firing) {
