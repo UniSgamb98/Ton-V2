@@ -3,6 +3,9 @@ package com.orodent.tonv2.app;
 import com.orodent.tonv2.app.navigation.DocumentsNavigator;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.cubage.home.controller.CubageController;
+import com.orodent.tonv2.features.cubage.home.service.CubageService;
+import com.orodent.tonv2.features.cubage.home.view.CubageView;
 import com.orodent.tonv2.features.documents.archive.controller.DocumentsArchiveController;
 import com.orodent.tonv2.features.documents.archive.view.DocumentsArchiveView;
 import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
@@ -170,6 +173,15 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Inventario");
+    }
+
+    public void showCubage() {
+        CubageView view = new CubageView();
+        configureHeader(view.getHeader());
+        new CubageController(view, new CubageService());
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Cubaggio");
     }
 
     public void showRegisters() {
@@ -467,6 +479,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
         header.getHomeButton().setOnAction(e -> showHome());
         header.getInventoryButton().setOnAction( e -> showInventory());
         header.getLaboratoryButton().setOnAction(e -> showLaboratory());
+        header.getCubageButton().setOnAction(e -> showCubage());
         header.getDocumentsButton().setOnAction(e -> showDocuments());
         header.getRegistersButton().setOnAction(e -> showRegisters());
     }
