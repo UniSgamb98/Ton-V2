@@ -16,8 +16,6 @@ public class TemplateEditorWorkflowService {
 
     private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
     private static final String DEFAULT_TEMPLATE_NAME = "NuovoTemplate";
-    private static final String DEFAULT_PRESET_CODE = TemplatePresetCodes.PRODUCTION;
-    private static final String PRESINTERING_PRESET_CODE = TemplatePresetCodes.FIRING;
     private static final String DEFAULT_TEMPLATE_CONTENT = """
             <html>
               <body>
@@ -46,12 +44,12 @@ public class TemplateEditorWorkflowService {
     }
 
     public EditorState initializeEditorState() {
-        Map<String, Object> defaultPayload = presetPayloadByCode.getOrDefault(DEFAULT_PRESET_CODE, Map.of());
+        Map<String, Object> defaultPayload = presetPayloadByCode.getOrDefault(TemplatePresetCodes.PRODUCTION, Map.of());
         return new EditorState(
                 DEFAULT_TEMPLATE_NAME,
                 DEFAULT_TEMPLATE_CONTENT,
                 List.copyOf(presetPayloadByCode.keySet()),
-                DEFAULT_PRESET_CODE,
+                TemplatePresetCodes.PRODUCTION,
                 templateEditorService.toJson(defaultPayload),
                 templateEditorService.extractVariablesFromParamsMap(defaultPayload),
                 null,
@@ -145,16 +143,16 @@ public class TemplateEditorWorkflowService {
         if (requestedPresetCode != null && presetPayloadByCode.containsKey(requestedPresetCode)) {
             return requestedPresetCode;
         }
-        return DEFAULT_PRESET_CODE;
+        return TemplatePresetCodes.PRODUCTION;
     }
 
     private void loadPresets() {
         Map<String, Object> batchPreset = batchPresetService.buildParams(
                 BatchProductionDocumentParamsService.ParamsRequest.preset("Preset automatico da DB", 1)
         );
-        presetPayloadByCode.put(DEFAULT_PRESET_CODE, batchPreset);
+        presetPayloadByCode.put(TemplatePresetCodes.PRODUCTION, batchPreset);
         presetPayloadByCode.put(
-                PRESINTERING_PRESET_CODE,
+                TemplatePresetCodes.FIRING,
                 presinteringPresetService.buildPresetParams("Preset automatico presinterizzazione")
         );
     }
