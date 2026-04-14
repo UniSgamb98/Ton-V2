@@ -179,7 +179,6 @@ public class PresinteringView extends VBox {
             int available = snapshot.availableByItemId().getOrDefault(itemId, diskEntry.availableQuantity);
             diskEntry.availableQuantity = Math.max(0, available);
             diskEntry.quantityLabel.setText(diskEntry.availableQuantity + " pz");
-            diskEntry.pickField.clear();
         }
 
         furnaceCarouselView.setPlannedItems(
