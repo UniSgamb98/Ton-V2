@@ -162,7 +162,9 @@ public class BatchProductionView extends VBox {
         }
         if (!names.isEmpty()) {
             templateSelector.setValue(names.getFirst());
+            return;
         }
+        templateSelector.setValue(null);
     }
 
     public void setFeedback(String text, boolean error) {

@@ -7,6 +7,7 @@ import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.LotRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.documents.template.service.TemplatePresetCodes;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 
@@ -22,8 +23,6 @@ import java.util.List;
 import java.util.Map;
 
 public class RegistersDocumentService {
-
-    private static final String BATCH_PRESET_CODE = "Scheda Miscelazione";
 
     private final Connection connection;
     private final ItemRepository itemRepository;
@@ -107,10 +106,10 @@ public class RegistersDocumentService {
         }
 
         return templateEditorService.getSavedTemplates().stream()
-                .filter(template -> BATCH_PRESET_CODE.equals(template.presetCode()))
+                .filter(template -> TemplatePresetCodes.PRODUCTION.equals(template.presetCode()))
                 .max(Comparator.comparing(TemplateEditorService.TemplateSnapshot::savedAt))
                 .map(TemplateEditorService.TemplateSnapshot::name)
-                .orElseThrow(() -> new IllegalArgumentException("Nessun template composizione disponibile (preset '" + BATCH_PRESET_CODE + "')."));
+                .orElseThrow(() -> new IllegalArgumentException("Nessun template composizione disponibile (preset '" + TemplatePresetCodes.PRODUCTION + "')."));
     }
 
     private ProductionOrderSnapshot findProductionOrderForItemAndFiring(int itemId, int firingId) {

@@ -9,6 +9,7 @@ import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.core.database.repository.ProductRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.documents.template.service.TemplatePresetCodes;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -126,6 +127,7 @@ public class BatchProductionService {
 
     public List<String> findTemplateNames() {
         return templateEditorService.getSavedTemplates().stream()
+                .filter(template -> TemplatePresetCodes.PRODUCTION.equals(template.presetCode()))
                 .map(TemplateEditorService.TemplateSnapshot::name)
                 .toList();
     }

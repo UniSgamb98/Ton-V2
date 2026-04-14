@@ -7,6 +7,7 @@ import com.orodent.tonv2.core.database.repository.FurnaceRepository;
 import com.orodent.tonv2.core.database.repository.LotRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.documents.template.service.TemplatePresetCodes;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -76,6 +77,7 @@ public class PresinteringService {
 
     public List<String> findTemplateNames() {
         return templateEditorService.getSavedTemplates().stream()
+                .filter(template -> TemplatePresetCodes.FIRING.equals(template.presetCode()))
                 .map(TemplateEditorService.TemplateSnapshot::name)
                 .toList();
     }
