@@ -5,6 +5,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CubageFormulaSetPersistenceService {
 
@@ -59,6 +61,20 @@ public class CubageFormulaSetPersistenceService {
             } catch (SQLException e) {
                 throw new RuntimeException("Errore ripristino auto-commit dopo salvataggio formule.", e);
             }
+        }
+    }
+
+    public List<String> loadFormulaSetCodes() {
+        String sql = "SELECT DISTINCT code FROM formula_set ORDER BY code ASC";
+        try (PreparedStatement ps = connection.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            List<String> values = new ArrayList<>();
+            while (rs.next()) {
+                values.add(rs.getString("code"));
+            }
+            return values;
+        } catch (SQLException e) {
+            throw new RuntimeException("Errore caricamento codici formula_set.", e);
         }
     }
 

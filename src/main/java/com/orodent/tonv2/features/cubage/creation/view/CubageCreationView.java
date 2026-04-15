@@ -9,7 +9,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -20,7 +19,7 @@ public class CubageCreationView extends VBox {
     private final AppHeader header = new AppHeader("Cubaggio");
     private final Label titleLabel = new Label("Gestione Calcoli Cubaggio");
 
-    private final TextField calculationSetNameField = new TextField();
+    private final ComboBox<String> calculationSetSelector = new ComboBox<>();
 
     private final ComboBox<CubageCreationService.PayloadOption> payloadSelector = new ComboBox<>();
     private final Button selectLegacyPayloadButton = new Button("Seleziona Payload Legacy");
@@ -36,8 +35,8 @@ public class CubageCreationView extends VBox {
 
         titleLabel.getStyleClass().add("page-title");
 
-        calculationSetNameField.setPromptText("Nome set di calcolo");
-        calculationSetNameField.setMaxWidth(420);
+        calculationSetSelector.setPromptText("Seleziona set calcolo");
+        calculationSetSelector.setMaxWidth(420);
 
         payloadSelector.setPromptText("Seleziona payload attivo");
         payloadSelector.setCellFactory(listView -> new PayloadOptionListCell());
@@ -78,7 +77,7 @@ public class CubageCreationView extends VBox {
         getChildren().addAll(
                 header,
                 titleLabel,
-                calculationSetNameField,
+                calculationSetSelector,
                 contentRow,
                 footerActions
         );
@@ -88,8 +87,8 @@ public class CubageCreationView extends VBox {
         return header;
     }
 
-    public TextField getCalculationSetNameField() {
-        return calculationSetNameField;
+    public ComboBox<String> getCalculationSetSelector() {
+        return calculationSetSelector;
     }
 
     public Button getSaveCalculationSetButton() {
