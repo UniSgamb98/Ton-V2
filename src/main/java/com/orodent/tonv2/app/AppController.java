@@ -196,7 +196,8 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 view,
                 new CubageCreationService(
                         app.payloadContractRepo(),
-                        app.payloadContractFieldRepo()
+                        app.payloadContractFieldRepo(),
+                        app.payloadContractFieldRequestRepo()
                 )
         );
 

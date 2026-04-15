@@ -54,7 +54,7 @@ public class CubageCreationView extends VBox {
         payloadPreviewArea.setText("Nessun payload selezionato.");
 
         formulaBuilderArea.setWrapText(true);
-        formulaBuilderArea.setPromptText("Area creazione formule (placeholder UI)");
+        formulaBuilderArea.setPromptText("Una formula per riga: variabile = espressione");
         formulaBuilderArea.setText("""
                 Esempio formula:
                 calc_volume_density_ratio = input_1 / input_2
@@ -62,11 +62,7 @@ public class CubageCreationView extends VBox {
 
         resultsArea.setEditable(false);
         resultsArea.setWrapText(true);
-        resultsArea.setText("""
-                Risultati (placeholder):
-                - Output formula 1
-                - Output formula 2
-                """);
+        resultsArea.setText("Nessuna validazione eseguita.");
 
         VBox leftPanel = buildLeftPanel();
         VBox centerPanel = buildCenterPanel();
@@ -103,6 +99,14 @@ public class CubageCreationView extends VBox {
         return saveCalculationSetButton;
     }
 
+
+    public String getFormulaBuilderText() {
+        return formulaBuilderArea.getText();
+    }
+
+    public void setResultsText(String text) {
+        resultsArea.setText(text == null ? "" : text);
+    }
     public ComboBox<CubageCreationService.PayloadOption> getPayloadSelector() {
         return payloadSelector;
     }

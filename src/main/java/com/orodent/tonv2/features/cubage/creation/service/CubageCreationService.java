@@ -3,22 +3,31 @@ package com.orodent.tonv2.features.cubage.creation.service;
 import com.orodent.tonv2.core.database.model.PayloadContract;
 import com.orodent.tonv2.core.database.model.PayloadContractField;
 import com.orodent.tonv2.core.database.repository.PayloadContractFieldRepository;
+import com.orodent.tonv2.core.database.repository.PayloadContractFieldRequestRepository;
 import com.orodent.tonv2.core.database.repository.PayloadContractRepository;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class CubageCreationService {
 
     private final PayloadContractRepository payloadContractRepository;
     private final PayloadContractFieldRepository payloadContractFieldRepository;
+    private final PayloadContractFieldRequestRepository payloadContractFieldRequestRepository;
 
     public CubageCreationService(PayloadContractRepository payloadContractRepository,
-                                 PayloadContractFieldRepository payloadContractFieldRepository) {
+                                 PayloadContractFieldRepository payloadContractFieldRepository,
+                                 PayloadContractFieldRequestRepository payloadContractFieldRequestRepository) {
         this.payloadContractRepository = payloadContractRepository;
         this.payloadContractFieldRepository = payloadContractFieldRepository;
+        this.payloadContractFieldRequestRepository = payloadContractFieldRequestRepository;
     }
 
 
@@ -83,9 +92,249 @@ public class CubageCreationService {
         );
     }
 
+    public FormulaValidationResult validateAndBuildFormulaSet(String formulaSetName,
+                                                              String formulasText,
+                                                              PayloadOption selectedPayload) {
+        if (selectedPayload == null) {
+            return FormulaValidationResult.error("Seleziona un payload prima di validare il set formule.");
+        }
+        if (formulaSetName == null || formulaSetName.isBlank()) {
+            return FormulaValidationResult.error("Inserisci il nome del set di calcolo.");
+        }
+        if (formulasText == null || formulasText.isBlank()) {
+            return FormulaValidationResult.error("Inserisci almeno una formula.");
+        }
+
+        Set<String> payloadFieldKeys = payloadContractFieldRepository.findByPayloadContractId(selectedPayload.payloadContractId())
+                .stream()
+                .map(PayloadContractField::fieldKey)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<FormulaRow> formulas = parseAndValidateFormulas(formulasText, payloadFieldKeys);
+        Set<String> definedVariables = formulas.stream()
+                .map(FormulaRow::variable)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        List<String> requestedFieldKeys = payloadContractFieldRequestRepository
+                .findRequestedFieldKeysByPayloadContractId(selectedPayload.payloadContractId());
+
+        List<String> selectedOutputs;
+        List<String> missingRequested;
+        if (requestedFieldKeys.isEmpty()) {
+            selectedOutputs = new ArrayList<>(definedVariables);
+            missingRequested = List.of();
+        } else {
+            selectedOutputs = requestedFieldKeys.stream()
+                    .filter(definedVariables::contains)
+                    .toList();
+            missingRequested = requestedFieldKeys.stream()
+                    .filter(key -> !definedVariables.contains(key))
+                    .toList();
+        }
+
+        String summary = buildValidationSummary(formulaSetName, selectedPayload, formulas.size(), selectedOutputs, missingRequested);
+        return FormulaValidationResult.success(summary);
+    }
+
+    private List<FormulaRow> parseAndValidateFormulas(String formulasText, Set<String> payloadFieldKeys) {
+        String[] lines = formulasText.split("\\r?\\n");
+        List<FormulaRow> parsed = new ArrayList<>();
+        Set<String> definedVariables = new LinkedHashSet<>();
+
+        for (int i = 0; i < lines.length; i++) {
+            String rawLine = lines[i];
+            String line = rawLine == null ? "" : rawLine.trim();
+            if (line.isBlank()) {
+                continue;
+            }
+
+            int eqIndex = line.indexOf('=');
+            if (eqIndex <= 0 || eqIndex == line.length() - 1) {
+                throw new IllegalArgumentException("Riga " + (i + 1) + ": formato non valido. Usa variabile = espressione.");
+            }
+
+            String variable = line.substring(0, eqIndex).trim();
+            String expression = line.substring(eqIndex + 1).trim();
+
+            if (!variable.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                throw new IllegalArgumentException("Riga " + (i + 1) + ": nome variabile non valido -> " + variable);
+            }
+            if (definedVariables.contains(variable)) {
+                throw new IllegalArgumentException("Riga " + (i + 1) + ": variabile già definita -> " + variable);
+            }
+
+            Set<String> refs = extractIdentifiers(expression);
+            for (String ref : refs) {
+                if (!definedVariables.contains(ref) && !payloadFieldKeys.contains(ref)) {
+                    throw new IllegalArgumentException("Riga " + (i + 1) + ": riferimento non disponibile -> " + ref);
+                }
+            }
+
+            validateExpressionSyntax(expression, i + 1);
+            parsed.add(new FormulaRow(variable, expression));
+            definedVariables.add(variable);
+        }
+
+        if (parsed.isEmpty()) {
+            throw new IllegalArgumentException("Nessuna formula valida trovata nel testo inserito.");
+        }
+
+        return parsed;
+    }
+
+    private Set<String> extractIdentifiers(String expression) {
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("\\b[A-Za-z_][A-Za-z0-9_]*\\b")
+                .matcher(expression);
+
+        Set<String> identifiers = new LinkedHashSet<>();
+        while (matcher.find()) {
+            identifiers.add(matcher.group());
+        }
+        return identifiers;
+    }
+
+    private void validateExpressionSyntax(String expression, int lineNumber) {
+        List<String> tokens = tokenizeExpression(expression, lineNumber);
+        if (tokens.isEmpty()) {
+            throw new IllegalArgumentException("Riga " + lineNumber + ": espressione vuota.");
+        }
+
+        Deque<String> stack = new ArrayDeque<>();
+        boolean expectOperand = true;
+
+        for (String token : tokens) {
+            if ("(".equals(token)) {
+                stack.push(token);
+                continue;
+            }
+            if (")".equals(token)) {
+                if (stack.isEmpty()) {
+                    throw new IllegalArgumentException("Riga " + lineNumber + ": parentesi chiusa senza apertura.");
+                }
+                stack.pop();
+                expectOperand = false;
+                continue;
+            }
+            if (isOperator(token)) {
+                if (expectOperand) {
+                    throw new IllegalArgumentException("Riga " + lineNumber + ": operatore in posizione non valida.");
+                }
+                expectOperand = true;
+                continue;
+            }
+            expectOperand = false;
+        }
+
+        if (!stack.isEmpty()) {
+            throw new IllegalArgumentException("Riga " + lineNumber + ": parentesi non bilanciate.");
+        }
+        if (expectOperand) {
+            throw new IllegalArgumentException("Riga " + lineNumber + ": espressione incompleta.");
+        }
+    }
+
+    private List<String> tokenizeExpression(String expression, int lineNumber) {
+        List<String> tokens = new ArrayList<>();
+        int i = 0;
+
+        while (i < expression.length()) {
+            char c = expression.charAt(i);
+            if (Character.isWhitespace(c)) {
+                i++;
+                continue;
+            }
+            if ("+-*/()".indexOf(c) >= 0) {
+                tokens.add(String.valueOf(c));
+                i++;
+                continue;
+            }
+            if (Character.isDigit(c) || c == '.') {
+                int start = i;
+                i++;
+                while (i < expression.length()) {
+                    char next = expression.charAt(i);
+                    if (!Character.isDigit(next) && next != '.') {
+                        break;
+                    }
+                    i++;
+                }
+                tokens.add(expression.substring(start, i));
+                continue;
+            }
+            if (Character.isLetter(c) || c == '_') {
+                int start = i;
+                i++;
+                while (i < expression.length()) {
+                    char next = expression.charAt(i);
+                    if (!Character.isLetterOrDigit(next) && next != '_') {
+                        break;
+                    }
+                    i++;
+                }
+                tokens.add(expression.substring(start, i));
+                continue;
+            }
+
+            throw new IllegalArgumentException("Riga " + lineNumber + ": carattere non supportato -> " + c);
+        }
+        return tokens;
+    }
+
+    private boolean isOperator(String token) {
+        return "+".equals(token) || "-".equals(token) || "*".equals(token) || "/".equals(token);
+    }
+
+    private String buildValidationSummary(String formulaSetName,
+                                          PayloadOption selectedPayload,
+                                          int formulasCount,
+                                          List<String> selectedOutputs,
+                                          List<String> missingRequested) {
+        String outputs = selectedOutputs.isEmpty()
+                ? "- Nessun output selezionato"
+                : selectedOutputs.stream().map(v -> "- " + v).collect(Collectors.joining("\n"));
+
+        String missing = missingRequested.isEmpty()
+                ? "- Nessun campo richiesto mancante"
+                : missingRequested.stream().map(v -> "- " + v).collect(Collectors.joining("\n"));
+
+        return """
+                Set di calcolo valido.
+                - Nome: %s
+                - Payload: %s v%d
+                - Formule valide: %d
+
+                Output selezionati:
+                %s
+
+                Campi richiesti mancanti:
+                %s
+                """.formatted(
+                formulaSetName.trim(),
+                selectedPayload.payloadCode(),
+                selectedPayload.version(),
+                formulasCount,
+                outputs,
+                missing
+        );
+    }
+
     public record PayloadOption(int payloadContractId, String payloadCode, int version) {
         public String displayName() {
             return "%s v%d".formatted(payloadCode, version);
+        }
+    }
+
+    private record FormulaRow(String variable, String expression) {
+    }
+
+    public record FormulaValidationResult(boolean valid, String message) {
+        public static FormulaValidationResult success(String message) {
+            return new FormulaValidationResult(true, message);
+        }
+
+        public static FormulaValidationResult error(String message) {
+            return new FormulaValidationResult(false, message);
         }
     }
 }

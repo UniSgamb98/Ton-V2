@@ -37,6 +37,7 @@ public class AppContainer {
     private final FiringProgramRepository firingProgramRepo;
     private final PayloadContractRepository payloadContractRepo;
     private final PayloadContractFieldRepository payloadContractFieldRepo;
+    private final PayloadContractFieldRequestRepository payloadContractFieldRequestRepo;
 
     // --- Shared services ---
     private final TemplateEditorService templateEditorService;
@@ -80,6 +81,7 @@ public class AppContainer {
         this.firingProgramRepo = new FiringProgramRepositoryImpl(sharedConnection);
         this.payloadContractRepo = new PayloadContractRepositoryImpl(sharedConnection);
         this.payloadContractFieldRepo = new PayloadContractFieldRepositoryImpl(sharedConnection);
+        this.payloadContractFieldRequestRepo = new PayloadContractFieldRequestRepositoryImpl(sharedConnection);
         System.out.println("Caricati le repository.");
 
         // SHARED SERVICES
@@ -119,6 +121,7 @@ public class AppContainer {
     public FiringProgramRepository firingProgramRepo() { return firingProgramRepo; }
     public PayloadContractRepository payloadContractRepo() { return payloadContractRepo; }
     public PayloadContractFieldRepository payloadContractFieldRepo() { return payloadContractFieldRepo; }
+    public PayloadContractFieldRequestRepository payloadContractFieldRequestRepo() { return payloadContractFieldRequestRepo; }
 
     public TemplateEditorService templateEditorService() { return templateEditorService; }
     public DocumentBrowserService documentBrowserService() { return documentBrowserService; }

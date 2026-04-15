@@ -36,10 +36,31 @@ public class CubageCreationController {
         });
 
         view.getSelectLegacyPayloadButton().setOnAction(event -> toggleLegacySelection());
+        view.getSaveCalculationSetButton().setOnAction(event -> validateFormulaSet());
 
         if (!view.getPayloadSelector().getItems().isEmpty()) {
             view.getPayloadSelector().getSelectionModel().selectFirst();
         }
+    }
+
+    private void validateFormulaSet() {
+        CubageCreationService.PayloadOption payload = getCurrentSelectedPayload();
+        CubageCreationService.FormulaValidationResult result = service.validateAndBuildFormulaSet(
+                view.getCalculationSetNameField().getText(),
+                view.getFormulaBuilderText(),
+                payload
+        );
+        view.setResultsText(result.message());
+    }
+
+    private CubageCreationService.PayloadOption getCurrentSelectedPayload() {
+        if (isLegacySelectionVisible()) {
+            CubageCreationService.PayloadOption legacy = view.getLegacyPayloadSelector().getSelectionModel().getSelectedItem();
+            if (legacy != null) {
+                return legacy;
+            }
+        }
+        return view.getPayloadSelector().getSelectionModel().getSelectedItem();
     }
 
     private void populateLegacyOptionsFor(CubageCreationService.PayloadOption selectedActivePayload) {
