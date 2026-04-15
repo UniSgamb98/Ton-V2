@@ -1,6 +1,8 @@
 package com.orodent.tonv2.features.cubage.creation.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.cubage.creation.service.CubageCreationService;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -17,8 +19,9 @@ public class CubageCreationView extends VBox {
     private final Label titleLabel = new Label("Gestione Calcoli Cubaggio");
     private final Label infoLabel = new Label("Anteprima UI - logica non ancora collegata");
 
-    private final ComboBox<String> payloadSelector = new ComboBox<>();
-    private final Button selectLegacyPayloadButton = new Button("Seleziona payload legacy");
+    private final ComboBox<CubageCreationService.PayloadOption> payloadSelector = new ComboBox<>();
+    private final Button selectLegacyPayloadButton = new Button("Seleziona Payload Legacy");
+    private final ComboBox<CubageCreationService.PayloadOption> legacyPayloadSelector = new ComboBox<>();
     private final TextArea payloadPreviewArea = new TextArea();
     private final TextArea formulaBuilderArea = new TextArea();
     private final TextArea resultsArea = new TextArea();
@@ -32,20 +35,18 @@ public class CubageCreationView extends VBox {
         infoLabel.setWrapText(true);
 
         payloadSelector.setPromptText("Seleziona payload attivo");
-        payloadSelector.getItems().addAll(
-                "PROJECT2_PAYLOAD v2 (attivo)",
-                "PROJECT2_PAYLOAD v1"
-        );
-        payloadSelector.getSelectionModel().selectFirst();
+        payloadSelector.setCellFactory(listView -> new PayloadOptionListCell());
+        payloadSelector.setButtonCell(new PayloadOptionListCell());
+
+        legacyPayloadSelector.setPromptText("Seleziona versione legacy");
+        legacyPayloadSelector.setVisible(false);
+        legacyPayloadSelector.setManaged(false);
+        legacyPayloadSelector.setCellFactory(listView -> new PayloadOptionListCell());
+        legacyPayloadSelector.setButtonCell(new PayloadOptionListCell());
 
         payloadPreviewArea.setEditable(false);
         payloadPreviewArea.setWrapText(true);
-        payloadPreviewArea.setText("""
-                Payload in uso (placeholder):
-                - input_1 (DECIMAL, mm3)
-                - input_2 (DECIMAL, g/cm3)
-                - input_3 (DECIMAL, g)
-                """);
+        payloadPreviewArea.setText("Nessun payload selezionato.");
 
         formulaBuilderArea.setWrapText(true);
         formulaBuilderArea.setPromptText("Area creazione formule (placeholder UI)");
@@ -84,11 +85,44 @@ public class CubageCreationView extends VBox {
         infoLabel.setText(text == null ? "" : text);
     }
 
+    public ComboBox<CubageCreationService.PayloadOption> getPayloadSelector() {
+        return payloadSelector;
+    }
+
+    public ComboBox<CubageCreationService.PayloadOption> getLegacyPayloadSelector() {
+        return legacyPayloadSelector;
+    }
+
+    public Button getSelectLegacyPayloadButton() {
+        return selectLegacyPayloadButton;
+    }
+
+    public void setPayloadPreviewText(String text) {
+        payloadPreviewArea.setText(text == null ? "" : text);
+    }
+
+    public void setLegacySelectorVisible(boolean visible) {
+        legacyPayloadSelector.setVisible(visible);
+        legacyPayloadSelector.setManaged(visible);
+    }
+
+    public void setSelectLegacyPayloadButtonText(String text) {
+        selectLegacyPayloadButton.setText(text);
+    }
+
+    public void setPayloadOptions(ObservableList<CubageCreationService.PayloadOption> options) {
+        payloadSelector.setItems(options);
+    }
+
+    public void setLegacyPayloadOptions(ObservableList<CubageCreationService.PayloadOption> options) {
+        legacyPayloadSelector.setItems(options);
+    }
+
     private VBox buildLeftPanel() {
         Label panelTitle = new Label("Selezione Payload");
         panelTitle.getStyleClass().add("section-title");
 
-        VBox panel = new VBox(10, panelTitle, payloadSelector, selectLegacyPayloadButton);
+        VBox panel = new VBox(10, panelTitle, payloadSelector, selectLegacyPayloadButton, legacyPayloadSelector);
         panel.setPadding(new Insets(12));
         panel.getStyleClass().add("card");
         return panel;
