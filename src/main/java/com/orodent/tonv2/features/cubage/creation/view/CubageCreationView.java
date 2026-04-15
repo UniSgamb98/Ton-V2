@@ -55,10 +55,7 @@ public class CubageCreationView extends VBox {
 
         formulaBuilderArea.setWrapText(true);
         formulaBuilderArea.setPromptText("Una formula per riga: variabile = espressione");
-        formulaBuilderArea.setText("""
-                Esempio formula:
-                calc_volume_density_ratio = input_1 / input_2
-                """);
+        formulaBuilderArea.setText("");
 
         resultsArea.setEditable(false);
         resultsArea.setWrapText(true);

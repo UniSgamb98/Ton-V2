@@ -49,11 +49,17 @@ public class CubageCreationController {
 
     private void saveFormulaSet() {
         CubageCreationService.PayloadOption payload = getCurrentSelectedPayload();
-        CubageCreationService.FormulaValidationResult validationResult = service.validateAndBuildFormulaSet(
-                view.getCalculationSetNameField().getText(),
-                view.getFormulaBuilderText(),
-                payload
-        );
+        CubageCreationService.FormulaValidationResult validationResult;
+        try {
+            validationResult = service.validateAndBuildFormulaSet(
+                    view.getCalculationSetNameField().getText(),
+                    view.getFormulaBuilderText(),
+                    payload
+            );
+        } catch (RuntimeException e) {
+            view.setResultsText("Errore validazione set di calcolo: " + e.getMessage());
+            return;
+        }
 
         if (!validationResult.valid()) {
             view.setResultsText(validationResult.message());
