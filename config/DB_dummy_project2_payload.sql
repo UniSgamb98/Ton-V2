@@ -6,11 +6,11 @@
 ------------------------------------------------------------
 -- 1) Payload contract principali
 ------------------------------------------------------------
-INSERT INTO payload_contract (contract_code, version, description)
-VALUES ('PROJECT2_PAYLOAD', 2, 'Payload standard attuale inviato dal Progetto 2 (3 variabili).');
+INSERT INTO payload_contract (contract_code, version)
+VALUES ('PROJECT2_PAYLOAD', 2);
 
-INSERT INTO payload_contract (contract_code, version, description)
-VALUES ('PROJECT2_PAYLOAD', 1, 'Versione precedente del payload Progetto 2 (storico).');
+INSERT INTO payload_contract (contract_code, version)
+VALUES ('PROJECT2_PAYLOAD', 1);
 
 ------------------------------------------------------------
 -- 2) Campi payload standard (3 input)

@@ -187,7 +187,6 @@ CREATE TABLE formula_set (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     code VARCHAR(80) NOT NULL,
     version INTEGER NOT NULL,
-    description VARCHAR(300),
 
     PRIMARY KEY (id),
 
@@ -223,7 +222,6 @@ CREATE TABLE payload_contract (
     id INTEGER GENERATED ALWAYS AS IDENTITY,
     contract_code VARCHAR(100) NOT NULL,
     version INTEGER NOT NULL,
-    description VARCHAR(300),
 
     PRIMARY KEY (id),
 

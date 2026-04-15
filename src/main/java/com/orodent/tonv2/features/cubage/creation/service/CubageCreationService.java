@@ -32,8 +32,7 @@ public class CubageCreationService {
                 .map(contract -> new PayloadOption(
                         contract.id(),
                         contract.contractCode(),
-                        contract.version(),
-                        contract.description()
+                        contract.version()
                 ))
                 .sorted(Comparator.comparing(PayloadOption::payloadCode))
                 .toList();
@@ -44,8 +43,7 @@ public class CubageCreationService {
                 .map(contract -> new PayloadOption(
                         contract.id(),
                         contract.contractCode(),
-                        contract.version(),
-                        contract.description()
+                        contract.version()
                 ))
                 .toList();
     }
@@ -85,7 +83,7 @@ public class CubageCreationService {
         );
     }
 
-    public record PayloadOption(int payloadContractId, String payloadCode, int version, String description) {
+    public record PayloadOption(int payloadContractId, String payloadCode, int version) {
         public String displayName() {
             return "%s v%d".formatted(payloadCode, version);
         }

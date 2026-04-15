@@ -21,7 +21,7 @@ public class PayloadContractRepositoryImpl implements PayloadContractRepository 
     @Override
     public List<PayloadContract> findAll() {
         String sql = """
-                SELECT id, contract_code, version, description
+                SELECT id, contract_code, version
                 FROM payload_contract
                 ORDER BY contract_code ASC, version ASC
                 """;
@@ -41,7 +41,7 @@ public class PayloadContractRepositoryImpl implements PayloadContractRepository 
     @Override
     public List<PayloadContract> findByContractCode(String contractCode) {
         String sql = """
-                SELECT id, contract_code, version, description
+                SELECT id, contract_code, version
                 FROM payload_contract
                 WHERE contract_code = ?
                 ORDER BY version ASC
@@ -65,8 +65,7 @@ public class PayloadContractRepositoryImpl implements PayloadContractRepository 
         return new PayloadContract(
                 rs.getInt("id"),
                 rs.getString("contract_code"),
-                rs.getInt("version"),
-                rs.getString("description")
+                rs.getInt("version")
         );
     }
 }
