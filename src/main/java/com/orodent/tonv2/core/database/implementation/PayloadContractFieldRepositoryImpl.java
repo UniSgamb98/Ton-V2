@@ -21,7 +21,7 @@ public class PayloadContractFieldRepositoryImpl implements PayloadContractFieldR
     @Override
     public List<PayloadContractField> findByPayloadContractId(int payloadContractId) {
         String sql = """
-                SELECT id, payload_contract_id, field_key, display_name, data_type, unit_code, order_index
+                SELECT id, payload_contract_id, field_key, display_name, data_type, unit_code, order_index, field_role
                 FROM payload_contract_field
                 WHERE payload_contract_id = ?
                 ORDER BY order_index ASC, id ASC
@@ -39,7 +39,8 @@ public class PayloadContractFieldRepositoryImpl implements PayloadContractFieldR
                             rs.getString("display_name"),
                             rs.getString("data_type"),
                             rs.getString("unit_code"),
-                            rs.getInt("order_index")
+                            rs.getInt("order_index"),
+                            rs.getString("field_role")
                     ));
                 }
                 return values;

@@ -3,7 +3,6 @@ package com.orodent.tonv2.features.cubage.creation.service;
 import com.orodent.tonv2.core.database.model.PayloadContract;
 import com.orodent.tonv2.core.database.model.PayloadContractField;
 import com.orodent.tonv2.core.database.repository.PayloadContractFieldRepository;
-import com.orodent.tonv2.core.database.repository.PayloadContractFieldRequestRepository;
 import com.orodent.tonv2.core.database.repository.PayloadContractRepository;
 
 import java.util.ArrayDeque;
@@ -18,18 +17,17 @@ import java.util.stream.Collectors;
 
 public class CubageCreationService {
 
+    private static final String INPUT_ROLE = "INPUT";
+    private static final String OUTPUT_ROLE = "OUTPUT";
+
     private final PayloadContractRepository payloadContractRepository;
     private final PayloadContractFieldRepository payloadContractFieldRepository;
-    private final PayloadContractFieldRequestRepository payloadContractFieldRequestRepository;
 
     public CubageCreationService(PayloadContractRepository payloadContractRepository,
-                                 PayloadContractFieldRepository payloadContractFieldRepository,
-                                 PayloadContractFieldRequestRepository payloadContractFieldRequestRepository) {
+                                 PayloadContractFieldRepository payloadContractFieldRepository) {
         this.payloadContractRepository = payloadContractRepository;
         this.payloadContractFieldRepository = payloadContractFieldRepository;
-        this.payloadContractFieldRequestRepository = payloadContractFieldRequestRepository;
     }
-
 
     public List<PayloadOption> getLatestPayloadOptions() {
         Map<String, List<PayloadContract>> groupedByCode = payloadContractRepository.findAll().stream()
@@ -77,8 +75,7 @@ public class CubageCreationService {
                     .collect(Collectors.joining("\n"));
         }
 
-        List<String> requestedOutputs = payloadContractFieldRequestRepository
-                .findRequestedFieldKeysByPayloadContractId(option.payloadContractId());
+        List<String> requestedOutputs = extractOutputFieldKeys(fields);
 
         String requestedOutputsSection = requestedOutputs.isEmpty()
                 ? "- Nessun output richiesto"
@@ -116,18 +113,14 @@ public class CubageCreationService {
             return FormulaValidationResult.error("Inserisci almeno una formula.");
         }
 
-        Set<String> payloadFieldKeys = payloadContractFieldRepository.findByPayloadContractId(selectedPayload.payloadContractId())
-                .stream()
-                .map(PayloadContractField::fieldKey)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        List<PayloadContractField> fields = payloadContractFieldRepository.findByPayloadContractId(selectedPayload.payloadContractId());
+        Set<String> payloadInputFieldKeys = extractInputFieldKeys(fields);
+        List<String> requestedFieldKeys = extractOutputFieldKeys(fields);
 
-        List<FormulaRow> formulas = parseAndValidateFormulas(formulasText, payloadFieldKeys);
+        List<FormulaRow> formulas = parseAndValidateFormulas(formulasText, payloadInputFieldKeys);
         Set<String> definedVariables = formulas.stream()
                 .map(FormulaRow::variable)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        List<String> requestedFieldKeys = payloadContractFieldRequestRepository
-                .findRequestedFieldKeysByPayloadContractId(selectedPayload.payloadContractId());
 
         List<String> selectedOutputs;
         List<String> missingRequested;
@@ -147,7 +140,7 @@ public class CubageCreationService {
         return FormulaValidationResult.success(summary);
     }
 
-    private List<FormulaRow> parseAndValidateFormulas(String formulasText, Set<String> payloadFieldKeys) {
+    private List<FormulaRow> parseAndValidateFormulas(String formulasText, Set<String> payloadInputFieldKeys) {
         String[] lines = formulasText.split("\\r?\\n");
         List<FormulaRow> parsed = new ArrayList<>();
         Set<String> definedVariables = new LinkedHashSet<>();
@@ -173,10 +166,13 @@ public class CubageCreationService {
             if (definedVariables.contains(variable)) {
                 throw new IllegalArgumentException("Riga " + (i + 1) + ": variabile già definita -> " + variable);
             }
+            if (payloadInputFieldKeys.contains(variable)) {
+                throw new IllegalArgumentException("Riga " + (i + 1) + ": il nome variabile coincide con un campo input del payload -> " + variable);
+            }
 
             Set<String> refs = extractIdentifiers(expression);
             for (String ref : refs) {
-                if (!definedVariables.contains(ref) && !payloadFieldKeys.contains(ref)) {
+                if (!definedVariables.contains(ref) && !payloadInputFieldKeys.contains(ref)) {
                     throw new IllegalArgumentException("Riga " + (i + 1) + ": riferimento non disponibile -> " + ref);
                 }
             }
@@ -294,6 +290,21 @@ public class CubageCreationService {
 
     private boolean isOperator(String token) {
         return "+".equals(token) || "-".equals(token) || "*".equals(token) || "/".equals(token);
+    }
+
+    private Set<String> extractInputFieldKeys(List<PayloadContractField> fields) {
+        return fields.stream()
+                .filter(field -> INPUT_ROLE.equalsIgnoreCase(field.fieldRole()))
+                .map(PayloadContractField::fieldKey)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private List<String> extractOutputFieldKeys(List<PayloadContractField> fields) {
+        return fields.stream()
+                .filter(field -> OUTPUT_ROLE.equalsIgnoreCase(field.fieldRole()))
+                .sorted(Comparator.comparingInt(PayloadContractField::orderIndex))
+                .map(PayloadContractField::fieldKey)
+                .toList();
     }
 
     private String buildValidationSummary(String formulaSetName,

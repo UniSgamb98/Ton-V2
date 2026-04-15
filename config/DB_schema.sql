@@ -241,6 +241,7 @@ CREATE TABLE payload_contract_field (
     display_name VARCHAR(120),
     data_type VARCHAR(50) NOT NULL,
     unit_code VARCHAR(30),
+    field_role VARCHAR(20) NOT NULL,
     order_index INTEGER NOT NULL DEFAULT 0,
 
     PRIMARY KEY (id),
@@ -251,31 +252,8 @@ CREATE TABLE payload_contract_field (
     CONSTRAINT uq_pcf_contract_field
         UNIQUE (payload_contract_id, field_key),
 
-    CONSTRAINT ck_pcf_order_index CHECK (order_index >= 0)
-);
-
-------------------------------------------------------------
--- TABLE: payload_contract_field_request
--- (campi richiesti dal consumer per un payload contract)
-------------------------------------------------------------
-CREATE TABLE payload_contract_field_request (
-    id INTEGER GENERATED ALWAYS AS IDENTITY,
-    payload_contract_id INTEGER NOT NULL,
-    payload_contract_field_id INTEGER NOT NULL,
-    order_index INTEGER NOT NULL DEFAULT 0,
-
-    PRIMARY KEY (id),
-
-    CONSTRAINT fk_pcfr_contract
-        FOREIGN KEY (payload_contract_id) REFERENCES payload_contract(id),
-
-    CONSTRAINT fk_pcfr_field
-        FOREIGN KEY (payload_contract_field_id) REFERENCES payload_contract_field(id),
-
-    CONSTRAINT uq_pcfr_contract_field
-        UNIQUE (payload_contract_id, payload_contract_field_id),
-
-    CONSTRAINT ck_pcfr_order_index CHECK (order_index >= 0)
+    CONSTRAINT ck_pcf_order_index CHECK (order_index >= 0),
+    CONSTRAINT ck_pcf_role CHECK (field_role IN ('INPUT', 'OUTPUT'))
 );
 
 ------------------------------------------------------------

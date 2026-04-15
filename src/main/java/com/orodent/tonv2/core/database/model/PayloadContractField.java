@@ -7,5 +7,6 @@ public record PayloadContractField(
         String displayName,
         String dataType,
         String unitCode,
-        int orderIndex
+        int orderIndex,
+        String fieldRole
 ) {}

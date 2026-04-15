@@ -13,54 +13,53 @@ INSERT INTO payload_contract (contract_code, version)
 VALUES ('PROJECT2_PAYLOAD', 1);
 
 ------------------------------------------------------------
--- 2) Campi payload standard (3 input)
+-- 2) Campi payload standard (input + output)
 ------------------------------------------------------------
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_1', 'Misura 1', 'DECIMAL', 'mm3', 0
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'input_1', 'Misura 1', 'DECIMAL', 'mm3', 'INPUT', 0
 FROM payload_contract
 WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
 
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_2', 'Misura 2', 'DECIMAL', 'g/cm3', 1
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'input_2', 'Misura 2', 'DECIMAL', 'g/cm3', 'INPUT', 1
 FROM payload_contract
 WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
 
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_3', 'Misura 3', 'DECIMAL', 'g', 2
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'input_3', 'Misura 3', 'DECIMAL', 'g', 'INPUT', 2
+FROM payload_contract
+WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
+
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'output_ratio', 'Rapporto volume-densità', 'DECIMAL', null, 'OUTPUT', 3
+FROM payload_contract
+WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
+
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'output_mass_adjusted', 'Massa corretta', 'DECIMAL', 'g', 'OUTPUT', 4
 FROM payload_contract
 WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
 
 ------------------------------------------------------------
 -- 3) Campi payload versione precedente (storico)
 ------------------------------------------------------------
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_1', 'Misura 1', 'DECIMAL', 'mm3', 0
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'input_1', 'Misura 1', 'DECIMAL', 'mm3', 'INPUT', 0
 FROM payload_contract
 WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 1;
 
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_2', 'Misura 2', 'DECIMAL', 'g/cm3', 1
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'input_2', 'Misura 2', 'DECIMAL', 'g/cm3', 'INPUT', 1
 FROM payload_contract
 WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 1;
 
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, field_role, order_index)
+SELECT id, 'output_ratio', 'Rapporto volume-densità', 'DECIMAL', null, 'OUTPUT', 2
+FROM payload_contract
+WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 1;
 
 ------------------------------------------------------------
--- 4) Campi richiesti dal consumer (output attesi)
-------------------------------------------------------------
-INSERT INTO payload_contract_field_request (payload_contract_id, payload_contract_field_id, order_index)
-SELECT pc.id, pcf.id, 0
-FROM payload_contract pc
-JOIN payload_contract_field pcf ON pcf.payload_contract_id = pc.id AND pcf.field_key = 'input_1'
-WHERE pc.contract_code = 'PROJECT2_PAYLOAD' AND pc.version = 2;
-
-INSERT INTO payload_contract_field_request (payload_contract_id, payload_contract_field_id, order_index)
-SELECT pc.id, pcf.id, 1
-FROM payload_contract pc
-JOIN payload_contract_field pcf ON pcf.payload_contract_id = pc.id AND pcf.field_key = 'input_3'
-WHERE pc.contract_code = 'PROJECT2_PAYLOAD' AND pc.version = 2;
-
-------------------------------------------------------------
--- 5) Formula set di esempio
+-- 4) Formula set di esempio
 ------------------------------------------------------------
 INSERT INTO formula_set (code, version)
 VALUES ('CUBAGE_CALC_STANDARD', 1);
@@ -72,38 +71,38 @@ JOIN payload_contract pc ON pc.contract_code = 'PROJECT2_PAYLOAD' AND pc.version
 WHERE fs.code = 'CUBAGE_CALC_STANDARD' AND fs.version = 1;
 
 ------------------------------------------------------------
--- 6) Formule di esempio nel set
+-- 5) Formule di esempio nel set
 ------------------------------------------------------------
 INSERT INTO formula_set_formula (formula_set_id, formula_key, formula_expression, order_index)
-SELECT fs.id, 'calc_volume_density_ratio', 'input_1 / input_2', 0
+SELECT fs.id, 'output_ratio', 'input_1 / input_2', 0
 FROM formula_set fs
 WHERE fs.code = 'CUBAGE_CALC_STANDARD' AND fs.version = 1;
 
 INSERT INTO formula_set_formula (formula_set_id, formula_key, formula_expression, order_index)
-SELECT fs.id, 'calc_mass_adjusted', 'input_3 * 1.05', 1
+SELECT fs.id, 'output_mass_adjusted', 'input_3 * 1.05', 1
 FROM formula_set fs
 WHERE fs.code = 'CUBAGE_CALC_STANDARD' AND fs.version = 1;
 
 ------------------------------------------------------------
--- 7) Input usati da ogni formula (tracciamento dipendenze)
+-- 6) Input usati da ogni formula (tracciamento dipendenze)
 ------------------------------------------------------------
 INSERT INTO formula_set_formula_input (formula_id, field_key)
 SELECT f.id, 'input_1'
 FROM formula_set_formula f
 JOIN formula_set fs ON fs.id = f.formula_set_id
 WHERE fs.code = 'CUBAGE_CALC_STANDARD' AND fs.version = 1
-  AND f.formula_key = 'calc_volume_density_ratio';
+  AND f.formula_key = 'output_ratio';
 
 INSERT INTO formula_set_formula_input (formula_id, field_key)
 SELECT f.id, 'input_2'
 FROM formula_set_formula f
 JOIN formula_set fs ON fs.id = f.formula_set_id
 WHERE fs.code = 'CUBAGE_CALC_STANDARD' AND fs.version = 1
-  AND f.formula_key = 'calc_volume_density_ratio';
+  AND f.formula_key = 'output_ratio';
 
 INSERT INTO formula_set_formula_input (formula_id, field_key)
 SELECT f.id, 'input_3'
 FROM formula_set_formula f
 JOIN formula_set fs ON fs.id = f.formula_set_id
 WHERE fs.code = 'CUBAGE_CALC_STANDARD' AND fs.version = 1
-  AND f.formula_key = 'calc_mass_adjusted';
+  AND f.formula_key = 'output_mass_adjusted';
