@@ -1,11 +1,13 @@
 package com.orodent.tonv2.app;
 
+import com.orodent.tonv2.app.navigation.CubageNavigator;
 import com.orodent.tonv2.app.navigation.DocumentsNavigator;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.cubage.home.controller.CubageController;
 import com.orodent.tonv2.features.cubage.home.service.CubageService;
 import com.orodent.tonv2.features.cubage.home.view.CubageView;
+import com.orodent.tonv2.features.cubage.section.view.CubageSectionView;
 import com.orodent.tonv2.features.documents.archive.controller.DocumentsArchiveController;
 import com.orodent.tonv2.features.documents.archive.view.DocumentsArchiveView;
 import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
@@ -53,7 +55,7 @@ import javafx.stage.Stage;
 
 import java.util.Objects;
 
-public class AppController implements DocumentsNavigator, LaboratoryNavigator {
+public class AppController implements DocumentsNavigator, LaboratoryNavigator, CubageNavigator {
     /*
     Qua salvo i modelli dell'applicazione e tutte le variabili che servono all'intera applicazione e non alle
     singole pagine.
@@ -178,10 +180,34 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
     public void showCubage() {
         CubageView view = new CubageView();
         configureHeader(view.getHeader());
-        new CubageController(view, new CubageService());
+        new CubageController(view, new CubageService(), this);
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Cubaggio");
+    }
+
+    @Override
+    public void showCubageFormulaSets() {
+        showCubageSection(
+                "Gestione Formula Set",
+                "Qui potremo creare e versionare i formula set del cubaggio."
+        );
+    }
+
+    @Override
+    public void showCubageProductFormulaAssignments() {
+        showCubageSection(
+                "Assegnazione Product -> Formula Set",
+                "Qui potremo associare uno o più product al formula set selezionato."
+        );
+    }
+
+    @Override
+    public void showCubagePayloadContracts() {
+        showCubageSection(
+                "Payload Contract",
+                "Qui potremo selezionare il payload attivo e, se necessario, usare un payload legacy."
+        );
     }
 
     public void showRegisters() {
@@ -473,6 +499,15 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator {
             scene.getStylesheets().add(path);
         }
         return scene;
+    }
+
+    private void showCubageSection(String pageTitle, String description) {
+        CubageSectionView view = new CubageSectionView(pageTitle, description);
+        configureHeader(view.getHeader());
+        view.getBackButton().setOnAction(e -> showCubage());
+
+        stage.setScene(createSceneWithCSS(view));
+        stage.setTitle("TON - Cubaggio");
     }
 
     private void configureHeader(AppHeader header) {
