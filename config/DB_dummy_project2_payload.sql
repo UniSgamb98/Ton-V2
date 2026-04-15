@@ -7,13 +7,31 @@
 -- 1) Payload contract principali
 ------------------------------------------------------------
 INSERT INTO payload_contract (contract_code, version, description)
-VALUES ('PROJECT2_PAYLOAD', 1, 'Payload standard inviato dal Progetto 2 (3 variabili).');
+VALUES ('PROJECT2_PAYLOAD', 2, 'Payload standard attuale inviato dal Progetto 2 (3 variabili).');
 
 INSERT INTO payload_contract (contract_code, version, description)
-VALUES ('PROJECT2_PAYLOAD_LEGACY', 1, 'Payload legacy storico del Progetto 2.');
+VALUES ('PROJECT2_PAYLOAD', 1, 'Versione precedente del payload Progetto 2 (storico).');
 
 ------------------------------------------------------------
 -- 2) Campi payload standard (3 input)
+------------------------------------------------------------
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
+SELECT id, 'input_1', 'Misura 1', 'DECIMAL', 'mm3', 0
+FROM payload_contract
+WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
+
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
+SELECT id, 'input_2', 'Misura 2', 'DECIMAL', 'g/cm3', 1
+FROM payload_contract
+WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
+
+INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
+SELECT id, 'input_3', 'Misura 3', 'DECIMAL', 'g', 2
+FROM payload_contract
+WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 2;
+
+------------------------------------------------------------
+-- 3) Campi payload versione precedente (storico)
 ------------------------------------------------------------
 INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
 SELECT id, 'input_1', 'Misura 1', 'DECIMAL', 'mm3', 0
@@ -25,24 +43,6 @@ SELECT id, 'input_2', 'Misura 2', 'DECIMAL', 'g/cm3', 1
 FROM payload_contract
 WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 1;
 
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_3', 'Misura 3', 'DECIMAL', 'g', 2
-FROM payload_contract
-WHERE contract_code = 'PROJECT2_PAYLOAD' AND version = 1;
-
-------------------------------------------------------------
--- 3) Campi payload legacy (esempio differente)
-------------------------------------------------------------
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_1', 'Misura 1 Legacy', 'DECIMAL', 'mm3', 0
-FROM payload_contract
-WHERE contract_code = 'PROJECT2_PAYLOAD_LEGACY' AND version = 1;
-
-INSERT INTO payload_contract_field (payload_contract_id, field_key, display_name, data_type, unit_code, order_index)
-SELECT id, 'input_2', 'Misura 2 Legacy', 'DECIMAL', 'g/cm3', 1
-FROM payload_contract
-WHERE contract_code = 'PROJECT2_PAYLOAD_LEGACY' AND version = 1;
-
 ------------------------------------------------------------
 -- 4) Formula set di esempio
 ------------------------------------------------------------
@@ -52,7 +52,7 @@ VALUES ('CUBAGE_CALC_STANDARD', 1, 'Set formule base per cubaggio su payload sta
 INSERT INTO formula_set_payload_contract (formula_set_id, payload_contract_id)
 SELECT fs.id, pc.id
 FROM formula_set fs
-JOIN payload_contract pc ON pc.contract_code = 'PROJECT2_PAYLOAD' AND pc.version = 1
+JOIN payload_contract pc ON pc.contract_code = 'PROJECT2_PAYLOAD' AND pc.version = 2
 WHERE fs.code = 'CUBAGE_CALC_STANDARD' AND fs.version = 1;
 
 ------------------------------------------------------------
