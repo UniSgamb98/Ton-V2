@@ -8,7 +8,7 @@ public class CubageController {
 
     public CubageController(CubageView view, CubageService service, CubageNavigator navigator) {
         view.setIntroText(service.getIntroMessage());
-        view.getFormulaSetButton().setOnAction(e -> navigator.showCubageFormulaSets());
+        view.getCalculationManagementButton().setOnAction(e -> navigator.showCubageCalculationManagement());
         view.getProductAssignmentButton().setOnAction(e -> navigator.showCubageProductFormulaAssignments());
         view.getPayloadContractButton().setOnAction(e -> navigator.showCubagePayloadContracts());
     }

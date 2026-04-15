@@ -12,7 +12,7 @@ public class CubageView extends VBox {
 
     private final AppHeader header = new AppHeader("Cubaggio");
     private final Label introLabel = new Label("Caricamento...");
-    private final Button formulaSetButton = new Button("Gestione Formula Set");
+    private final Button calculationManagementButton = new Button("Gestione Calcoli Cubaggio");
     private final Button productAssignmentButton = new Button("Assegna Formula Set ai Product");
     private final Button payloadContractButton = new Button("Payload Contract");
 
@@ -21,7 +21,7 @@ public class CubageView extends VBox {
         setPadding(new Insets(20));
 
         introLabel.setWrapText(true);
-        HBox actions = new HBox(12, formulaSetButton, productAssignmentButton, payloadContractButton);
+        HBox actions = new HBox(12, calculationManagementButton, productAssignmentButton, payloadContractButton);
         Separator separator = new Separator();
         separator.setMaxWidth(Double.MAX_VALUE);
 
@@ -36,8 +36,8 @@ public class CubageView extends VBox {
         introLabel.setText(text == null ? "" : text);
     }
 
-    public Button getFormulaSetButton() {
-        return formulaSetButton;
+    public Button getCalculationManagementButton() {
+        return calculationManagementButton;
     }
 
     public Button getProductAssignmentButton() {
