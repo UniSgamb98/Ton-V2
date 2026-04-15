@@ -181,6 +181,59 @@ CREATE TABLE product_active_composition (
 );
 
 ------------------------------------------------------------
+-- TABLE: formula_set (set formule cubaggio versionato)
+------------------------------------------------------------
+CREATE TABLE formula_set (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    code VARCHAR(80) NOT NULL,
+    version INTEGER NOT NULL,
+    description VARCHAR(300),
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uq_formula_set_code_version
+        UNIQUE (code, version),
+
+    CONSTRAINT ck_formula_set_version CHECK (version > 0)
+);
+
+------------------------------------------------------------
+-- TABLE: formula_set_formula (formule multiple per set)
+------------------------------------------------------------
+CREATE TABLE formula_set_formula (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    formula_set_id INTEGER NOT NULL,
+    formula_key VARCHAR(100) NOT NULL,
+    formula_expression CLOB NOT NULL,
+    order_index INTEGER NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_fsf_set
+        FOREIGN KEY (formula_set_id) REFERENCES formula_set(id),
+
+    CONSTRAINT uq_fsf_set_key UNIQUE (formula_set_id, formula_key),
+    CONSTRAINT ck_fsf_order_index CHECK (order_index >= 0)
+);
+
+------------------------------------------------------------
+-- TABLE: product_active_formula_set
+-- (associazione set formule al product, indipendente dalla versione composition)
+------------------------------------------------------------
+CREATE TABLE product_active_formula_set (
+    product_id INTEGER NOT NULL,
+    formula_set_id INTEGER NOT NULL,
+
+    PRIMARY KEY (product_id),
+
+    CONSTRAINT fk_pafs_product
+        FOREIGN KEY (product_id) REFERENCES product(id),
+
+    CONSTRAINT fk_pafs_set
+        FOREIGN KEY (formula_set_id) REFERENCES formula_set(id)
+);
+
+------------------------------------------------------------
 -- TABLE: composition_layer_ingredient
 ------------------------------------------------------------
 CREATE TABLE composition_layer_ingredient (
@@ -332,6 +385,28 @@ CREATE TABLE cubage (
     CONSTRAINT fk_cubage_firing
         FOREIGN KEY (firing_id)
         REFERENCES firing(id)
+);
+
+------------------------------------------------------------
+-- TABLE: cubage_calculation_run
+-- (traccia il set formule usato per il cubage)
+------------------------------------------------------------
+CREATE TABLE cubage_calculation_run (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    cubage_id INTEGER NOT NULL,
+    formula_set_id INTEGER NOT NULL,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_ccr_cubage
+        FOREIGN KEY (cubage_id)
+        REFERENCES cubage(id),
+
+    CONSTRAINT fk_ccr_formula_set
+        FOREIGN KEY (formula_set_id)
+        REFERENCES formula_set(id),
+
+    CONSTRAINT uq_ccr_cubage UNIQUE (cubage_id)
 );
 
 ------------------------------------------------------------
