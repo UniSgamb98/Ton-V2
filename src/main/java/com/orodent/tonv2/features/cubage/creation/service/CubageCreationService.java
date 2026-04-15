@@ -77,6 +77,13 @@ public class CubageCreationService {
                     .collect(Collectors.joining("\n"));
         }
 
+        List<String> requestedOutputs = payloadContractFieldRequestRepository
+                .findRequestedFieldKeysByPayloadContractId(option.payloadContractId());
+
+        String requestedOutputsSection = requestedOutputs.isEmpty()
+                ? "- Nessun output richiesto"
+                : requestedOutputs.stream().map(value -> "- " + value).collect(Collectors.joining("\n"));
+
         return """
                 Payload selezionato:
                 - Codice: %s
@@ -84,11 +91,15 @@ public class CubageCreationService {
                 - Origine selezione: %s
                 Campi:
                 %s
+
+                Output richiesto:
+                %s
                 """.formatted(
                 option.payloadCode(),
                 option.version(),
                 selectedFromLegacy ? "Legacy" : "Attiva",
-                fieldsSection
+                fieldsSection,
+                requestedOutputsSection
         );
     }
 
