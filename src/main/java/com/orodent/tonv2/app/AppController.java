@@ -192,7 +192,13 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showCubageCreation() {
         CubageCreationView view = new CubageCreationView();
         configureHeader(view.getHeader());
-        new CubageCreationController(view, new CubageCreationService());
+        new CubageCreationController(
+                view,
+                new CubageCreationService(
+                        app.payloadContractRepo(),
+                        app.payloadContractFieldRepo()
+                )
+        );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Gestione Calcoli Cubaggio");
