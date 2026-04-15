@@ -1,6 +1,7 @@
 package com.orodent.tonv2.features.cubage.creation.controller;
 
 import com.orodent.tonv2.features.cubage.creation.service.CubageCreationService;
+import com.orodent.tonv2.features.cubage.creation.service.CubageFormulaSetPersistenceService;
 import com.orodent.tonv2.features.cubage.creation.view.CubageCreationView;
 import javafx.collections.FXCollections;
 
@@ -11,11 +12,14 @@ public class CubageCreationController {
 
     private final CubageCreationView view;
     private final CubageCreationService service;
+    private final CubageFormulaSetPersistenceService persistenceService;
 
     public CubageCreationController(CubageCreationView view,
-                                    CubageCreationService service) {
+                                    CubageCreationService service,
+                                    CubageFormulaSetPersistenceService persistenceService) {
         this.view = view;
         this.service = service;
+        this.persistenceService = persistenceService;
 
         initialize();
     }
@@ -36,21 +40,33 @@ public class CubageCreationController {
         });
 
         view.getSelectLegacyPayloadButton().setOnAction(event -> toggleLegacySelection());
-        view.getSaveCalculationSetButton().setOnAction(event -> validateFormulaSet());
+        view.getSaveCalculationSetButton().setOnAction(event -> saveFormulaSet());
 
         if (!view.getPayloadSelector().getItems().isEmpty()) {
             view.getPayloadSelector().getSelectionModel().selectFirst();
         }
     }
 
-    private void validateFormulaSet() {
+    private void saveFormulaSet() {
         CubageCreationService.PayloadOption payload = getCurrentSelectedPayload();
-        CubageCreationService.FormulaValidationResult result = service.validateAndBuildFormulaSet(
+        CubageCreationService.FormulaValidationResult validationResult = service.validateAndBuildFormulaSet(
                 view.getCalculationSetNameField().getText(),
                 view.getFormulaBuilderText(),
                 payload
         );
-        view.setResultsText(result.message());
+
+        if (!validationResult.valid()) {
+            view.setResultsText(validationResult.message());
+            return;
+        }
+
+        try {
+            CubageFormulaSetPersistenceService.SaveResult saveResult = persistenceService.save(validationResult.compilation());
+            view.setResultsText(validationResult.message() + "\n\nSalvataggio completato: set #" + saveResult.formulaSetId()
+                    + " versione v" + saveResult.version());
+        } catch (RuntimeException e) {
+            view.setResultsText("Errore salvataggio set di calcolo: " + e.getMessage());
+        }
     }
 
     private CubageCreationService.PayloadOption getCurrentSelectedPayload() {

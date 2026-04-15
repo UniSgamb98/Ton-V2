@@ -6,6 +6,7 @@ import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.cubage.creation.controller.CubageCreationController;
 import com.orodent.tonv2.features.cubage.creation.service.CubageCreationService;
+import com.orodent.tonv2.features.cubage.creation.service.CubageFormulaSetPersistenceService;
 import com.orodent.tonv2.features.cubage.creation.view.CubageCreationView;
 import com.orodent.tonv2.features.cubage.home.controller.CubageController;
 import com.orodent.tonv2.features.cubage.home.service.CubageService;
@@ -197,7 +198,8 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 new CubageCreationService(
                         app.payloadContractRepo(),
                         app.payloadContractFieldRepo()
-                )
+                ),
+                new CubageFormulaSetPersistenceService(app.database.getConnection())
         );
 
         stage.setScene(createSceneWithCSS(view));

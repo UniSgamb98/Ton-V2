@@ -136,8 +136,18 @@ public class CubageCreationService {
                     .toList();
         }
 
+        FormulaCompilation compilation = new FormulaCompilation(
+                formulaSetName.trim(),
+                selectedPayload,
+                formulas.stream()
+                        .map(formula -> new FormulaDefinition(formula.variable(), formula.expression(), formula.inputDependencies()))
+                        .toList(),
+                selectedOutputs,
+                missingRequested
+        );
+
         String summary = buildValidationSummary(formulaSetName, selectedPayload, formulas.size(), selectedOutputs, missingRequested);
-        return FormulaValidationResult.success(summary);
+        return FormulaValidationResult.success(summary, compilation);
     }
 
     private List<FormulaRow> parseAndValidateFormulas(String formulasText, Set<String> payloadInputFieldKeys) {
@@ -178,7 +188,11 @@ public class CubageCreationService {
             }
 
             validateExpressionSyntax(expression, i + 1);
-            parsed.add(new FormulaRow(variable, expression));
+            List<String> inputDependencies = refs.stream()
+                    .filter(payloadInputFieldKeys::contains)
+                    .toList();
+
+            parsed.add(new FormulaRow(variable, expression, inputDependencies));
             definedVariables.add(variable);
         }
 
@@ -347,16 +361,26 @@ public class CubageCreationService {
         }
     }
 
-    private record FormulaRow(String variable, String expression) {
+    private record FormulaRow(String variable, String expression, List<String> inputDependencies) {
     }
 
-    public record FormulaValidationResult(boolean valid, String message) {
-        public static FormulaValidationResult success(String message) {
-            return new FormulaValidationResult(true, message);
+    public record FormulaDefinition(String variable, String expression, List<String> inputDependencies) {
+    }
+
+    public record FormulaCompilation(String formulaSetName,
+                                     PayloadOption selectedPayload,
+                                     List<FormulaDefinition> formulas,
+                                     List<String> selectedOutputs,
+                                     List<String> missingRequested) {
+    }
+
+    public record FormulaValidationResult(boolean valid, String message, FormulaCompilation compilation) {
+        public static FormulaValidationResult success(String message, FormulaCompilation compilation) {
+            return new FormulaValidationResult(true, message, compilation);
         }
 
         public static FormulaValidationResult error(String message) {
-            return new FormulaValidationResult(false, message);
+            return new FormulaValidationResult(false, message, null);
         }
     }
 }
