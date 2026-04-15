@@ -20,7 +20,6 @@ public class CubageCreationView extends VBox {
     private final AppHeader header = new AppHeader("Cubaggio");
     private final Label titleLabel = new Label("Gestione Calcoli Cubaggio");
 
-    private final Label calculationSetNameLabel = new Label("Nome Set di Calcolo");
     private final TextField calculationSetNameField = new TextField();
 
     private final ComboBox<CubageCreationService.PayloadOption> payloadSelector = new ComboBox<>();
@@ -37,8 +36,7 @@ public class CubageCreationView extends VBox {
 
         titleLabel.getStyleClass().add("page-title");
 
-        calculationSetNameLabel.getStyleClass().add("section-title");
-        calculationSetNameField.setPromptText("Inserisci formula_set.code");
+        calculationSetNameField.setPromptText("Nome set di calcolo");
         calculationSetNameField.setMaxWidth(420);
 
         payloadSelector.setPromptText("Seleziona payload attivo");
@@ -87,7 +85,6 @@ public class CubageCreationView extends VBox {
         getChildren().addAll(
                 header,
                 titleLabel,
-                calculationSetNameLabel,
                 calculationSetNameField,
                 contentRow,
                 footerActions
