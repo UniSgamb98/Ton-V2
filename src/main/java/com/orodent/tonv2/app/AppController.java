@@ -4,9 +4,9 @@ import com.orodent.tonv2.app.navigation.CubageNavigator;
 import com.orodent.tonv2.app.navigation.DocumentsNavigator;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.components.AppHeader;
-import com.orodent.tonv2.features.cubage.calculationmanagement.controller.CubageCalculationManagementController;
-import com.orodent.tonv2.features.cubage.calculationmanagement.service.CubageCalculationManagementService;
-import com.orodent.tonv2.features.cubage.calculationmanagement.view.CubageCalculationManagementView;
+import com.orodent.tonv2.features.cubage.creation.controller.CubageCreationController;
+import com.orodent.tonv2.features.cubage.creation.service.CubageCreationService;
+import com.orodent.tonv2.features.cubage.creation.view.CubageCreationView;
 import com.orodent.tonv2.features.cubage.home.controller.CubageController;
 import com.orodent.tonv2.features.cubage.home.service.CubageService;
 import com.orodent.tonv2.features.cubage.home.view.CubageView;
@@ -189,10 +189,10 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     }
 
     @Override
-    public void showCubageCalculationManagement() {
-        CubageCalculationManagementView view = new CubageCalculationManagementView();
+    public void showCubageCreation() {
+        CubageCreationView view = new CubageCreationView();
         configureHeader(view.getHeader());
-        new CubageCalculationManagementController(view, new CubageCalculationManagementService());
+        new CubageCreationController(view, new CubageCreationService());
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Gestione Calcoli Cubaggio");

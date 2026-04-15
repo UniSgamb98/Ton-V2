@@ -1,17 +1,17 @@
-package com.orodent.tonv2.features.cubage.calculationmanagement.view;
+package com.orodent.tonv2.features.cubage.creation.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 
-public class CubageCalculationManagementView extends VBox {
+public class CubageCreationView extends VBox {
 
     private final AppHeader header = new AppHeader("Cubaggio");
     private final Label titleLabel = new Label("Gestione Calcoli Cubaggio");
     private final Label infoLabel = new Label("Caricamento...");
 
-    public CubageCalculationManagementView() {
+    public CubageCreationView() {
         setSpacing(16);
         setPadding(new Insets(20));
 
