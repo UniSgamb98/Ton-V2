@@ -18,6 +18,9 @@ public class CubageFormulaSetPersistenceService {
         if (compilation == null) {
             throw new IllegalArgumentException("Compilazione formule assente.");
         }
+        if (!compilation.missingRequested().isEmpty()) {
+            throw new IllegalArgumentException("Impossibile salvare: output richiesti mancanti.");
+        }
 
         boolean originalAutoCommit;
         try {
@@ -42,8 +45,6 @@ public class CubageFormulaSetPersistenceService {
             }
 
             connection.commit();
-            connection.setAutoCommit(originalAutoCommit);
-
             return new SaveResult(formulaSetId, nextVersion);
         } catch (Exception e) {
             try {
@@ -52,6 +53,12 @@ public class CubageFormulaSetPersistenceService {
                 e.addSuppressed(rollbackException);
             }
             throw new RuntimeException("Errore salvataggio set di calcolo.", e);
+        } finally {
+            try {
+                connection.setAutoCommit(originalAutoCommit);
+            } catch (SQLException e) {
+                throw new RuntimeException("Errore ripristino auto-commit dopo salvataggio formule.", e);
+            }
         }
     }
 

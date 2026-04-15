@@ -136,6 +136,18 @@ public class CubageCreationService {
                     .toList();
         }
 
+        if (!missingRequested.isEmpty()) {
+            String missing = missingRequested.stream()
+                    .map(value -> "- " + value)
+                    .collect(Collectors.joining("\n"));
+
+            return FormulaValidationResult.error("""
+                    Validazione fallita: mancano output richiesti.
+                    Output mancanti:
+                    %s
+                    """.formatted(missing));
+        }
+
         FormulaCompilation compilation = new FormulaCompilation(
                 formulaSetName.trim(),
                 selectedPayload,
