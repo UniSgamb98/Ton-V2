@@ -75,14 +75,12 @@ public class CubageCreationService {
                 - Codice: %s
                 - Versione: v%d
                 - Origine selezione: %s
-                - Descrizione: %s
                 Campi:
                 %s
                 """.formatted(
                 option.payloadCode(),
                 option.version(),
                 selectedFromLegacy ? "Legacy" : "Attiva",
-                option.description() == null || option.description().isBlank() ? "N/D" : option.description(),
                 fieldsSection
         );
     }
