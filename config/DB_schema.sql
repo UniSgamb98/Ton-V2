@@ -217,6 +217,77 @@ CREATE TABLE formula_set_formula (
 );
 
 ------------------------------------------------------------
+-- TABLE: payload_contract (contratto payload misure)
+------------------------------------------------------------
+CREATE TABLE payload_contract (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    contract_code VARCHAR(100) NOT NULL,
+    version INTEGER NOT NULL,
+    description VARCHAR(300),
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT uq_payload_contract_code_version
+        UNIQUE (contract_code, version),
+
+    CONSTRAINT ck_payload_contract_version CHECK (version > 0)
+);
+
+------------------------------------------------------------
+-- TABLE: payload_contract_field (campi disponibili nel payload)
+------------------------------------------------------------
+CREATE TABLE payload_contract_field (
+    id INTEGER GENERATED ALWAYS AS IDENTITY,
+    payload_contract_id INTEGER NOT NULL,
+    field_key VARCHAR(100) NOT NULL,
+    display_name VARCHAR(120),
+    data_type VARCHAR(50) NOT NULL,
+    unit_code VARCHAR(30),
+    order_index INTEGER NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (id),
+
+    CONSTRAINT fk_pcf_contract
+        FOREIGN KEY (payload_contract_id) REFERENCES payload_contract(id),
+
+    CONSTRAINT uq_pcf_contract_field
+        UNIQUE (payload_contract_id, field_key),
+
+    CONSTRAINT ck_pcf_order_index CHECK (order_index >= 0)
+);
+
+------------------------------------------------------------
+-- TABLE: formula_set_payload_contract
+-- (ogni set formule usa un solo contratto payload)
+------------------------------------------------------------
+CREATE TABLE formula_set_payload_contract (
+    formula_set_id INTEGER NOT NULL,
+    payload_contract_id INTEGER NOT NULL,
+
+    PRIMARY KEY (formula_set_id),
+
+    CONSTRAINT fk_fspc_set
+        FOREIGN KEY (formula_set_id) REFERENCES formula_set(id),
+
+    CONSTRAINT fk_fspc_contract
+        FOREIGN KEY (payload_contract_id) REFERENCES payload_contract(id)
+);
+
+------------------------------------------------------------
+-- TABLE: formula_set_formula_input
+-- (input di payload usati da ciascuna formula)
+------------------------------------------------------------
+CREATE TABLE formula_set_formula_input (
+    formula_id INTEGER NOT NULL,
+    field_key VARCHAR(100) NOT NULL,
+
+    PRIMARY KEY (formula_id, field_key),
+
+    CONSTRAINT fk_fsfi_formula
+        FOREIGN KEY (formula_id) REFERENCES formula_set_formula(id)
+);
+
+------------------------------------------------------------
 -- TABLE: product_active_formula_set
 -- (associazione set formule al product, indipendente dalla versione composition)
 ------------------------------------------------------------
