@@ -21,9 +21,6 @@ public class CubageCreationService {
         this.payloadContractFieldRepository = payloadContractFieldRepository;
     }
 
-    public String getIntroMessage() {
-        return "Sezione dedicata alla gestione dei calcoli del cubaggio.";
-    }
 
     public List<PayloadOption> getLatestPayloadOptions() {
         Map<String, List<PayloadContract>> groupedByCode = payloadContractRepository.findAll().stream()

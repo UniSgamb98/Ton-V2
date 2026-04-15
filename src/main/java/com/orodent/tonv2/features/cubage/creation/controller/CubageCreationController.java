@@ -21,8 +21,6 @@ public class CubageCreationController {
     }
 
     private void initialize() {
-        view.setInfoText(service.getIntroMessage());
-
         view.setPayloadOptions(FXCollections.observableArrayList(service.getLatestPayloadOptions()));
         view.getPayloadSelector().getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             populateLegacyOptionsFor(newValue);

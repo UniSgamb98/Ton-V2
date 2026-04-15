@@ -4,10 +4,12 @@ import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.cubage.creation.service.CubageCreationService;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -17,7 +19,9 @@ public class CubageCreationView extends VBox {
 
     private final AppHeader header = new AppHeader("Cubaggio");
     private final Label titleLabel = new Label("Gestione Calcoli Cubaggio");
-    private final Label infoLabel = new Label("Anteprima UI - logica non ancora collegata");
+
+    private final Label calculationSetNameLabel = new Label("Nome Set di Calcolo");
+    private final TextField calculationSetNameField = new TextField();
 
     private final ComboBox<CubageCreationService.PayloadOption> payloadSelector = new ComboBox<>();
     private final Button selectLegacyPayloadButton = new Button("Seleziona Payload Legacy");
@@ -25,14 +29,17 @@ public class CubageCreationView extends VBox {
     private final TextArea payloadPreviewArea = new TextArea();
     private final TextArea formulaBuilderArea = new TextArea();
     private final TextArea resultsArea = new TextArea();
+    private final Button saveCalculationSetButton = new Button("Salva Set di Calcolo");
 
     public CubageCreationView() {
         setSpacing(16);
         setPadding(new Insets(20));
 
         titleLabel.getStyleClass().add("page-title");
-        infoLabel.getStyleClass().add("text-muted");
-        infoLabel.setWrapText(true);
+
+        calculationSetNameLabel.getStyleClass().add("section-title");
+        calculationSetNameField.setPromptText("Inserisci formula_set.code");
+        calculationSetNameField.setMaxWidth(420);
 
         payloadSelector.setPromptText("Seleziona payload attivo");
         payloadSelector.setCellFactory(listView -> new PayloadOptionListCell());
@@ -74,15 +81,29 @@ public class CubageCreationView extends VBox {
         centerPanel.setPrefWidth(420);
         rightPanel.setPrefWidth(320);
 
-        getChildren().addAll(header, titleLabel, infoLabel, contentRow);
+        HBox footerActions = new HBox(saveCalculationSetButton);
+        footerActions.setAlignment(Pos.CENTER_RIGHT);
+
+        getChildren().addAll(
+                header,
+                titleLabel,
+                calculationSetNameLabel,
+                calculationSetNameField,
+                contentRow,
+                footerActions
+        );
     }
 
     public AppHeader getHeader() {
         return header;
     }
 
-    public void setInfoText(String text) {
-        infoLabel.setText(text == null ? "" : text);
+    public TextField getCalculationSetNameField() {
+        return calculationSetNameField;
+    }
+
+    public Button getSaveCalculationSetButton() {
+        return saveCalculationSetButton;
     }
 
     public ComboBox<CubageCreationService.PayloadOption> getPayloadSelector() {
