@@ -67,6 +67,7 @@ public class FurnaceCarouselView extends VBox {
                 furnaceCards.add(new FurnaceCardData(
                         furnace.id(),
                         "Forno " + displayNumber,
+                        null,
                         new LinkedHashMap<>()
                 ));
             }
@@ -84,7 +85,8 @@ public class FurnaceCarouselView extends VBox {
 
     public void setPlannedItems(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
                                 Map<Integer, String> itemCodeById,
-                                Map<Integer, String> productNameByItemId) {
+                                Map<Integer, String> productNameByItemId,
+                                Map<Integer, String> lotCodeByFurnace) {
         this.itemCodeById.clear();
         if (itemCodeById != null) {
             this.itemCodeById.putAll(itemCodeById);
@@ -99,6 +101,7 @@ public class FurnaceCarouselView extends VBox {
             Map<Integer, Integer> plannedItems = plannedByFurnace == null
                     ? null
                     : plannedByFurnace.get(furnaceCard.furnaceId());
+            furnaceCard.lotCode = lotCodeByFurnace == null ? null : lotCodeByFurnace.get(furnaceCard.furnaceId());
             if (plannedItems == null) {
                 continue;
             }
@@ -248,6 +251,7 @@ public class FurnaceCarouselView extends VBox {
     private FurnaceCard buildFurnaceCard(FurnaceCardData furnace, int absoluteIndex) {
         return new FurnaceCard(
                 furnace.furnaceName(),
+                furnace.lotCode,
                 furnace.plannedItemQty(),
                 itemCodeById,
                 productNameByItemId,
@@ -376,7 +380,22 @@ public class FurnaceCarouselView extends VBox {
         return Math.max(MIN_VISIBLE_CARDS, cardsFromWidth);
     }
 
-    private record FurnaceCardData(int furnaceId, String furnaceName, Map<Integer, Integer> plannedItemQty) {
+    private static class FurnaceCardData {
+        private final int furnaceId;
+        private final String furnaceName;
+        private String lotCode;
+        private final Map<Integer, Integer> plannedItemQty;
+
+        private FurnaceCardData(int furnaceId, String furnaceName, String lotCode, Map<Integer, Integer> plannedItemQty) {
+            this.furnaceId = furnaceId;
+            this.furnaceName = furnaceName;
+            this.lotCode = lotCode;
+            this.plannedItemQty = plannedItemQty;
+        }
+
+        int furnaceId() { return furnaceId; }
+        String furnaceName() { return furnaceName; }
+        Map<Integer, Integer> plannedItemQty() { return plannedItemQty; }
     }
 
     public record FurnaceSelection(int furnaceId, String furnaceName) {
