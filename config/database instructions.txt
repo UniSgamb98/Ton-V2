@@ -21,17 +21,30 @@ ELIMINA I DATI:
 
 DELETE FROM APP.powder;
 
-
-DROP TABLE production_order_line;
 DROP TABLE production_order_line_firing;
+DROP TABLE production_order_line;
 DROP TABLE production_order;
 DROP TABLE product_active_composition;
 DROP TABLE composition_layer_ingredient;
 DROP TABLE composition_blank_model;
+DROP TABLE cubage_measurement;
+DROP TABLE cubage_calculation_run;
+DROP TABLE cubage;
+DROP TABLE lot;
 DROP TABLE item;
 DROP TABLE blank_model_layer;
 DROP TABLE blank_model_height_overmaterial;
 DROP TABLE composition;
+DROP TABLE product_active_formula_set;
+DROP TABLE formula_set_formula_input;
+DROP TABLE formula_set_formula;
+DROP TABLE formula_set_payload_contract;
+DROP TABLE payload_contract_field_request;
+DROP TABLE payload_contract_field;
+DROP TABLE payload_contract;
+DROP TABLE formula_set;
+DROP TABLE firing_program_step;
+DROP TABLE firing_program;
 DROP TABLE firing;
 DROP TABLE powder;
 DROP TABLE blank_model;
@@ -39,6 +52,7 @@ DROP TABLE line;
 DROP TABLE product;
 DROP TABLE document_template_usage;
 DROP TABLE document_template;
+DROP TABLE furnace;
 
 
 INSERT INTO powder (code, name, strength, translucency, yttria, view_order)
@@ -49,7 +63,7 @@ VALUES
     ('ZST4Y-015DP', 'SINOCERA Gialla 4Y', 800.0, 0.15, 4, 2),
     ('ZST4E-015OP', 'SINOCERA Rosa 4Y',   800.0, 0.33, 4, 3),
     ('ZST4Y-015EP', 'SINOCERA Grigia 4Y', 800.0, 0.20, 4, 4),
-    
+
     ('ZST3Y-015DP', 'SINOCERA Gialla 3Y', 1100.0, 0.12, 3, 2),
     ('ZST3E-015OP', 'SINOCERA Rosa 3Y',   1100.0, 0.31, 3, 3),
     ('ZST3Y-015EP', 'SINOCERA Grigia 3Y', 1100.0, 0.18, 3, 4),
@@ -138,7 +152,7 @@ INSERT INTO composition_layer_ingredient (
 
 INSERT INTO line (name, product_id) values ('Thor', 1);
 
-INSERT INTO item (code, product_id, blank_model_id, height_mm) VALUES 
+INSERT INTO item (code, product_id, blank_model_id, height_mm) VALUES
 ('ZR9812MSTA1', 1, 1, 12.1),
 ('ZR9814MSTA1', 1, 1, 14.1),
 ('ZR9816MSTA1', 1, 1, 16.1),
@@ -148,3 +162,7 @@ INSERT INTO item (code, product_id, blank_model_id, height_mm) VALUES
 ('ZR9825MSTA1', 1, 1, 25.1);
 
 
+insert into furnace (number) values ('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('10'),('11'),('12'),('13'),('14');
+
+
+insert into product_active_composition (product_id, composition_id) values (1,1);

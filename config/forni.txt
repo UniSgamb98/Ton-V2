@@ -1,0 +1,40 @@
+<html>
+  <head>
+    <style>
+      .row {
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+      }
+
+      .column {
+        flex: 1;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 16px;
+      }
+
+      th, td {
+        border: 1px solid black;
+        padding: 2px, 4px;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Documento Forni</h1>
+ 			<div class="row">
+        <#list furnaces as furnace>
+          <div class="column">
+            <p>${furnace.name} - Temperatura: ${furnace.temperature}°C</p>
+            <#list furnace.items as item>
+              ${item.item_code} - pz: ${item.quantity}
+            </#list>
+          </div>
+				</#list>
+    		</div>
+  </body>
+</html>
