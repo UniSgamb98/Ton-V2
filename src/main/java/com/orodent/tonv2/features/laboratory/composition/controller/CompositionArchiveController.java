@@ -1,10 +1,9 @@
 package com.orodent.tonv2.features.laboratory.composition.controller;
 
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
+import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.view.CompositionArchiveView;
-import javafx.animation.PauseTransition;
-import javafx.concurrent.Task;
 import javafx.util.Duration;
 
 import java.util.List;
@@ -15,12 +14,7 @@ public class CompositionArchiveController {
     private final CompositionArchiveView view;
     private final LaboratoryNavigator navigator;
     private final CompositionArchiveService service;
-    private final Executor backgroundExecutor;
-    private final PauseTransition filterDebounce = new PauseTransition(Duration.millis(300));
-
-    private Task<List<CompositionArchiveView.CompositionRow>> activeLoad;
-    private long loadGeneration;
-    private String pendingFilter = "";
+    private final DebouncedTaskRunner<List<CompositionArchiveView.CompositionRow>> loader;
 
     public CompositionArchiveController(CompositionArchiveView view,
                                         LaboratoryNavigator navigator,
@@ -29,14 +23,13 @@ public class CompositionArchiveController {
         this.view = view;
         this.navigator = navigator;
         this.service = service;
-        this.backgroundExecutor = backgroundExecutor;
+        this.loader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.millis(300));
 
         setupActions();
     }
 
     private void setupActions() {
-        filterDebounce.setOnFinished(event -> loadCompositions(pendingFilter, loadGeneration));
-        view.getFilterNameField().textProperty().addListener((obs, oldValue, newValue) -> scheduleFilter(newValue));
+        view.getFilterNameField().textProperty().addListener((obs, oldValue, newValue) -> loadDebounced(newValue));
         view.getCompositionsTable().setOnMouseClicked(event -> {
             CompositionArchiveView.CompositionRow selected = view.getCompositionsTable().getSelectionModel().getSelectedItem();
             if (selected == null) {
@@ -47,54 +40,26 @@ public class CompositionArchiveController {
     }
 
     public void loadInitialData() {
-        long generation = beginLoad();
-        loadCompositions("", generation);
+        loader.runNow(
+                () -> searchCompositions(""),
+                view::showLoading,
+                view::showCompositions,
+                error -> view.showLoadError()
+        );
     }
 
-    private void scheduleFilter(String nameFilter) {
-        pendingFilter = nameFilter == null ? "" : nameFilter;
-        beginLoad();
-        filterDebounce.playFromStart();
+    private void loadDebounced(String nameFilter) {
+        loader.runDebounced(
+                () -> searchCompositions(nameFilter),
+                view::showLoading,
+                view::showCompositions,
+                error -> view.showLoadError()
+        );
     }
 
-    private long beginLoad() {
-        loadGeneration++;
-        if (activeLoad != null) {
-            activeLoad.cancel();
-        }
-        view.showLoading();
-        return loadGeneration;
-    }
-
-    private void loadCompositions(String nameFilter, long generation) {
-        Task<List<CompositionArchiveView.CompositionRow>> task = new Task<>() {
-            @Override
-            protected List<CompositionArchiveView.CompositionRow> call() {
-                return service.searchProductsWithCompositions(nameFilter).stream()
-                        .map(product -> new CompositionArchiveView.CompositionRow(product.id(), product.code()))
-                        .toList();
-            }
-        };
-
-        activeLoad = task;
-        task.setOnSucceeded(event -> {
-            if (generation == loadGeneration) {
-                view.showCompositions(task.getValue());
-                activeLoad = null;
-            }
-        });
-        task.setOnFailed(event -> {
-            if (generation == loadGeneration) {
-                view.showLoadError();
-                activeLoad = null;
-            }
-        });
-        task.setOnCancelled(event -> {
-            if (generation == loadGeneration) {
-                activeLoad = null;
-            }
-        });
-
-        backgroundExecutor.execute(task);
+    private List<CompositionArchiveView.CompositionRow> searchCompositions(String nameFilter) {
+        return service.searchProductsWithCompositions(nameFilter).stream()
+                .map(product -> new CompositionArchiveView.CompositionRow(product.id(), product.code()))
+                .toList();
     }
 }

@@ -6,7 +6,9 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -46,9 +48,22 @@ public class DocumentsArchiveView extends VBox {
         getChildren().addAll(header, title, filterNameField, templatesTable);
     }
 
-    public void setTemplates(List<TemplateRow> rows) {
+    public void showLoading() {
+        templatesTable.getItems().clear();
+        VBox loadingBox = new VBox(8, new ProgressIndicator(), new Label("Caricamento template..."));
+        loadingBox.setAlignment(Pos.CENTER);
+        templatesTable.setPlaceholder(loadingBox);
+    }
+
+    public void showTemplates(List<TemplateRow> rows) {
         ObservableList<TemplateRow> items = FXCollections.observableArrayList(rows);
         templatesTable.setItems(items);
+        templatesTable.setPlaceholder(new Label("Nessun template trovato."));
+    }
+
+    public void showLoadError() {
+        templatesTable.getItems().clear();
+        templatesTable.setPlaceholder(new Label("Errore durante il caricamento dei template."));
     }
 
     public AppHeader getHeader() {

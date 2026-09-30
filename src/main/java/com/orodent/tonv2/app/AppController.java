@@ -119,14 +119,16 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showDocumentsArchive() {
         DocumentsArchiveView view = new DocumentsArchiveView();
         configureHeader(view.getHeader());
-        new DocumentsArchiveController(
+        DocumentsArchiveController controller = new DocumentsArchiveController(
                 view,
                 app.templateEditorService(),
-                this
+                this,
+                app.backgroundExecutor()
         );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Archivio template");
+        controller.loadInitialData();
     }
 
     @Override

@@ -1,10 +1,9 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.controller;
 
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
+import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.DiskModelArchiveService;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.DiskModelArchiveView;
-import javafx.animation.PauseTransition;
-import javafx.concurrent.Task;
 import javafx.util.Duration;
 
 import java.util.List;
@@ -15,12 +14,7 @@ public class DiskModelArchiveController {
     private final DiskModelArchiveView view;
     private final LaboratoryNavigator navigator;
     private final DiskModelArchiveService service;
-    private final Executor backgroundExecutor;
-    private final PauseTransition filterDebounce = new PauseTransition(Duration.millis(300));
-
-    private Task<List<DiskModelArchiveView.DiskModelRow>> activeLoad;
-    private long loadGeneration;
-    private String pendingFilter = "";
+    private final DebouncedTaskRunner<List<DiskModelArchiveView.DiskModelRow>> loader;
 
     public DiskModelArchiveController(DiskModelArchiveView view,
                                       LaboratoryNavigator navigator,
@@ -29,14 +23,13 @@ public class DiskModelArchiveController {
         this.view = view;
         this.navigator = navigator;
         this.service = service;
-        this.backgroundExecutor = backgroundExecutor;
+        this.loader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.millis(300));
 
         setupActions();
     }
 
     private void setupActions() {
-        filterDebounce.setOnFinished(event -> loadDiskModels(pendingFilter, loadGeneration));
-        view.getFilterNameField().textProperty().addListener((obs, oldValue, newValue) -> scheduleFilter(newValue));
+        view.getFilterNameField().textProperty().addListener((obs, oldValue, newValue) -> loadDebounced(newValue));
         view.getDiskModelsTable().setOnMouseClicked(event -> {
             DiskModelArchiveView.DiskModelRow selected = view.getDiskModelsTable().getSelectionModel().getSelectedItem();
             if (selected == null) {
@@ -47,57 +40,29 @@ public class DiskModelArchiveController {
     }
 
     public void loadInitialData() {
-        long generation = beginLoad();
-        loadDiskModels("", generation);
+        loader.runNow(
+                () -> searchDiskModels(""),
+                view::showLoading,
+                view::showDiskModels,
+                error -> view.showLoadError()
+        );
     }
 
-    private void scheduleFilter(String nameFilter) {
-        pendingFilter = nameFilter == null ? "" : nameFilter;
-        beginLoad();
-        filterDebounce.playFromStart();
+    private void loadDebounced(String nameFilter) {
+        loader.runDebounced(
+                () -> searchDiskModels(nameFilter),
+                view::showLoading,
+                view::showDiskModels,
+                error -> view.showLoadError()
+        );
     }
 
-    private long beginLoad() {
-        loadGeneration++;
-        if (activeLoad != null) {
-            activeLoad.cancel();
-        }
-        view.showLoading();
-        return loadGeneration;
-    }
-
-    private void loadDiskModels(String nameFilter, long generation) {
-        Task<List<DiskModelArchiveView.DiskModelRow>> task = new Task<>() {
-            @Override
-            protected List<DiskModelArchiveView.DiskModelRow> call() {
-                return service.searchDiskModels(nameFilter).stream()
-                        .map(model -> new DiskModelArchiveView.DiskModelRow(
-                                model.id(),
-                                model.code() + " (v" + model.version() + ")"
-                        ))
-                        .toList();
-            }
-        };
-
-        activeLoad = task;
-        task.setOnSucceeded(event -> {
-            if (generation == loadGeneration) {
-                view.showDiskModels(task.getValue());
-                activeLoad = null;
-            }
-        });
-        task.setOnFailed(event -> {
-            if (generation == loadGeneration) {
-                view.showLoadError();
-                activeLoad = null;
-            }
-        });
-        task.setOnCancelled(event -> {
-            if (generation == loadGeneration) {
-                activeLoad = null;
-            }
-        });
-
-        backgroundExecutor.execute(task);
+    private List<DiskModelArchiveView.DiskModelRow> searchDiskModels(String nameFilter) {
+        return service.searchDiskModels(nameFilter).stream()
+                .map(model -> new DiskModelArchiveView.DiskModelRow(
+                        model.id(),
+                        model.code() + " (v" + model.version() + ")"
+                ))
+                .toList();
     }
 }
