@@ -11,6 +11,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -33,6 +34,7 @@ public class PresinteringView extends VBox {
     private final ScrollPane rowsScrollPane = new ScrollPane(rowsBox);
     private final Button insertDisksButton = new Button();
     private final Label feedbackLabel = new Label();
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
     private final FurnaceCarouselView furnaceCarouselView = new FurnaceCarouselView();
     private final List<DiskPickEntry> diskPickEntries = new ArrayList<>();
     private final Map<Integer, DiskPickEntry> diskEntriesByItemId = new LinkedHashMap<>();
@@ -109,8 +111,11 @@ public class PresinteringView extends VBox {
             }
         });
 
+        progressIndicator.setMaxSize(24, 24);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
         VBox insightsSection = buildInsightsSection();
-        getChildren().addAll(header, contentSplit, insightsSection, feedbackLabel);
+        getChildren().addAll(header, contentSplit, insightsSection, progressIndicator, feedbackLabel);
     }
 
     public AppHeader getHeader() {
@@ -145,6 +150,44 @@ public class PresinteringView extends VBox {
     public void setFeedback(String text, boolean error) {
         feedbackLabel.setText(text);
         feedbackLabel.setStyle(error ? "-fx-text-fill: #b91c1c;" : "-fx-text-fill: #166534;");
+    }
+
+    public void showInitialLoading() {
+        setLoadingState("Caricamento dati presinterizzazione...");
+    }
+
+    public void showSuggestionsLoading() {
+        setLoadingState("Caricamento suggerimenti forno...");
+    }
+
+    public void showLoadSuccess() {
+        setContentDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        setFeedback("", false);
+    }
+
+    public void showLoadError(String message) {
+        setContentDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        setFeedback(message, true);
+    }
+
+    private void setLoadingState(String message) {
+        setContentDisabled(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        setFeedback(message, false);
+    }
+
+    private void setContentDisabled(boolean disabled) {
+        rowsScrollPane.setDisable(disabled);
+        insertDisksButton.setDisable(disabled);
+        furnaceCarouselView.setDisable(disabled);
+        selectedFurnaceSection.setDisable(disabled);
+        compositionRankingBox.setDisable(disabled);
+        furnaceSuggestionsBox.setDisable(disabled);
     }
 
     public void setOnFurnaceSelectionChanged(Consumer<String> onFurnaceSelectionChanged) {

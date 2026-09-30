@@ -41,6 +41,7 @@ import com.orodent.tonv2.features.laboratory.production.service.BatchProductionS
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 import com.orodent.tonv2.features.laboratory.presintering.controller.PresinteringController;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringDocumentParamsService;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringReadService;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CompositionArchiveController;
@@ -370,7 +371,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showPresintering() {
         PresinteringView view = new PresinteringView();
         configureHeader(view.getHeader());
-        new PresinteringController(
+        PresinteringController controller = new PresinteringController(
                 view,
                 new PresinteringService(
                         app.productionRepo(),
@@ -381,11 +382,17 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                         new PresinteringDocumentParamsService(app.itemRepo()),
                         app.database.getConnection()
                 ),
-                app.documentBrowserService()
+                new PresinteringReadService(
+                        app.connectionProvider(),
+                        app.templateEditorService()
+                ),
+                app.documentBrowserService(),
+                app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Presinterizza");
+        controller.loadInitialData();
     }
 
     @Override

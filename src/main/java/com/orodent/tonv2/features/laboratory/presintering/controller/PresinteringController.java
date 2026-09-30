@@ -2,8 +2,10 @@ package com.orodent.tonv2.features.laboratory.presintering.controller;
 
 import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
+import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
 import com.orodent.tonv2.features.document.service.DocumentBrowserService;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringPlanningSnapshot;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringReadService;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
 import com.orodent.tonv2.features.laboratory.presintering.view.PresinteringView;
 
@@ -12,16 +14,24 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.Executor;
+
+import javafx.util.Duration;
 
 public class PresinteringController {
 
     private final PresinteringView view;
 
     private final PresinteringService service;
+    private final PresinteringReadService readService;
     private final DocumentBrowserService documentBrowserService;
+    private final DebouncedTaskRunner<InitialPageData> initialDataLoader;
+    private final DebouncedTaskRunner<List<ProductionRepository.FurnaceItemSuggestionRow>> suggestionsLoader;
     private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
     private final Map<Integer, String> productNameByItemIdState = new LinkedHashMap<>();
+    private Integer latestFiringIdState;
     private PresinteringPlanningSnapshot planningState = new PresinteringPlanningSnapshot(
             new LinkedHashMap<>(),
             new LinkedHashMap<>(),
@@ -31,13 +41,17 @@ public class PresinteringController {
 
     public PresinteringController(PresinteringView view,
                                   PresinteringService service,
-                                  DocumentBrowserService documentBrowserService) {
+                                  PresinteringReadService readService,
+                                  DocumentBrowserService documentBrowserService,
+                                  Executor backgroundExecutor) {
         this.view = view;
         this.service = service;
+        this.readService = readService;
         this.documentBrowserService = documentBrowserService;
+        this.initialDataLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
+        this.suggestionsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
 
         setupActions();
-        loadData();
     }
 
     private void setupActions() {
@@ -52,68 +66,88 @@ public class PresinteringController {
         view.setOnRemovePlannedItemRequested(this::removePlannedItemFromSelectedFurnace);
     }
 
-    private void loadData() {
-        try {
-            List<ProductionRepository.ProducedDiskRow> producedDisks = service.loadProducedDisks();
-            List<Furnace> furnaces = service.loadFurnaces();
-            List<ProductionRepository.CompositionRankingRow> compositionRanking = service.loadCompositionRanking();
-            furnaceConfigById.clear();
-            furnaceNameByIdState.clear();
-            for (Furnace furnace : furnaces) {
-                String displayNumber = furnace.number() == null || furnace.number().isBlank()
-                        ? String.valueOf(furnace.id())
-                        : furnace.number();
-                furnaceNameByIdState.put(furnace.id(), "Forno " + displayNumber);
-            }
-            Map<Integer, Integer> availableByItem = new LinkedHashMap<>();
-            Map<Integer, String> itemCodeById = new LinkedHashMap<>();
-            productNameByItemIdState.clear();
-            for (ProductionRepository.ProducedDiskRow row : producedDisks) {
-                availableByItem.put(row.itemId(), row.totalQuantity());
-                itemCodeById.put(row.itemId(), row.itemCode());
-                productNameByItemIdState.put(row.itemId(), row.productName());
-            }
-            planningState = new PresinteringPlanningSnapshot(
-                    availableByItem,
-                    new LinkedHashMap<>(),
-                    itemCodeById,
-                    Instant.now()
-            );
-
-            view.setProducedDisks(producedDisks);
-            view.setFurnaces(furnaces);
-            view.setCompositionRankingRows(compositionRanking);
-            view.setFurnaceItemSuggestionRows(List.of());
-            restoreLocalPlanIfStillValid();
-            view.renderPlanning(planningState, productNameByItemIdState);
-            view.setOnFurnaceSelectionChanged(selectedFurnace -> {
-                List<ProductionRepository.FurnaceItemSuggestionRow> suggestions = service.loadFurnaceItemSuggestions(selectedFurnace);
-                view.setFurnaceItemSuggestionRows(suggestions);
-                Integer selectedFurnaceId = view.getSelectedFurnaceId();
-                PresinteringService.FurnaceConfig config = selectedFurnaceId == null
-                        ? null
-                        : furnaceConfigById.get(selectedFurnaceId);
-                view.setSelectedFurnaceParameters(
-                        config == null ? null : config.maxTemperature(),
-                        config == null ? null : config.departureDate(),
-                        config == null ? null : config.lotCode()
-                );
-                view.renderPlanning(planningState, productNameByItemIdState);
-            });
-            refreshTemplateSelector();
-            view.setFeedback("", false);
-        } catch (Exception e) {
-            productNameByItemIdState.clear();
-            view.setProducedDisks(List.of());
-            view.setFurnaces(List.of());
-            view.setCompositionRankingRows(List.of());
-            view.setFurnaceItemSuggestionRows(List.of());
-            view.setFeedback("Errore durante il caricamento dati presinterizza.", true);
-        }
+    public void loadInitialData() {
+        suggestionsLoader.cancel();
+        view.setOnFurnaceSelectionChanged(null);
+        initialDataLoader.runNow(
+                () -> new InitialPageData(readService.loadInitialData(), service.loadLocalPlanState()),
+                view::showInitialLoading,
+                this::showInitialData,
+                error -> {
+                    clearLoadedData();
+                    view.showLoadError("Errore durante il caricamento dati presinterizza.");
+                }
+        );
     }
 
-    private void refreshTemplateSelector() {
-        view.setTemplateNames(service.findTemplateNames(), service.getLastTemplateName());
+    private void showInitialData(InitialPageData pageData) {
+        PresinteringReadService.InitialData data = pageData.data();
+        List<ProductionRepository.ProducedDiskRow> producedDisks = data.producedDisks();
+        List<Furnace> furnaces = data.furnaces();
+        latestFiringIdState = data.latestFiringId();
+        furnaceConfigById.clear();
+        furnaceNameByIdState.clear();
+        for (Furnace furnace : furnaces) {
+            String displayNumber = furnace.number() == null || furnace.number().isBlank()
+                    ? String.valueOf(furnace.id())
+                    : furnace.number();
+            furnaceNameByIdState.put(furnace.id(), "Forno " + displayNumber);
+        }
+        Map<Integer, Integer> availableByItem = new LinkedHashMap<>();
+        Map<Integer, String> itemCodeById = new LinkedHashMap<>();
+        productNameByItemIdState.clear();
+        for (ProductionRepository.ProducedDiskRow row : producedDisks) {
+            availableByItem.put(row.itemId(), row.totalQuantity());
+            itemCodeById.put(row.itemId(), row.itemCode());
+            productNameByItemIdState.put(row.itemId(), row.productName());
+        }
+        planningState = new PresinteringPlanningSnapshot(
+                availableByItem,
+                new LinkedHashMap<>(),
+                itemCodeById,
+                Instant.now()
+        );
+
+        view.setProducedDisks(producedDisks);
+        view.setFurnaces(furnaces);
+        view.setCompositionRankingRows(data.compositionRanking());
+        view.setFurnaceItemSuggestionRows(List.of());
+        restoreLocalPlanIfStillValid(pageData.localPlanState(), latestFiringIdState);
+        view.renderPlanning(planningState, productNameByItemIdState);
+        view.setOnFurnaceSelectionChanged(this::onFurnaceSelected);
+        view.setTemplateNames(data.templateNames(), data.selectedTemplateName());
+        view.showLoadSuccess();
+    }
+
+    private void clearLoadedData() {
+        productNameByItemIdState.clear();
+        view.setProducedDisks(List.of());
+        view.setFurnaces(List.of());
+        view.setCompositionRankingRows(List.of());
+        view.setFurnaceItemSuggestionRows(List.of());
+    }
+
+    private void onFurnaceSelected(String selectedFurnace) {
+        Integer selectedFurnaceId = view.getSelectedFurnaceId();
+        PresinteringService.FurnaceConfig config = selectedFurnaceId == null
+                ? null
+                : furnaceConfigById.get(selectedFurnaceId);
+        view.setSelectedFurnaceParameters(
+                config == null ? null : config.maxTemperature(),
+                config == null ? null : config.departureDate(),
+                config == null ? null : config.lotCode()
+        );
+        view.renderPlanning(planningState, productNameByItemIdState);
+
+        suggestionsLoader.runNow(
+                () -> readService.loadFurnaceItemSuggestions(selectedFurnace),
+                view::showSuggestionsLoading,
+                suggestions -> {
+                    view.setFurnaceItemSuggestionRows(suggestions);
+                    view.showLoadSuccess();
+                },
+                error -> view.showLoadError("Errore durante il caricamento dei suggerimenti forno.")
+        );
     }
 
     private void confirmAllPlannedFurnaces() {
@@ -131,7 +165,7 @@ public class PresinteringController {
             }
 
             service.clearLocalPlanState();
-            loadData();
+            loadInitialData();
             view.setFeedback(
                     "Presinterizzazione confermata su " + result.confirmedFurnaces() + " forni."
                             + " · firing: " + result.firingIds()
@@ -168,7 +202,7 @@ public class PresinteringController {
         service.saveLocalPlanState(new PresinteringService.LocalPlanState(
                 planningState.plannedByFurnace(),
                 furnaceConfigById,
-                service.findLatestFiringId(),
+                latestFiringIdState,
                 Instant.now()
         ));
     }
@@ -221,18 +255,18 @@ public class PresinteringController {
         service.saveLocalPlanState(new PresinteringService.LocalPlanState(
                 planningState.plannedByFurnace(),
                 furnaceConfigById,
-                service.findLatestFiringId(),
+                latestFiringIdState,
                 Instant.now()
         ));
     }
 
-    private void restoreLocalPlanIfStillValid() {
-        PresinteringService.LocalPlanState localState = service.loadLocalPlanState().orElse(null);
+    private void restoreLocalPlanIfStillValid(Optional<PresinteringService.LocalPlanState> savedState,
+                                              Integer latestFiringId) {
+        PresinteringService.LocalPlanState localState = savedState.orElse(null);
         if (localState == null) {
             return;
         }
 
-        Integer latestFiringId = service.findLatestFiringId();
         if (!java.util.Objects.equals(localState.lastKnownFiringId(), latestFiringId)) {
             service.clearLocalPlanState();
             return;
@@ -316,5 +350,14 @@ public class PresinteringController {
                     Instant.now()
             ));
         }
+    }
+
+    public void dispose() {
+        initialDataLoader.cancel();
+        suggestionsLoader.cancel();
+    }
+
+    private record InitialPageData(PresinteringReadService.InitialData data,
+                                   Optional<PresinteringService.LocalPlanState> localPlanState) {
     }
 }

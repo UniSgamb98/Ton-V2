@@ -131,6 +131,11 @@ background: testata e righe dell'ordine condividono una connessione e una singol
 transazione con commit o rollback. La generazione del documento avviene dopo il
 commit e segnala separatamente un proprio eventuale errore.
 
+La prima fase di Presinterizzazione sposta in background l'apertura della pagina
+e i suggerimenti relativi al forno selezionato. Queste letture usano connessioni
+scoped e vengono cancellate quando si cambia scena; la conferma transazionale
+resta il passaggio successivo della migrazione.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di
