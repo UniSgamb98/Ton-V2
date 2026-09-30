@@ -4,6 +4,7 @@ import com.orodent.tonv2.core.components.AppHeader;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
@@ -22,6 +23,7 @@ public class FiringProgramView extends VBox {
     private final Button saveButton;
     private final Button backButton;
     private final Label feedbackLabel;
+    private final ProgressIndicator progressIndicator;
     private final List<StepRow> stepRows = new ArrayList<>();
 
     public FiringProgramView() {
@@ -43,12 +45,16 @@ public class FiringProgramView extends VBox {
         backButton = new Button("Indietro");
 
         feedbackLabel = new Label();
+        progressIndicator = new ProgressIndicator();
+        progressIndicator.setMaxSize(24, 24);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
 
         HBox actions = new HBox(10, backButton, addStepButton, saveButton);
 
         setSpacing(14);
         setPadding(new Insets(20));
-        getChildren().addAll(header, programNameBox, stepsScroll, actions, feedbackLabel);
+        getChildren().addAll(header, programNameBox, stepsScroll, actions, progressIndicator, feedbackLabel);
         VBox.setVgrow(stepsScroll, Priority.ALWAYS);
     }
 
@@ -92,6 +98,42 @@ public class FiringProgramView extends VBox {
 
     public Label getFeedbackLabel() {
         return feedbackLabel;
+    }
+
+    public void showSaving() {
+        setFormDisabled(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        setFeedback("Salvataggio programma...", false);
+    }
+
+    public void showSaveSuccess(String message) {
+        finishSaving();
+        setFeedback(message, false);
+    }
+
+    public void showSaveError(String message) {
+        finishSaving();
+        setFeedback(message, true);
+    }
+
+    private void finishSaving() {
+        setFormDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+    }
+
+    private void setFormDisabled(boolean disabled) {
+        programNameField.setDisable(disabled);
+        stepsBox.setDisable(disabled);
+        addStepButton.setDisable(disabled);
+        saveButton.setDisable(disabled);
+        backButton.setDisable(disabled);
+    }
+
+    private void setFeedback(String message, boolean error) {
+        feedbackLabel.setText(message);
+        feedbackLabel.setStyle(error ? "-fx-text-fill: #b91c1c;" : "-fx-text-fill: #166534;");
     }
 
     public List<StepRow> getStepRows() {

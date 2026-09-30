@@ -1,19 +1,18 @@
 package com.orodent.tonv2.features.laboratory.firingprogram.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.FiringProgramRepositoryImpl;
 import com.orodent.tonv2.core.database.model.FiringProgram;
 import com.orodent.tonv2.core.database.repository.FiringProgramRepository;
 
-import java.sql.Connection;
 import java.util.List;
 
 public class FiringProgramService {
 
-    private final Connection connection;
-    private final FiringProgramRepository repository;
+    private final ConnectionProvider connectionProvider;
 
-    public FiringProgramService(Connection connection, FiringProgramRepository repository) {
-        this.connection = connection;
-        this.repository = repository;
+    public FiringProgramService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
     public FiringProgram saveProgram(String programName, List<StepInput> steps) {
@@ -27,16 +26,8 @@ public class FiringProgramService {
 
         validateSteps(steps);
 
-        boolean previousAutoCommit;
-        try {
-            previousAutoCommit = connection.getAutoCommit();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Errore durante il salvataggio del ciclo di sinterizzazione.");
-        }
-
-        try {
-            connection.setAutoCommit(false);
-
+        return connectionProvider.withTransaction(connection -> {
+            FiringProgramRepository repository = new FiringProgramRepositoryImpl(connection);
             FiringProgram program = repository.insertProgram(normalizedName);
             for (int i = 0; i < steps.size(); i++) {
                 StepInput step = steps.get(i);
@@ -48,22 +39,8 @@ public class FiringProgramService {
                         step.holdTimeMinutes()
                 );
             }
-
-            connection.commit();
             return program;
-        } catch (IllegalArgumentException e) {
-            rollbackQuietly();
-            throw e;
-        } catch (Exception e) {
-            rollbackQuietly();
-            throw new IllegalArgumentException("Errore durante il salvataggio del ciclo di sinterizzazione.");
-        } finally {
-            try {
-                connection.setAutoCommit(previousAutoCommit);
-            } catch (Exception ignored) {
-                // no-op
-            }
-        }
+        });
     }
 
     private void validateSteps(List<StepInput> steps) {
@@ -79,14 +56,6 @@ public class FiringProgramService {
             if (step.holdTimeMinutes() < 0) {
                 throw new IllegalArgumentException("Step " + index + ": tempo di mantenuta non valido.");
             }
-        }
-    }
-
-    private void rollbackQuietly() {
-        try {
-            connection.rollback();
-        } catch (Exception ignored) {
-            // no-op
         }
     }
 

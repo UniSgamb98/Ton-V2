@@ -2,24 +2,32 @@ package com.orodent.tonv2.features.laboratory.firingprogram.controller;
 
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.ui.form.FieldParsers;
+import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
+import com.orodent.tonv2.core.database.model.FiringProgram;
 import com.orodent.tonv2.features.laboratory.firingprogram.service.FiringProgramService;
 import com.orodent.tonv2.features.laboratory.firingprogram.view.FiringProgramView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
+
+import javafx.util.Duration;
 
 public class FiringProgramController {
 
     private final FiringProgramView view;
     private final FiringProgramService service;
     private final LaboratoryNavigator navigator;
+    private final DebouncedTaskRunner<FiringProgram> saveRunner;
 
     public FiringProgramController(FiringProgramView view,
                                    FiringProgramService service,
-                                   LaboratoryNavigator navigator) {
+                                   LaboratoryNavigator navigator,
+                                   Executor backgroundExecutor) {
         this.view = view;
         this.service = service;
         this.navigator = navigator;
+        this.saveRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
 
         bindActions();
         addStep();
@@ -43,10 +51,17 @@ public class FiringProgramController {
     private void saveProgram() {
         try {
             List<FiringProgramService.StepInput> steps = collectSteps();
-            var program = service.saveProgram(view.getProgramNameField().getText(), steps);
-            view.getFeedbackLabel().setText("Programma salvato con successo (#" + program.id() + ").");
+            String programName = view.getProgramNameField().getText();
+            saveRunner.runNow(
+                    () -> service.saveProgram(programName, steps),
+                    view::showSaving,
+                    program -> view.showSaveSuccess("Programma salvato con successo (#" + program.id() + ")."),
+                    error -> view.showSaveError(error instanceof IllegalArgumentException
+                            ? error.getMessage()
+                            : "Errore durante il salvataggio del ciclo di sinterizzazione.")
+            );
         } catch (IllegalArgumentException ex) {
-            view.getFeedbackLabel().setText(ex.getMessage());
+            view.showSaveError(ex.getMessage());
         }
     }
 
@@ -83,5 +98,9 @@ public class FiringProgramController {
 
     public FiringProgramView getView() {
         return view;
+    }
+
+    public void dispose() {
+        saveRunner.cancel();
     }
 }

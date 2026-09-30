@@ -357,13 +357,14 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         FiringProgramView view = new FiringProgramView();
         configureHeader(view.getHeader());
 
-        new FiringProgramController(
+        FiringProgramController controller = new FiringProgramController(
                 view,
-                new FiringProgramService(app.database.getConnection(), app.firingProgramRepo()),
-                this
+                new FiringProgramService(app.connectionProvider()),
+                this,
+                app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Nuovo Ciclo Sinterizzazione");
     }
 

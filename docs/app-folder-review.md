@@ -136,6 +136,9 @@ conferma del piano. Le letture usano connessioni scoped, mentre firing, lotti e
 allocazioni vengono salvati atomicamente con `withTransaction`; la generazione
 del documento successiva al commit espone separatamente un eventuale errore.
 
+Il salvataggio dei Programmi di cottura viene eseguito in background e crea il
+programma e tutti i suoi step nella stessa connessione transazionale scoped.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di
