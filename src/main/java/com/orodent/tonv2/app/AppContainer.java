@@ -1,5 +1,6 @@
 package com.orodent.tonv2.app;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
 import com.orodent.tonv2.core.database.Database;
 import com.orodent.tonv2.core.csv.CsvPaths;
 import com.orodent.tonv2.core.csv.CsvPathsLoader;
@@ -14,8 +15,12 @@ import java.sql.SQLException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class AppContainer {
+
+    private static final int BACKGROUND_WORKER_COUNT = 3;
 
     // --- CSV paths ---
     private final CsvPaths csvPaths;
@@ -47,10 +52,13 @@ public class AppContainer {
 
     // --- Database ---
     protected final Database database;
-    private final Connection sharedConnection;
+    // Legacy repositories still use this connection and will be migrated
+    // incrementally to the scoped ConnectionProvider.
+    private final Connection legacySharedConnection;
+    private final ConnectionProvider connectionProvider;
 
-    // A single worker keeps JDBC work off the JavaFX thread while access still
-    // relies on the application's shared connection.
+    // Migrated operations use one scoped connection per task, so workers can
+    // execute independently without sharing a JDBC Connection.
     private final ExecutorService backgroundExecutor;
 
     // --- Parsers ---
@@ -58,8 +66,9 @@ public class AppContainer {
 
     protected AppContainer() {
 
-        this.backgroundExecutor = Executors.newSingleThreadExecutor(runnable -> {
-            Thread thread = new Thread(runnable, "ton-background-worker");
+        AtomicInteger workerSequence = new AtomicInteger();
+        this.backgroundExecutor = Executors.newFixedThreadPool(BACKGROUND_WORKER_COUNT, runnable -> {
+            Thread thread = new Thread(runnable, "ton-background-worker-" + workerSequence.incrementAndGet());
             thread.setDaemon(true);
             return thread;
         });
@@ -67,36 +76,37 @@ public class AppContainer {
         // DATABASE
         this.database = new Database();
         database.start();
-        this.sharedConnection = database.getConnection();
+        this.connectionProvider = database;
+        this.legacySharedConnection = database.getConnection();
 
         // LOAD CSV PATHS
         this.csvPaths = CsvPathsLoader.load();
         System.out.println("Caricati i path ai csv.");
 
         // REPOSITORIES
-        this.itemRepo = new ItemRepositoryImpl(sharedConnection);
-        this.lotRepo = new LotRepositoryImpl(sharedConnection);
-        this.depotRepo = new DepotRepositoryImpl(sharedConnection);
-        this.stockRepo = new StockRepositoryImpl(sharedConnection);
-        this.powderRepo = new PowderRepositoryImpl(sharedConnection);
-        this.compositionRepo = new CompositionRepositoryImpl(sharedConnection);
-        this.powderOxideRepo = new PowderOxideRepositoryImpl(sharedConnection);
-        this.compositionLayerIngredientRepo = new CompositionLayerIngredientRepositoryImpl(sharedConnection);
-        this.firingRepo = new FiringRepositoryImpl(sharedConnection);
-        this.furnaceRepo = new FurnaceRepositoryImpl(sharedConnection);
-        this.productionRepo = new ProductionRepositoryImpl(sharedConnection);
-        this.productRepo = new ProductRepositoryImpl(sharedConnection);
-        this.lineRepo = new LineRepositoryImpl(sharedConnection);
-        this.blankModelRepo = new BlankModelRepositoryImpl(sharedConnection);
-        this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(sharedConnection);
-        this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(sharedConnection);
-        this.firingProgramRepo = new FiringProgramRepositoryImpl(sharedConnection);
-        this.payloadContractRepo = new PayloadContractRepositoryImpl(sharedConnection);
-        this.payloadContractFieldRepo = new PayloadContractFieldRepositoryImpl(sharedConnection);
+        this.itemRepo = new ItemRepositoryImpl(legacySharedConnection);
+        this.lotRepo = new LotRepositoryImpl(legacySharedConnection);
+        this.depotRepo = new DepotRepositoryImpl(legacySharedConnection);
+        this.stockRepo = new StockRepositoryImpl(legacySharedConnection);
+        this.powderRepo = new PowderRepositoryImpl(legacySharedConnection);
+        this.compositionRepo = new CompositionRepositoryImpl(legacySharedConnection);
+        this.powderOxideRepo = new PowderOxideRepositoryImpl(legacySharedConnection);
+        this.compositionLayerIngredientRepo = new CompositionLayerIngredientRepositoryImpl(legacySharedConnection);
+        this.firingRepo = new FiringRepositoryImpl(legacySharedConnection);
+        this.furnaceRepo = new FurnaceRepositoryImpl(legacySharedConnection);
+        this.productionRepo = new ProductionRepositoryImpl(legacySharedConnection);
+        this.productRepo = new ProductRepositoryImpl(legacySharedConnection);
+        this.lineRepo = new LineRepositoryImpl(legacySharedConnection);
+        this.blankModelRepo = new BlankModelRepositoryImpl(legacySharedConnection);
+        this.blankModelLayerRepo = new BlankModelLayerRepositoryImpl(legacySharedConnection);
+        this.blankModelHeightOvermaterialRepo = new BlankModelHeightOvermaterialRepositoryImpl(legacySharedConnection);
+        this.firingProgramRepo = new FiringProgramRepositoryImpl(legacySharedConnection);
+        this.payloadContractRepo = new PayloadContractRepositoryImpl(legacySharedConnection);
+        this.payloadContractFieldRepo = new PayloadContractFieldRepositoryImpl(legacySharedConnection);
         System.out.println("Caricati le repository.");
 
         // SHARED SERVICES
-        this.templateEditorService = new TemplateEditorService(() -> sharedConnection);
+        this.templateEditorService = new TemplateEditorService(connectionProvider);
         this.documentBrowserService = new DocumentBrowserService();
 
         // PARSER
@@ -136,14 +146,23 @@ public class AppContainer {
     public TemplateEditorService templateEditorService() { return templateEditorService; }
     public DocumentBrowserService documentBrowserService() { return documentBrowserService; }
     public Executor backgroundExecutor() { return backgroundExecutor; }
+    public ConnectionProvider connectionProvider() { return connectionProvider; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
 
     public void shutdown() {
         backgroundExecutor.shutdownNow();
         try {
-            if (!sharedConnection.isClosed()) {
-                sharedConnection.close();
+            if (!backgroundExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
+                System.err.println("Alcune operazioni in background non sono terminate entro il timeout.");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
+
+        try {
+            if (!legacySharedConnection.isClosed()) {
+                legacySharedConnection.close();
             }
         } catch (SQLException e) {
             throw new RuntimeException("Errore durante la chiusura della connessione condivisa.", e);

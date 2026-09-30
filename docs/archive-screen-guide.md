@@ -311,15 +311,28 @@ inutili.
 
 ## Connessioni al database
 
-L'executor applicativo è attualmente a singolo worker perché le repository del
-progetto condividono una connessione JDBC. Prima di aumentare il numero di
-worker, occorre adottare una connessione per operazione oppure un pool di
-connessioni.
+Ogni operazione asincrona deve ottenere una connessione tramite il
+`ConnectionProvider` applicativo e chiuderla al termine con
+`withConnection(...)`. Le repository necessarie all'operazione vengono create
+all'interno dello scope della connessione e non devono essere conservate dal
+controller.
 
-La presenza di un background executor non rende automaticamente sicuro l'uso
-concorrente di una singola `Connection`. Una nuova schermata deve quindi usare
-l'executor applicativo esistente e non creare autonomamente altri pool per le
-query.
+```java
+return connectionProvider.withConnection(connection -> {
+    ExampleRepository repository = new ExampleRepositoryImpl(connection);
+    return repository.findAll();
+});
+```
+
+Non bisogna passare a un task asincrono una repository legata alla connessione
+legacy condivisa. La presenza di un background executor non rende infatti
+sicuro l'uso concorrente di una singola `Connection`.
+
+L'executor applicativo usa più worker. Questa concorrenza è sicura soltanto per
+le operazioni migrate al `ConnectionProvider`; le feature legacy continuano a
+usare una connessione condivisa esclusivamente sul JavaFX Application Thread.
+Un vero pool di connessioni potrà essere valutato se il costo di apertura delle
+connessioni o il numero di operazioni concorrenti dovessero crescere.
 
 ## Gestione degli errori
 
@@ -338,6 +351,8 @@ Prima di considerare completo un nuovo archivio, verificare che:
 - [ ] il controller non esegua I/O nel costruttore;
 - [ ] il caricamento iniziale parta da `loadInitialData()`;
 - [ ] le query usino il background executor condiviso;
+- [ ] ogni operazione asincrona usi `ConnectionProvider.withConnection(...)`;
+- [ ] nessuna repository collegata alla connessione legacy sia usata dal task;
 - [ ] il filtro usi un debounce;
 - [ ] richieste superate non possano aggiornare la tabella;
 - [ ] siano presenti gli stati loading, vuoto ed errore;

@@ -2,6 +2,7 @@ package com.orodent.tonv2.features.documents.template.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.orodent.tonv2.core.database.ConnectionProvider;
 import com.orodent.tonv2.core.database.implementation.DocumentTemplateRepositoryImpl;
 import com.orodent.tonv2.core.database.repository.DocumentTemplateRepository;
 
@@ -9,22 +10,21 @@ import java.sql.Connection;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 public class TemplateEditorService {
 
     private final TemplateRuntimeService runtime;
     private final TemplateVariableService variables;
-    private final TemplateStorageService storage;
+    private final ConnectionProvider connectionProvider;
     private String lastBatchTemplateName;
     private String lastPresinteringTemplateName;
 
-    public TemplateEditorService(Supplier<Connection> connectionSupplier) {
+    public TemplateEditorService(ConnectionProvider connectionProvider) {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         this.runtime = new TemplateRuntimeService(gson);
         this.variables = new TemplateVariableService(gson);
-        DocumentTemplateRepository templateRepository = new DocumentTemplateRepositoryImpl(connectionSupplier.get());
-        this.storage = new TemplateStorageService(templateRepository);
+        this.connectionProvider = connectionProvider;
     }
 
     public ValidationResult validateTemplate(String templateText) {
@@ -48,7 +48,10 @@ public class TemplateEditorService {
             return SaveResult.error("Impossibile salvare: " + validation.message());
         }
 
-        storage.saveTemplate(normalizedName, templateText, sqlQuery, presetCode);
+        withStorage(storage -> {
+            storage.saveTemplate(normalizedName, templateText, sqlQuery, presetCode);
+            return null;
+        });
         return SaveResult.ok("Template salvato su database.");
     }
 
@@ -64,7 +67,10 @@ public class TemplateEditorService {
         }
 
         try {
-            storage.updateTemplateById(templateId, normalizedName, templateText, sqlQuery, presetCode);
+            withStorage(storage -> {
+                storage.updateTemplateById(templateId, normalizedName, templateText, sqlQuery, presetCode);
+                return null;
+            });
             return SaveResult.ok("Template aggiornato su database.");
         } catch (RuntimeException ex) {
             return SaveResult.error(ex.getMessage());
@@ -85,7 +91,7 @@ public class TemplateEditorService {
     }
 
     public List<TemplateSnapshot> getSavedTemplates() {
-        return storage.loadTemplates().stream()
+        return withStorage(TemplateStorageService::loadTemplates).stream()
                 .map(snapshot -> new TemplateSnapshot(
                         snapshot.id(),
                         snapshot.name(),
@@ -98,13 +104,13 @@ public class TemplateEditorService {
     }
 
     public List<TemplateListEntry> searchSavedTemplates(String templateNameFilter) {
-        return storage.loadTemplatesByName(templateNameFilter).stream()
+        return withStorage(storage -> storage.loadTemplatesByName(templateNameFilter)).stream()
                 .map(snapshot -> new TemplateListEntry(snapshot.id(), snapshot.name()))
                 .toList();
     }
 
     public TemplateSnapshot getTemplateById(int templateId) {
-        TemplateStorageService.TemplateSnapshot snapshot = storage.loadTemplateById(templateId);
+        TemplateStorageService.TemplateSnapshot snapshot = withStorage(storage -> storage.loadTemplateById(templateId));
         if (snapshot == null) {
             return null;
         }
@@ -151,6 +157,13 @@ public class TemplateEditorService {
     private String normalizeTemplateName(String templateName) {
         String normalizedName = templateName == null ? "" : templateName.trim();
         return normalizedName.isBlank() ? null : normalizedName;
+    }
+
+    private <T> T withStorage(Function<TemplateStorageService, T> work) {
+        return connectionProvider.withConnection(connection -> {
+            DocumentTemplateRepository repository = new DocumentTemplateRepositoryImpl(connection);
+            return work.apply(new TemplateStorageService(repository));
+        });
     }
 
     private List<VariableNode> toVariableNodes(List<TemplateVariableService.VariableNode> variableNodes) {

@@ -112,10 +112,11 @@ mostrate prima di avviare la query, presentano uno stato di caricamento e
 applicano i risultati sul thread JavaFX. Le ricerche dei filtri sono ritardate
 brevemente e il risultato di una richiesta superata viene ignorato. La gestione
 di task, debounce, cancellazione e risultati obsoleti è raccolta nel componente
-riutilizzabile `DebouncedTaskRunner`. L'executor applicativo parte con un singolo
-worker, così i caricamenti migrati su questo percorso restano serializzati;
-prima di passare a più worker occorrerà adottare una connessione per operazione
-o un pool di connessioni.
+riutilizzabile `DebouncedTaskRunner`. Gli archivi e il servizio Template usano
+ora un `ConnectionProvider`: ogni operazione apre una connessione dedicata e la
+chiude al termine. Le operazioni migrate possono così usare il pool di worker
+senza condividere la stessa sessione JDBC. Le repository non ancora migrate
+continuano temporaneamente a usare la connessione legacy sul solo thread JavaFX.
 
 ## Giudizio complessivo
 

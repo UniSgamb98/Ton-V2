@@ -1,5 +1,9 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.BlankModelHeightOvermaterialRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelLayerRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelRepositoryImpl;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.BlankModelHeightOvermaterial;
 import com.orodent.tonv2.core.database.model.BlankModelLayer;
@@ -11,41 +15,45 @@ import java.util.List;
 
 public class DiskModelArchiveService {
 
-    private final BlankModelRepository blankModelRepository;
-    private final BlankModelLayerRepository blankModelLayerRepository;
-    private final BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepository;
+    private final ConnectionProvider connectionProvider;
 
-    public DiskModelArchiveService(BlankModelRepository blankModelRepository,
-                                   BlankModelLayerRepository blankModelLayerRepository,
-                                   BlankModelHeightOvermaterialRepository blankModelHeightOvermaterialRepository) {
-        this.blankModelRepository = blankModelRepository;
-        this.blankModelLayerRepository = blankModelLayerRepository;
-        this.blankModelHeightOvermaterialRepository = blankModelHeightOvermaterialRepository;
+    public DiskModelArchiveService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
     public List<BlankModel> searchDiskModels(String codeFilter) {
-        String normalized = codeFilter == null ? "" : codeFilter.trim().toLowerCase();
+        return connectionProvider.withConnection(connection -> {
+            BlankModelRepository repository = new BlankModelRepositoryImpl(connection);
+            String normalized = codeFilter == null ? "" : codeFilter.trim().toLowerCase();
 
-        java.util.LinkedHashMap<String, BlankModel> latestByCode = new java.util.LinkedHashMap<>();
-        for (BlankModel model : blankModelRepository.findAll()) {
-            latestByCode.putIfAbsent(model.code(), model);
-        }
+            java.util.LinkedHashMap<String, BlankModel> latestByCode = new java.util.LinkedHashMap<>();
+            for (BlankModel model : repository.findAll()) {
+                latestByCode.putIfAbsent(model.code(), model);
+            }
 
-        return latestByCode.values().stream()
-                .filter(model -> normalized.isBlank() || model.code().toLowerCase().contains(normalized))
-                .toList();
+            return latestByCode.values().stream()
+                    .filter(model -> normalized.isBlank() || model.code().toLowerCase().contains(normalized))
+                    .toList();
+        });
     }
 
     public DiskModelSnapshot loadDiskModelSnapshot(int blankModelId) {
-        BlankModel model = blankModelRepository.findById(blankModelId);
-        if (model == null) {
-            return null;
-        }
+        return connectionProvider.withConnection(connection -> {
+            BlankModelRepository blankModelRepository = new BlankModelRepositoryImpl(connection);
+            BlankModelLayerRepository blankModelLayerRepository = new BlankModelLayerRepositoryImpl(connection);
+            BlankModelHeightOvermaterialRepository rangeRepository =
+                    new BlankModelHeightOvermaterialRepositoryImpl(connection);
 
-        List<BlankModelLayer> layers = blankModelLayerRepository.findByBlankModelId(blankModelId);
-        List<BlankModelHeightOvermaterial> ranges = blankModelHeightOvermaterialRepository.findByBlankModelId(blankModelId);
+            BlankModel model = blankModelRepository.findById(blankModelId);
+            if (model == null) {
+                return null;
+            }
 
-        return new DiskModelSnapshot(model, layers, ranges);
+            List<BlankModelLayer> layers = blankModelLayerRepository.findByBlankModelId(blankModelId);
+            List<BlankModelHeightOvermaterial> ranges = rangeRepository.findByBlankModelId(blankModelId);
+
+            return new DiskModelSnapshot(model, layers, ranges);
+        });
     }
 
     public record DiskModelSnapshot(BlankModel model,

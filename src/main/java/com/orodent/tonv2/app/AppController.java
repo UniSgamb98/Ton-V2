@@ -299,12 +299,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         );
 
         if (productId != null) {
-            CompositionArchiveService archiveService = new CompositionArchiveService(
-                    app.productRepo(),
-                    app.compositionRepo(),
-                    app.compositionLayerIngredientRepo(),
-                    app.lineRepo()
-            );
+            CompositionArchiveService archiveService = new CompositionArchiveService(app.connectionProvider());
             archiveService.loadCompositionSnapshot(productId)
                     .ifPresent(controller::preloadFromArchiveSnapshot);
             controller.markAsClean();
@@ -441,9 +436,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
 
         if (blankModelId != null) {
             DiskModelArchiveService.DiskModelSnapshot snapshot = new DiskModelArchiveService(
-                    app.blankModelRepo(),
-                    app.blankModelLayerRepo(),
-                    app.blankModelHeightOvermaterialRepo()
+                    app.connectionProvider()
             ).loadDiskModelSnapshot(blankModelId);
 
             if (snapshot != null) {
@@ -480,7 +473,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         CompositionArchiveController controller = new CompositionArchiveController(
                 view,
                 this,
-                new CompositionArchiveService(app.productRepo(), app.compositionRepo(), app.compositionLayerIngredientRepo(), app.lineRepo()),
+                new CompositionArchiveService(app.connectionProvider()),
                 app.backgroundExecutor()
         );
 
@@ -496,7 +489,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         DiskModelArchiveController controller = new DiskModelArchiveController(
                 view,
                 this,
-                new DiskModelArchiveService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo()),
+                new DiskModelArchiveService(app.connectionProvider()),
                 app.backgroundExecutor()
         );
 

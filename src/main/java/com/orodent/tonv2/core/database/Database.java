@@ -5,7 +5,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public class Database {
+public class Database implements ConnectionProvider {
     private final String DBNAME = "TonDatabase";
     private final String DB_USER = "APP";
     private final String DB_PSW = "pw";
@@ -16,6 +16,11 @@ public class Database {
         } catch (SQLException e) {
             throw new RuntimeException("Errore connessione DB", e);
         }
+    }
+
+    @Override
+    public Connection openConnection() {
+        return getConnection();
     }
 
     public void start() {
