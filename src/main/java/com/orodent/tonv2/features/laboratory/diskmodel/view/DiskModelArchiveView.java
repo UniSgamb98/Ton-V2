@@ -6,7 +6,9 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -46,9 +48,22 @@ public class DiskModelArchiveView extends VBox {
         getChildren().addAll(header, title, filterNameField, diskModelsTable);
     }
 
-    public void setDiskModels(List<DiskModelRow> rows) {
+    public void showLoading() {
+        diskModelsTable.getItems().clear();
+        VBox loadingBox = new VBox(8, new ProgressIndicator(), new Label("Caricamento modelli disco..."));
+        loadingBox.setAlignment(Pos.CENTER);
+        diskModelsTable.setPlaceholder(loadingBox);
+    }
+
+    public void showDiskModels(List<DiskModelRow> rows) {
         ObservableList<DiskModelRow> items = FXCollections.observableArrayList(rows);
         diskModelsTable.setItems(items);
+        diskModelsTable.setPlaceholder(new Label("Nessun modello disco trovato."));
+    }
+
+    public void showLoadError() {
+        diskModelsTable.getItems().clear();
+        diskModelsTable.setPlaceholder(new Label("Errore durante il caricamento dei modelli disco."));
     }
 
     public AppHeader getHeader() {

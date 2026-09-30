@@ -106,13 +106,14 @@ JavaFX e il database.
 
 ## Primo intervento asincrono
 
-L'Archivio Composizioni è stato scelto come feature pilota. La schermata viene
-ora mostrata prima di avviare la query, presenta uno stato di caricamento e
-applica i risultati sul thread JavaFX. Le ricerche del filtro sono ritardate
-brevemente e il risultato di una richiesta superata viene ignorato. L'executor
-applicativo parte con un singolo worker, così i caricamenti migrati su questo
-percorso restano serializzati; prima di passare a più worker occorrerà adottare
-una connessione per operazione o un pool di connessioni.
+L'Archivio Composizioni è stato scelto come feature pilota e lo stesso modello è
+stato applicato all'Archivio Modelli Disco. Le schermate vengono mostrate prima
+di avviare la query, presentano uno stato di caricamento e applicano i risultati
+sul thread JavaFX. Le ricerche dei filtri sono ritardate brevemente e il
+risultato di una richiesta superata viene ignorato. L'executor applicativo parte
+con un singolo worker, così i caricamenti migrati su questo percorso restano
+serializzati; prima di passare a più worker occorrerà adottare una connessione
+per operazione o un pool di connessioni.
 
 ## Giudizio complessivo
 

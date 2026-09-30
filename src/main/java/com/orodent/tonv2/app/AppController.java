@@ -491,14 +491,16 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showLaboratoryDiskModelArchive() {
         DiskModelArchiveView view = new DiskModelArchiveView();
         configureHeader(view.getHeader());
-        new DiskModelArchiveController(
+        DiskModelArchiveController controller = new DiskModelArchiveController(
                 view,
                 this,
-                new DiskModelArchiveService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo())
+                new DiskModelArchiveService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo()),
+                app.backgroundExecutor()
         );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Archivio dischi");
+        controller.loadInitialData();
     }
 
     /*
