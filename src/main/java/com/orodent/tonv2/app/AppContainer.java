@@ -11,6 +11,9 @@ import com.orodent.tonv2.features.documents.template.service.TemplateEditorServi
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class AppContainer {
 
@@ -46,10 +49,20 @@ public class AppContainer {
     protected final Database database;
     private final Connection sharedConnection;
 
+    // A single worker keeps JDBC work off the JavaFX thread while access still
+    // relies on the application's shared connection.
+    private final ExecutorService backgroundExecutor;
+
     // --- Parsers ---
     private final MagazzinoCsvParser magazzinoParser;
 
     protected AppContainer() {
+
+        this.backgroundExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "ton-background-worker");
+            thread.setDaemon(true);
+            return thread;
+        });
 
         // DATABASE
         this.database = new Database();
@@ -122,10 +135,12 @@ public class AppContainer {
 
     public TemplateEditorService templateEditorService() { return templateEditorService; }
     public DocumentBrowserService documentBrowserService() { return documentBrowserService; }
+    public Executor backgroundExecutor() { return backgroundExecutor; }
 
     public MagazzinoCsvParser magazzinoParser() { return magazzinoParser; }
 
     public void shutdown() {
+        backgroundExecutor.shutdownNow();
         try {
             if (!sharedConnection.isClosed()) {
                 sharedConnection.close();

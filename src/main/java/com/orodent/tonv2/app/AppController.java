@@ -54,6 +54,7 @@ import com.orodent.tonv2.features.registers.home.service.RegistersDocumentServic
 import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
 import com.orodent.tonv2.features.registers.home.view.RegistersView;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
 import java.util.Objects;
@@ -208,12 +209,20 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
 
     @Override
     public void showCubageProductFormulaAssignments() {
-        // Placeholder: verrà implementato in una schermata dedicata.
+        showFeatureNotAvailableAlert();
     }
 
     @Override
     public void showCubagePayloadContracts() {
-        // Placeholder: verrà implementato in una schermata dedicata.
+        showFeatureNotAvailableAlert();
+    }
+
+    private void showFeatureNotAvailableAlert() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("TON");
+        alert.setHeaderText(null);
+        alert.setContentText("Funzionalità non disponibile");
+        alert.showAndWait();
     }
 
     public void showRegisters() {
@@ -466,14 +475,16 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showLaboratoryCompositionArchive() {
         CompositionArchiveView view = new CompositionArchiveView();
         configureHeader(view.getHeader());
-        new CompositionArchiveController(
+        CompositionArchiveController controller = new CompositionArchiveController(
                 view,
                 this,
-                new CompositionArchiveService(app.productRepo(), app.compositionRepo(), app.compositionLayerIngredientRepo(), app.lineRepo())
+                new CompositionArchiveService(app.productRepo(), app.compositionRepo(), app.compositionLayerIngredientRepo(), app.lineRepo()),
+                app.backgroundExecutor()
         );
 
         stage.setScene(createSceneWithCSS(view));
         stage.setTitle("TON - Archivio composizioni");
+        controller.loadInitialData();
     }
 
     @Override

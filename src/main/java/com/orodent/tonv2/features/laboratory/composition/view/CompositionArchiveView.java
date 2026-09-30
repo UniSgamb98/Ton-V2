@@ -6,7 +6,9 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -46,9 +48,22 @@ public class CompositionArchiveView extends VBox {
         getChildren().addAll(header, title, filterNameField, compositionsTable);
     }
 
-    public void setCompositions(List<CompositionRow> rows) {
+    public void showLoading() {
+        compositionsTable.getItems().clear();
+        VBox loadingBox = new VBox(8, new ProgressIndicator(), new Label("Caricamento composizioni..."));
+        loadingBox.setAlignment(Pos.CENTER);
+        compositionsTable.setPlaceholder(loadingBox);
+    }
+
+    public void showCompositions(List<CompositionRow> rows) {
         ObservableList<CompositionRow> items = FXCollections.observableArrayList(rows);
         compositionsTable.setItems(items);
+        compositionsTable.setPlaceholder(new Label("Nessuna composizione trovata."));
+    }
+
+    public void showLoadError() {
+        compositionsTable.getItems().clear();
+        compositionsTable.setPlaceholder(new Label("Errore durante il caricamento delle composizioni."));
     }
 
     public AppHeader getHeader() {
