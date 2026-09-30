@@ -139,6 +139,9 @@ del documento successiva al commit espone separatamente un eventuale errore.
 Il salvataggio dei Programmi di cottura viene eseguito in background e crea il
 programma e tutti i suoi step nella stessa connessione transazionale scoped.
 
+Setup Item carica i prodotti e gestisce attivazione composizione e creazione item
+in background. I due comandi usano transazioni scoped indipendenti.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di

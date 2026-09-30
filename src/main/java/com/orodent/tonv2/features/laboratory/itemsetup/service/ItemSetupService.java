@@ -1,36 +1,38 @@
 package com.orodent.tonv2.features.laboratory.itemsetup.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.CompositionRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ItemRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ProductRepositoryImpl;
 import com.orodent.tonv2.core.database.model.Composition;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
-import com.orodent.tonv2.core.database.repository.ProductRepository;
 
 import java.util.List;
 import java.util.Optional;
 
 public class ItemSetupService {
-    private final ItemRepository itemRepo;
-    private final CompositionRepository compositionRepo;
-    private final ProductRepository productRepo;
+    private final ConnectionProvider connectionProvider;
 
-    public ItemSetupService(ItemRepository itemRepo,
-                            CompositionRepository compositionRepo,
-                            ProductRepository productRepo) {
-        this.itemRepo = itemRepo;
-        this.compositionRepo = compositionRepo;
-        this.productRepo = productRepo;
+    public ItemSetupService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
     public int activateLatestComposition(int productId) {
-        Optional<Composition> latest = compositionRepo.findLatestByProduct(productId);
-        if (latest.isEmpty()) {
-            throw new IllegalArgumentException("Nessuna composizione trovata per il prodotto selezionato.");
+        if (productId <= 0) {
+            throw new IllegalArgumentException("Prodotto non valido.");
         }
-
-        compositionRepo.setActiveComposition(productId, latest.get().id());
-        return latest.get().id();
+        return connectionProvider.withTransaction(connection -> {
+            CompositionRepository compositionRepo = new CompositionRepositoryImpl(connection);
+            Optional<Composition> latest = compositionRepo.findLatestByProduct(productId);
+            if (latest.isEmpty()) {
+                throw new IllegalArgumentException("Nessuna composizione trovata per il prodotto selezionato.");
+            }
+            compositionRepo.setActiveComposition(productId, latest.get().id());
+            return latest.get().id();
+        });
     }
 
     public Item createItemForActiveComposition(String itemCode,
@@ -43,26 +45,32 @@ public class ItemSetupService {
         if (heightMm <= 0) {
             throw new IllegalArgumentException("L'altezza deve essere maggiore di zero.");
         }
-
-        Optional<Integer> activeCompositionId = compositionRepo.findActiveCompositionId(productId);
-        if (activeCompositionId.isEmpty()) {
-            throw new IllegalArgumentException("Imposta prima una composizione attiva per questo prodotto.");
+        if (productId <= 0) {
+            throw new IllegalArgumentException("Prodotto non valido.");
         }
+        return connectionProvider.withTransaction(connection -> {
+            CompositionRepository compositionRepo = new CompositionRepositoryImpl(connection);
+            ItemRepository itemRepo = new ItemRepositoryImpl(connection);
+            Optional<Integer> activeCompositionId = compositionRepo.findActiveCompositionId(productId);
+            if (activeCompositionId.isEmpty()) {
+                throw new IllegalArgumentException("Imposta prima una composizione attiva per questo prodotto.");
+            }
 
-        Optional<Integer> blankModelId = compositionRepo.findBlankModelIdByCompositionId(activeCompositionId.get());
-        if (blankModelId.isEmpty()) {
-            throw new IllegalArgumentException("La composizione attiva non ha un blank model associato.");
-        }
+            Optional<Integer> blankModelId = compositionRepo.findBlankModelIdByCompositionId(activeCompositionId.get());
+            if (blankModelId.isEmpty()) {
+                throw new IllegalArgumentException("La composizione attiva non ha un blank model associato.");
+            }
 
-        Item existing = itemRepo.findByProductAndHeight(productId, heightMm);
-        if (existing != null) {
-            return existing;
-        }
-
-        return itemRepo.insert(itemCode.trim(), productId, blankModelId.get(), heightMm);
+            Item existing = itemRepo.findByProductAndHeight(productId, heightMm);
+            if (existing != null) {
+                return existing;
+            }
+            return itemRepo.insert(itemCode.trim(), productId, blankModelId.get(), heightMm);
+        });
     }
 
     public List<Product> findAllProduct() {
-        return productRepo.findAll();
+        return connectionProvider.withConnection(connection ->
+                new ProductRepositoryImpl(connection).findAll());
     }
 }

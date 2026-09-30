@@ -7,9 +7,12 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+
+import java.util.List;
 
 public class ItemSetupView extends VBox {
 
@@ -25,6 +28,7 @@ public class ItemSetupView extends VBox {
     private final Button createItemButton = new Button("Crea item");
 
     private final Label feedbackLabel = new Label();
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
 
     public ItemSetupView() {
         getStyleClass().add("item-setup-view");
@@ -44,6 +48,9 @@ public class ItemSetupView extends VBox {
         heightField.setPromptText("Altezza mm (es. 12.5)");
 
         feedbackLabel.getStyleClass().add("feedback-label");
+        progressIndicator.setMaxSize(24, 24);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
 
         HBox createRow = new HBox(10, itemCodeField, heightField, createItemButton);
         createRow.setAlignment(Pos.CENTER_LEFT);
@@ -56,6 +63,7 @@ public class ItemSetupView extends VBox {
                 activateLatestCompositionButton,
                 newItemLabel,
                 createRow,
+                progressIndicator,
                 feedbackLabel
         );
     }
@@ -88,5 +96,54 @@ public class ItemSetupView extends VBox {
         feedbackLabel.setText(text);
         feedbackLabel.getStyleClass().removeAll("feedback-success", "feedback-error");
         feedbackLabel.getStyleClass().add(error ? "feedback-error" : "feedback-success");
+    }
+
+    public void showProductsLoading() {
+        setLoadingState("Caricamento prodotti...");
+    }
+
+    public void showActivationLoading() {
+        setLoadingState("Attivazione composizione...");
+    }
+
+    public void showCreationLoading() {
+        setLoadingState("Creazione item...");
+    }
+
+    public void showProducts(List<Product> products) {
+        productSelector.getItems().setAll(products);
+        finishLoading();
+        setFeedback("", false);
+    }
+
+    public void showSuccess(String message) {
+        finishLoading();
+        setFeedback(message, false);
+    }
+
+    public void showLoadError(String message) {
+        finishLoading();
+        setFeedback(message, true);
+    }
+
+    private void setLoadingState(String message) {
+        setFormDisabled(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        setFeedback(message, false);
+    }
+
+    private void finishLoading() {
+        setFormDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+    }
+
+    private void setFormDisabled(boolean disabled) {
+        productSelector.setDisable(disabled);
+        activateLatestCompositionButton.setDisable(disabled);
+        itemCodeField.setDisable(disabled);
+        heightField.setDisable(disabled);
+        createItemButton.setDisable(disabled);
     }
 }

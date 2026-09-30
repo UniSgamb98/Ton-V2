@@ -342,13 +342,15 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showItemSetup() {
         ItemSetupView view = new ItemSetupView();
         configureHeader(view.getHeader());
-        new ItemSetupController(
+        ItemSetupController controller = new ItemSetupController(
                 view,
-                new ItemSetupService(app.itemRepo(), app.compositionRepo(), app.productRepo())
+                new ItemSetupService(app.connectionProvider()),
+                app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Setup Item");
+        controller.loadInitialData();
     }
 
 
