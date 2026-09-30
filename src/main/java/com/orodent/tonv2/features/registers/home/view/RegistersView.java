@@ -1,10 +1,12 @@
 package com.orodent.tonv2.features.registers.home.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Tab;
@@ -25,12 +27,21 @@ public class RegistersView extends VBox {
     private final TextArea documentsPreviewArea;
     private final Button buildCompositionDocumentButton;
     private final Button buildFiringDocumentButton;
+    private final ProgressIndicator progressIndicator;
+    private final Label statusLabel;
 
     public RegistersView() {
         header = new AppHeader("Registri");
         articleComboBox = new ComboBox<>();
         lotComboBox = new ComboBox<>();
         searchButton = new Button("Cerca");
+        progressIndicator = new ProgressIndicator();
+        statusLabel = new Label();
+        progressIndicator.setMaxSize(22, 22);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        statusLabel.setVisible(false);
+        statusLabel.setManaged(false);
 
         articleComboBox.setEditable(true);
         lotComboBox.setEditable(true);
@@ -45,6 +56,7 @@ public class RegistersView extends VBox {
         VBox articleBox = new VBox(8, new Label("Articolo"), articleComboBox);
         VBox lotBox = new VBox(8, new Label("Lotto"), lotComboBox);
         HBox filtersBox = new HBox(20, articleBox, lotBox, searchButton);
+        HBox statusBox = new HBox(8, progressIndicator, statusLabel);
 
         Separator separator = new Separator();
         separator.setMaxWidth(Double.MAX_VALUE);
@@ -63,7 +75,7 @@ public class RegistersView extends VBox {
         buildFiringDocumentButton = new Button("Rigenera documento firing");
         HBox actionsBox = new HBox(12, buildCompositionDocumentButton, buildFiringDocumentButton);
 
-        getChildren().addAll(header, filtersBox, separator, historyTabs, actionsBox);
+        getChildren().addAll(header, filtersBox, statusBox, separator, historyTabs, actionsBox);
         VBox.setVgrow(historyTabs, Priority.ALWAYS);
     }
 
@@ -123,5 +135,48 @@ public class RegistersView extends VBox {
 
     public Button getBuildFiringDocumentButton() {
         return buildFiringDocumentButton;
+    }
+
+    public void showSearchLoading() {
+        searchButton.setDisable(true);
+        articleComboBox.setDisable(true);
+        lotComboBox.setDisable(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        showStatus("Ricerca in corso...", false);
+    }
+
+    public void showSearchResult(RegistersSearchService.SearchResult result) {
+        searchButton.setDisable(false);
+        articleComboBox.setDisable(false);
+        lotComboBox.setDisable(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        compositionSummaryArea.setText(result.compositionOutput());
+        firingSummaryArea.setText(result.firingOutput());
+        documentsPreviewArea.setText(result.documentsOutput());
+        showStatus(result.success() ? "Ricerca completata." : "Ricerca completata con segnalazioni.", !result.success());
+    }
+
+    public void showSearchError(String message) {
+        searchButton.setDisable(false);
+        articleComboBox.setDisable(false);
+        lotComboBox.setDisable(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        showStatus(message, true);
+    }
+
+    public void showSuggestionError() {
+        if (!searchButton.isDisabled()) {
+            showStatus("Errore durante il caricamento dei suggerimenti.", true);
+        }
+    }
+
+    private void showStatus(String message, boolean error) {
+        statusLabel.setText(message);
+        statusLabel.setStyle(error ? "-fx-text-fill: #b00020;" : "");
+        statusLabel.setVisible(true);
+        statusLabel.setManaged(true);
     }
 }

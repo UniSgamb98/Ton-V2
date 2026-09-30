@@ -67,6 +67,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     private final Stage stage;
     private final AppContainer app;
     private final String cssPath;
+    private Runnable activePageCleanup = () -> {};
 
     /*
     In questo progetto l'applicazione è state-less. Che significa che tutte le View vengono create da zero sempre.
@@ -97,7 +98,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         HomeView view = new HomeView();
         configureHeader(view.getHeader());
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Home");
     }
 
@@ -111,7 +112,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 buildTemplateWorkflowService()
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuovo documento");
     }
 
@@ -126,7 +127,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Archivio template");
         controller.loadInitialData();
     }
@@ -148,7 +149,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 TemplateEditorController.EditorMode.edit(templateId, templateSnapshot.sqlQuery(), this)
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Modifica template");
     }
 
@@ -179,7 +180,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new InventoryController(view, app.itemRepo(), app.depotRepo(), app.stockRepo(), app.lotRepo());
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Inventario");
     }
 
@@ -188,7 +189,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new CubageController(view, new CubageService(), this);
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Cubaggio");
     }
 
@@ -205,7 +206,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 new CubageFormulaSetPersistenceService(app.database.getConnection())
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Gestione Calcoli Cubaggio");
     }
 
@@ -231,13 +232,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         RegistersView view = new RegistersView();
         configureHeader(view.getHeader());
         RegistersSearchService searchService = new RegistersSearchService(
-                app.itemRepo(),
-                app.lotRepo(),
-                app.firingRepo(),
-                app.compositionRepo(),
-                app.compositionLayerIngredientRepo(),
-                app.blankModelLayerRepo(),
-                app.powderRepo(),
+                app.connectionProvider(),
                 app.templateEditorService()
         );
 
@@ -251,7 +246,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.lineRepo()
         );
 
-        new RegistersController(
+        RegistersController controller = new RegistersController(
                 view,
                 searchService,
                 new RegistersDocumentService(
@@ -262,11 +257,13 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                         app.templateEditorService(),
                         batchParamsService
                 ),
-                app.documentBrowserService()
+                app.documentBrowserService(),
+                app.backgroundExecutor()
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Registri");
+        controller.loadInitialData();
     }
 
     @Override
@@ -305,7 +302,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
             controller.markAsClean();
         }
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle(productId == null ? "TON - Nuova composizione" : "TON - Modifica Composizione");
     }
 
@@ -316,7 +313,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new DocumentsController(view, this);
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Documentazione");
     }
 
@@ -326,7 +323,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new LaboratoryController(view, this);
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Laboratorio");
     }
 
@@ -357,7 +354,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.documentBrowserService()
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Produzione batch");
     }
 
@@ -370,7 +367,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 new ItemSetupService(app.itemRepo(), app.compositionRepo(), app.productRepo())
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Setup Item");
     }
 
@@ -386,7 +383,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 this
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Nuovo Ciclo Sinterizzazione");
     }
 
@@ -408,7 +405,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.documentBrowserService()
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle("TON - Presinterizza");
     }
 
@@ -462,7 +459,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
             }
         }
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view));
         stage.setTitle(blankModelId == null ? "TON - Nuovo modello disco" : "TON - Modifica Modello Disco");
     }
 
@@ -477,7 +474,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Archivio composizioni");
         controller.loadInitialData();
     }
@@ -493,7 +490,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        stage.setScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Archivio dischi");
         controller.loadInitialData();
     }
@@ -515,6 +512,24 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         return scene;
     }
 
+    private void showScene(Scene scene) {
+        showScene(scene, () -> {});
+    }
+
+    private void showScene(Scene scene, Runnable pageCleanup) {
+        runActivePageCleanup();
+        activePageCleanup = pageCleanup;
+        stage.setScene(scene);
+    }
+
+    private void runActivePageCleanup() {
+        try {
+            activePageCleanup.run();
+        } catch (RuntimeException exception) {
+            System.err.println("Errore durante la chiusura della pagina corrente: " + exception.getMessage());
+        }
+    }
+
     private void configureHeader(AppHeader header) {
         header.getHomeButton().setOnAction(e -> showHome());
         header.getInventoryButton().setOnAction( e -> showInventory());
@@ -525,6 +540,8 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     }
 
     public void shutdown() {
+        runActivePageCleanup();
+        activePageCleanup = () -> {};
         app.shutdown();
         app.database.stop();
     }

@@ -280,9 +280,9 @@ Quando arriva una richiesta più recente, il runner:
 3. ignora eventuali risultati appartenenti a generazioni superate;
 4. consegna alla view soltanto il risultato più recente.
 
-Il metodo `cancel()` deve essere utilizzato quando viene introdotto un lifecycle
-esplicito delle pagine, così una schermata abbandonata non conserva operazioni
-inutili.
+Il metodo `cancel()` deve essere richiamato dal `dispose()` del controller. Il
+router registra il cleanup insieme alla scena, così una schermata abbandonata
+non conserva operazioni inutili.
 
 ## Regole di threading
 

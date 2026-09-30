@@ -118,6 +118,11 @@ chiude al termine. Le operazioni migrate possono così usare il pool di worker
 senza condividere la stessa sessione JDBC. Le repository non ancora migrate
 continuano temporaneamente a usare la connessione legacy sul solo thread JavaFX.
 
+La prima migrazione successiva agli archivi riguarda Registri: suggerimenti e
+ricerca completa vengono eseguiti in background con connessioni scoped. La
+pagina espone inoltre un cleanup che cancella i loader quando si cambia scena;
+la generazione dei documenti rimane un intervento separato.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di

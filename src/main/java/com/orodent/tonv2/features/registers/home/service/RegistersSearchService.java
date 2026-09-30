@@ -1,5 +1,13 @@
 package com.orodent.tonv2.features.registers.home.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.BlankModelLayerRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionLayerIngredientRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.FiringRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ItemRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.LotRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.PowderRepositoryImpl;
 import com.orodent.tonv2.core.database.model.BlankModelLayer;
 import com.orodent.tonv2.core.database.model.Composition;
 import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
@@ -19,33 +27,16 @@ import com.orodent.tonv2.features.documents.template.service.TemplateEditorServi
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 public class RegistersSearchService {
 
-    private final ItemRepository itemRepository;
-    private final LotRepository lotRepository;
-    private final FiringRepository firingRepository;
-    private final CompositionRepository compositionRepository;
-    private final CompositionLayerIngredientRepository compositionLayerIngredientRepository;
-    private final BlankModelLayerRepository blankModelLayerRepository;
-    private final PowderRepository powderRepository;
+    private final ConnectionProvider connectionProvider;
     private final TemplateEditorService templateEditorService;
 
-    public RegistersSearchService(ItemRepository itemRepository,
-                                  LotRepository lotRepository,
-                                  FiringRepository firingRepository,
-                                  CompositionRepository compositionRepository,
-                                  CompositionLayerIngredientRepository compositionLayerIngredientRepository,
-                                  BlankModelLayerRepository blankModelLayerRepository,
-                                  PowderRepository powderRepository,
+    public RegistersSearchService(ConnectionProvider connectionProvider,
                                   TemplateEditorService templateEditorService) {
-        this.itemRepository = itemRepository;
-        this.lotRepository = lotRepository;
-        this.firingRepository = firingRepository;
-        this.compositionRepository = compositionRepository;
-        this.compositionLayerIngredientRepository = compositionLayerIngredientRepository;
-        this.blankModelLayerRepository = blankModelLayerRepository;
-        this.powderRepository = powderRepository;
+        this.connectionProvider = connectionProvider;
         this.templateEditorService = templateEditorService;
     }
 
@@ -58,49 +49,51 @@ public class RegistersSearchService {
             return SearchResult.error(message, message, message);
         }
 
-        Item item = itemRepository.findByCode(itemCode);
-        if (item == null) {
-            String message = "Articolo non trovato: " + itemCode;
-            return SearchResult.error(message, message, message);
-        }
+        return withRepositories(repositories -> {
+            Item item = repositories.itemRepository().findByCode(itemCode);
+            if (item == null) {
+                String message = "Articolo non trovato: " + itemCode;
+                return SearchResult.error(message, message, message);
+            }
 
-        Lot lot = lotRepository.findByCodeAndItem(lotCode, item.id());
-        if (lot == null) {
-            String message = "Lotto non trovato per l'articolo selezionato: " + lotCode;
-            return SearchResult.error(message, message, message);
-        }
+            Lot lot = repositories.lotRepository().findByCodeAndItem(lotCode, item.id());
+            if (lot == null) {
+                String message = "Lotto non trovato per l'articolo selezionato: " + lotCode;
+                return SearchResult.error(message, message, message);
+            }
 
-        Firing firing = firingRepository.findById(lot.firingId());
+            Firing firing = repositories.firingRepository().findById(lot.firingId());
+            String compositionSummary = buildCompositionSummary(repositories, item);
+            String firingSummary = buildFiringSummary(repositories, item, lot, firing);
+            String documentsSummary = buildDocumentsSummary(item, lot, firing);
 
-        String compositionSummary = buildCompositionSummary(item);
-        String firingSummary = buildFiringSummary(item, lot, firing);
-        String documentsSummary = buildDocumentsSummary(item, lot, firing);
-
-        return SearchResult.success(compositionSummary, firingSummary, documentsSummary);
+            return SearchResult.success(compositionSummary, firingSummary, documentsSummary);
+        });
     }
 
     public List<String> suggestItemCodesByPrefix(String itemCodePrefix, int limit) {
-        return itemRepository.findByCodePrefix(itemCodePrefix, limit).stream()
+        return withRepositories(repositories -> repositories.itemRepository()
+                .findByCodePrefix(itemCodePrefix, limit).stream()
                 .map(Item::code)
                 .filter(code -> code != null && !code.isBlank())
                 .distinct()
-                .toList();
+                .toList());
     }
 
     public List<String> suggestItemCodesByLotPrefix(String lotCodePrefix, int limit) {
-        return itemRepository.findByLotCodePrefix(lotCodePrefix, limit).stream()
+        return withRepositories(repositories -> repositories.itemRepository().findByLotCodePrefix(lotCodePrefix, limit).stream()
                 .map(Item::code)
                 .filter(code -> code != null && !code.isBlank())
                 .distinct()
-                .toList();
+                .toList());
     }
 
     public List<String> suggestLotCodesByPrefix(String lotCodePrefix, int limit) {
-        return lotRepository.findByCodePrefix(lotCodePrefix, limit).stream()
+        return withRepositories(repositories -> repositories.lotRepository().findByCodePrefix(lotCodePrefix, limit).stream()
                 .map(Lot::code)
                 .filter(code -> code != null && !code.isBlank())
                 .distinct()
-                .toList();
+                .toList());
     }
 
     public List<String> suggestLotCodesByItemCode(String itemCode, String lotCodePrefix, int limit) {
@@ -109,20 +102,23 @@ public class RegistersSearchService {
             return List.of();
         }
 
-        Item item = itemRepository.findByCode(normalizedItemCode);
-        if (item == null) {
-            return List.of();
-        }
+        return withRepositories(repositories -> {
+            Item item = repositories.itemRepository().findByCode(normalizedItemCode);
+            if (item == null) {
+                return List.of();
+            }
 
-        return lotRepository.findByCodePrefixAndItem(lotCodePrefix, item.id(), limit).stream()
-                .map(Lot::code)
-                .filter(code -> code != null && !code.isBlank())
-                .distinct()
-                .toList();
+            return repositories.lotRepository().findByCodePrefixAndItem(lotCodePrefix, item.id(), limit).stream()
+                    .map(Lot::code)
+                    .filter(code -> code != null && !code.isBlank())
+                    .distinct()
+                    .toList();
+        });
     }
 
-    private String buildCompositionSummary(Item item) {
-        Optional<Integer> activeCompositionId = compositionRepository.findActiveCompositionId(item.productId());
+    private String buildCompositionSummary(Repositories repositories, Item item) {
+        Optional<Integer> activeCompositionId = repositories.compositionRepository()
+                .findActiveCompositionId(item.productId());
 
         StringBuilder builder = new StringBuilder();
         builder.append("Articolo: ").append(item.code()).append(System.lineSeparator());
@@ -140,7 +136,7 @@ public class RegistersSearchService {
         }
 
         int compositionId = activeCompositionId.get();
-        Optional<Composition> composition = compositionRepository.findById(compositionId);
+        Optional<Composition> composition = repositories.compositionRepository().findById(compositionId);
 
         builder.append("Versione: ")
                 .append(composition.map(Composition::version).map(String::valueOf).orElse("n/d"))
@@ -150,9 +146,10 @@ public class RegistersSearchService {
         builder.append(System.lineSeparator());
         builder.append("Composizione:").append(System.lineSeparator());
 
-        List<CompositionLayerIngredient> ingredients = compositionLayerIngredientRepository.findByCompositionId(compositionId);
-        Integer blankModelId = compositionRepository.findBlankModelIdByCompositionId(compositionId).orElse(item.blankModelId());
-        List<BlankModelLayer> blankLayers = blankModelLayerRepository.findByBlankModelId(blankModelId);
+        List<CompositionLayerIngredient> ingredients = repositories.ingredientRepository().findByCompositionId(compositionId);
+        Integer blankModelId = repositories.compositionRepository()
+                .findBlankModelIdByCompositionId(compositionId).orElse(item.blankModelId());
+        List<BlankModelLayer> blankLayers = repositories.blankModelLayerRepository().findByBlankModelId(blankModelId);
 
         if (blankLayers.isEmpty()) {
             builder.append("Nessuno strato blank model trovato.");
@@ -178,7 +175,7 @@ public class RegistersSearchService {
             }
 
             for (CompositionLayerIngredient ingredient : layerIngredients) {
-                Powder powder = powderRepository.findById(ingredient.powderId());
+                Powder powder = repositories.powderRepository().findById(ingredient.powderId());
                 String powderLabel;
                 if (powder == null) {
                     powderLabel = "polvere #" + ingredient.powderId();
@@ -200,7 +197,7 @@ public class RegistersSearchService {
         return builder.toString().trim();
     }
 
-    private String buildFiringSummary(Item item, Lot lot, Firing firing) {
+    private String buildFiringSummary(Repositories repositories, Item item, Lot lot, Firing firing) {
         StringBuilder builder = new StringBuilder();
         builder.append("Articolo: ").append(item.code()).append(System.lineSeparator());
         builder.append("Lotto: ").append(lot.code()).append(System.lineSeparator());
@@ -217,7 +214,8 @@ public class RegistersSearchService {
         builder.append(firing.furnace()).append(System.lineSeparator());
         builder.append("Temperatura max: ").append(firing.maxTemperature()).append(System.lineSeparator());
 
-        List<ItemRepository.ItemFiringQuantityRow> itemQuantities = itemRepository.findItemQuantitiesByFiringId(firing.id());
+        List<ItemRepository.ItemFiringQuantityRow> itemQuantities = repositories.itemRepository()
+                .findItemQuantitiesByFiringId(firing.id());
 
         builder.append(System.lineSeparator());
         if (itemQuantities.isEmpty()) {
@@ -268,6 +266,27 @@ public class RegistersSearchService {
     private String normalize(String value) {
         String normalized = value == null ? "" : value.trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private <T> T withRepositories(Function<Repositories, T> work) {
+        return connectionProvider.withConnection(connection -> work.apply(new Repositories(
+                new ItemRepositoryImpl(connection),
+                new LotRepositoryImpl(connection),
+                new FiringRepositoryImpl(connection),
+                new CompositionRepositoryImpl(connection),
+                new CompositionLayerIngredientRepositoryImpl(connection),
+                new BlankModelLayerRepositoryImpl(connection),
+                new PowderRepositoryImpl(connection)
+        )));
+    }
+
+    private record Repositories(ItemRepository itemRepository,
+                                LotRepository lotRepository,
+                                FiringRepository firingRepository,
+                                CompositionRepository compositionRepository,
+                                CompositionLayerIngredientRepository ingredientRepository,
+                                BlankModelLayerRepository blankModelLayerRepository,
+                                PowderRepository powderRepository) {
     }
 
     public record SearchResult(boolean success,

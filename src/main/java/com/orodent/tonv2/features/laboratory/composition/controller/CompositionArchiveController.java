@@ -62,4 +62,8 @@ public class CompositionArchiveController {
                 .map(product -> new CompositionArchiveView.CompositionRow(product.id(), product.code()))
                 .toList();
     }
+
+    public void dispose() {
+        loader.cancel();
+    }
 }

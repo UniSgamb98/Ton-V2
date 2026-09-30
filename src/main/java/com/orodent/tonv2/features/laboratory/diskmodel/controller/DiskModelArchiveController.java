@@ -65,4 +65,8 @@ public class DiskModelArchiveController {
                 ))
                 .toList();
     }
+
+    public void dispose() {
+        loader.cancel();
+    }
 }

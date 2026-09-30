@@ -62,4 +62,8 @@ public class DocumentsArchiveController {
                 .map(entry -> new DocumentsArchiveView.TemplateRow(entry.id(), entry.name()))
                 .toList();
     }
+
+    public void dispose() {
+        loader.cancel();
+    }
 }

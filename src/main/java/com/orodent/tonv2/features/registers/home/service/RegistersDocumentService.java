@@ -22,7 +22,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-public class RegistersDocumentService {
+public class RegistersDocumentService implements AutoCloseable {
 
     private final Connection connection;
     private final ItemRepository itemRepository;
@@ -181,6 +181,17 @@ public class RegistersDocumentService {
             throw new IllegalArgumentException(errorMessage);
         }
         return normalized;
+    }
+
+    @Override
+    public void close() {
+        try {
+            if (!connection.isClosed()) {
+                connection.close();
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("Errore durante la chiusura della connessione dei registri.", exception);
+        }
     }
 
     private record ProductionOrderSnapshot(int productionOrderId, int productId, String notes) {
