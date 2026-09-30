@@ -131,10 +131,10 @@ background: testata e righe dell'ordine condividono una connessione e una singol
 transazione con commit o rollback. La generazione del documento avviene dopo il
 commit e segnala separatamente un proprio eventuale errore.
 
-La prima fase di Presinterizzazione sposta in background l'apertura della pagina
-e i suggerimenti relativi al forno selezionato. Queste letture usano connessioni
-scoped e vengono cancellate quando si cambia scena; la conferma transazionale
-resta il passaggio successivo della migrazione.
+Presinterizzazione esegue in background apertura pagina, suggerimenti del forno e
+conferma del piano. Le letture usano connessioni scoped, mentre firing, lotti e
+allocazioni vengono salvati atomicamente con `withTransaction`; la generazione
+del documento successiva al commit espone separatamente un eventuale errore.
 
 ## Giudizio complessivo
 

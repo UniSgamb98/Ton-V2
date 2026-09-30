@@ -160,6 +160,10 @@ public class PresinteringView extends VBox {
         setLoadingState("Caricamento suggerimenti forno...");
     }
 
+    public void showConfirmationSaving() {
+        setLoadingState("Conferma presinterizzazione...");
+    }
+
     public void showLoadSuccess() {
         setContentDisabled(false);
         progressIndicator.setVisible(false);

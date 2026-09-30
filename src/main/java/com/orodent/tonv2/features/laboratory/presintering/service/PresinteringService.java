@@ -1,9 +1,14 @@
 package com.orodent.tonv2.features.laboratory.presintering.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.FiringRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.FurnaceRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ItemRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.LotRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ProductionRepositoryImpl;
 import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.model.Firing;
 import com.orodent.tonv2.core.database.repository.FiringRepository;
-import com.orodent.tonv2.core.database.repository.FurnaceRepository;
 import com.orodent.tonv2.core.database.repository.LotRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
@@ -11,7 +16,6 @@ import com.orodent.tonv2.features.documents.template.service.TemplatePresetCodes
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.sql.Connection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -30,40 +34,28 @@ public class PresinteringService {
             "presintering-local-plan.bin"
     );
 
-    private final ProductionRepository productionRepo;
-    private final FurnaceRepository furnaceRepo;
-    private final FiringRepository firingRepo;
-    private final LotRepository lotRepo;
+    private final ConnectionProvider connectionProvider;
     private final TemplateEditorService templateEditorService;
-    private final PresinteringDocumentParamsService documentParamsService;
-    private final Connection conn;
 
-    public PresinteringService(ProductionRepository productionRepo,
-                               FurnaceRepository furnaceRepo,
-                               FiringRepository firingRepo,
-                               LotRepository lotRepo,
-                               TemplateEditorService templateEditorService,
-                               PresinteringDocumentParamsService documentParamsService,
-                               Connection conn) {
-        this.productionRepo = productionRepo;
-        this.furnaceRepo = furnaceRepo;
-        this.firingRepo = firingRepo;
-        this.lotRepo = lotRepo;
+    public PresinteringService(ConnectionProvider connectionProvider,
+                               TemplateEditorService templateEditorService) {
+        this.connectionProvider = connectionProvider;
         this.templateEditorService = templateEditorService;
-        this.documentParamsService = documentParamsService;
-        this.conn = conn;
     }
 
     public List<ProductionRepository.ProducedDiskRow> loadProducedDisks() {
-        return productionRepo.findProducedDiskRows();
+        return connectionProvider.withConnection(connection ->
+                new ProductionRepositoryImpl(connection).findProducedDiskRows());
     }
 
     public List<Furnace> loadFurnaces() {
-        return furnaceRepo.findAll();
+        return connectionProvider.withConnection(connection ->
+                new FurnaceRepositoryImpl(connection).findAll());
     }
 
     public List<ProductionRepository.CompositionRankingRow> loadCompositionRanking() {
-        return productionRepo.findCompositionRankingRows();
+        return connectionProvider.withConnection(connection ->
+                new ProductionRepositoryImpl(connection).findCompositionRankingRows());
     }
 
     public List<ProductionRepository.FurnaceItemSuggestionRow> loadFurnaceItemSuggestions(String selectedFurnaceName) {
@@ -72,7 +64,9 @@ public class PresinteringService {
         }
 
         String normalizedFurnace = selectedFurnaceName.replaceFirst("^Forno\\s+", "").trim();
-        return productionRepo.findFurnaceItemSuggestionRows(normalizedFurnace, selectedFurnaceName);
+        return connectionProvider.withConnection(connection ->
+                new ProductionRepositoryImpl(connection)
+                        .findFurnaceItemSuggestionRows(normalizedFurnace, selectedFurnaceName));
     }
 
     public List<String> findTemplateNames() {
@@ -91,7 +85,8 @@ public class PresinteringService {
     }
 
     public Integer findLatestFiringId() {
-        return firingRepo.findLatestId();
+        return connectionProvider.withConnection(connection ->
+                new FiringRepositoryImpl(connection).findLatestId());
     }
 
     public Optional<LocalPlanState> loadLocalPlanState() {
@@ -184,7 +179,10 @@ public class PresinteringService {
                                                                        LocalDate firingDate,
                                                                        Integer maxTemperature,
                                                                        String lotCode,
-                                                                       Map<Integer, Integer> plannedItemsByItemId) {
+                                                                       Map<Integer, Integer> plannedItemsByItemId,
+                                                                       ProductionRepository productionRepo,
+                                                                       FiringRepository firingRepo,
+                                                                       LotRepository lotRepo) {
         if (furnaceName == null || furnaceName.isBlank()) {
             throw new IllegalArgumentException("Forno non valido.");
         }
@@ -268,15 +266,16 @@ public class PresinteringService {
         }
 
         templateEditorService.setLastPresinteringTemplateName(selectedTemplateName);
-        Map<String, Object> params = documentParamsService.buildParams(
-                new PresinteringDocumentParamsService.ParamsRequest(
-                        confirmationResult.firingId(),
-                        firingDate,
-                        furnaceName,
-                        maxTemperature,
-                        plannedItemsByItemId
-                )
-        );
+        Map<String, Object> params = connectionProvider.withConnection(connection ->
+                new PresinteringDocumentParamsService(new ItemRepositoryImpl(connection)).buildParams(
+                        new PresinteringDocumentParamsService.ParamsRequest(
+                                confirmationResult.firingId(),
+                                firingDate,
+                                furnaceName,
+                                maxTemperature,
+                                plannedItemsByItemId
+                        )
+                ));
 
         String payloadJson = templateEditorService.toJson(params);
         TemplateEditorService.PreviewResult renderResult = templateEditorService.previewTemplate(templateText, payloadJson);
@@ -305,7 +304,9 @@ public class PresinteringService {
         }
 
         templateEditorService.setLastPresinteringTemplateName(selectedTemplateName);
-        Map<String, Object> params = documentParamsService.buildBatchParams(furnaces);
+        Map<String, Object> params = connectionProvider.withConnection(connection ->
+                new PresinteringDocumentParamsService(new ItemRepositoryImpl(connection))
+                        .buildBatchParams(furnaces));
 
         String payloadJson = templateEditorService.toJson(params);
         TemplateEditorService.PreviewResult renderResult = templateEditorService.previewTemplate(templateText, payloadJson);
@@ -331,82 +332,91 @@ public class PresinteringService {
                 command.furnaceNameById(),
                 command.furnaceConfigById()
         );
-        validateBatchDemandAgainstOpenOrders(requests);
 
-        boolean previousAutoCommit;
+        ConfirmationTransactionResult transactionResult;
         try {
-            previousAutoCommit = conn.getAutoCommit();
-            conn.setAutoCommit(false);
-        } catch (Exception e) {
-            throw new RuntimeException("Impossibile iniziare la transazione di conferma presinterizzazione.", e);
-        }
+            transactionResult = connectionProvider.withTransaction(connection -> {
+                ProductionRepository productionRepo = new ProductionRepositoryImpl(connection);
+                FiringRepository firingRepo = new FiringRepositoryImpl(connection);
+                LotRepository lotRepo = new LotRepositoryImpl(connection);
+                validateBatchDemandAgainstOpenOrders(requests, productionRepo);
 
-        try {
-            int confirmedFurnaces = 0;
-            int totalLinkedOrders = 0;
-            int totalLots = 0;
-            List<Integer> firingIds = new java.util.ArrayList<>();
-            List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
+                int confirmedFurnaces = 0;
+                int totalLinkedOrders = 0;
+                int totalLots = 0;
+                List<Integer> firingIds = new java.util.ArrayList<>();
+                List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads = new java.util.ArrayList<>();
 
-            for (BatchConfirmationRequest furnaceRequest : requests) {
-                ConfirmationResult result;
-                try {
-                    result = confirmPresinteringInCurrentTransaction(
-                            furnaceRequest.furnaceId(),
-                            furnaceRequest.furnaceName(),
+                for (BatchConfirmationRequest furnaceRequest : requests) {
+                    ConfirmationResult result;
+                    try {
+                        result = confirmPresinteringInCurrentTransaction(
+                                furnaceRequest.furnaceId(),
+                                furnaceRequest.furnaceName(),
+                                furnaceRequest.departureDate(),
+                                furnaceRequest.maxTemperature(),
+                                furnaceRequest.lotCode(),
+                                furnaceRequest.plannedItemsByItemId(),
+                                productionRepo,
+                                firingRepo,
+                                lotRepo
+                        );
+                    } catch (Exception exception) {
+                        throw new IllegalStateException(
+                                "Errore nel " + furnaceRequest.furnaceName() + ": "
+                                        + extractMostSpecificMessage(exception),
+                                exception
+                        );
+                    }
+
+                    confirmedFurnaces++;
+                    totalLinkedOrders += result.linkedProductionOrders();
+                    totalLots += result.lotCount();
+                    firingIds.add(result.firingId());
+                    furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
+                            result.firingId(),
                             furnaceRequest.departureDate(),
+                            furnaceRequest.furnaceName(),
                             furnaceRequest.maxTemperature(),
-                            furnaceRequest.lotCode(),
                             furnaceRequest.plannedItemsByItemId()
-                    );
-                } catch (Exception e) {
-                    throw new IllegalStateException(
-                            "Errore nel " + furnaceRequest.furnaceName() + ": " + extractMostSpecificMessage(e),
-                            e
-                    );
+                    ));
                 }
 
-                confirmedFurnaces++;
-                totalLinkedOrders += result.linkedProductionOrders();
-                totalLots += result.lotCount();
-                firingIds.add(result.firingId());
-                furnacePayloads.add(new PresinteringDocumentParamsService.FurnaceBatchRequest(
-                        result.firingId(),
-                        furnaceRequest.departureDate(),
-                        furnaceRequest.furnaceName(),
-                        furnaceRequest.maxTemperature(),
-                        furnaceRequest.plannedItemsByItemId()
-                ));
-            }
-
-            conn.commit();
-            conn.setAutoCommit(previousAutoCommit);
-
-            String documentPath = generateBatchDocumentIfTemplateSelected(
-                    command.selectedTemplateName(),
-                    furnacePayloads
+                return new ConfirmationTransactionResult(
+                        confirmedFurnaces,
+                        firingIds,
+                        totalLinkedOrders,
+                        totalLots,
+                        furnacePayloads
+                );
+            });
+        } catch (RuntimeException exception) {
+            throw new RuntimeException(
+                    "Errore durante conferma presinterizzazione batch: "
+                            + extractMostSpecificMessage(exception),
+                    exception
             );
-
-            return new ConfirmBatchResult(
-                    confirmedFurnaces,
-                    firingIds,
-                    totalLinkedOrders,
-                    totalLots,
-                    documentPath
-            );
-        } catch (Exception e) {
-            try {
-                conn.rollback();
-            } catch (Exception ignored) {
-                // best effort rollback
-            }
-            try {
-                conn.setAutoCommit(previousAutoCommit);
-            } catch (Exception ignored) {
-                // ignore
-            }
-            throw new RuntimeException("Errore durante conferma presinterizzazione batch: " + extractMostSpecificMessage(e), e);
         }
+
+        String documentPath = null;
+        String documentError = null;
+        try {
+            documentPath = generateBatchDocumentIfTemplateSelected(
+                    command.selectedTemplateName(),
+                    transactionResult.furnacePayloads()
+            );
+        } catch (RuntimeException exception) {
+            documentError = extractMostSpecificMessage(exception);
+        }
+
+        return new ConfirmBatchResult(
+                transactionResult.confirmedFurnaces(),
+                transactionResult.firingIds(),
+                transactionResult.totalLinkedOrders(),
+                transactionResult.totalLots(),
+                documentPath,
+                documentError
+        );
     }
 
     private String extractMostSpecificMessage(Throwable throwable) {
@@ -424,7 +434,8 @@ public class PresinteringService {
         return message == null ? "Errore sconosciuto." : message;
     }
 
-    private void validateBatchDemandAgainstOpenOrders(List<BatchConfirmationRequest> requests) {
+    private void validateBatchDemandAgainstOpenOrders(List<BatchConfirmationRequest> requests,
+                                                      ProductionRepository productionRepo) {
         Map<Integer, Integer> requestedByItem = new LinkedHashMap<>();
         for (BatchConfirmationRequest request : requests) {
             for (Map.Entry<Integer, Integer> plannedEntry : request.plannedItemsByItemId().entrySet()) {
@@ -591,7 +602,16 @@ public class PresinteringService {
                                      List<Integer> firingIds,
                                      int totalLinkedOrders,
                                      int totalLots,
-                                     String documentPath) {
+                                     String documentPath,
+                                     String documentError) {
+    }
+
+    private record ConfirmationTransactionResult(
+            int confirmedFurnaces,
+            List<Integer> firingIds,
+            int totalLinkedOrders,
+            int totalLots,
+            List<PresinteringDocumentParamsService.FurnaceBatchRequest> furnacePayloads) {
     }
 
     private record LineAllocationKey(int productionOrderId, int itemId) {

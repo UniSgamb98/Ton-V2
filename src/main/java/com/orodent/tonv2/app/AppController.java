@@ -374,13 +374,8 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         PresinteringController controller = new PresinteringController(
                 view,
                 new PresinteringService(
-                        app.productionRepo(),
-                        app.furnaceRepo(),
-                        app.firingRepo(),
-                        app.lotRepo(),
-                        app.templateEditorService(),
-                        new PresinteringDocumentParamsService(app.itemRepo()),
-                        app.database.getConnection()
+                        app.connectionProvider(),
+                        app.templateEditorService()
                 ),
                 new PresinteringReadService(
                         app.connectionProvider(),

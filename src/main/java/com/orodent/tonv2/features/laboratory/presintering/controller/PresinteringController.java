@@ -28,10 +28,13 @@ public class PresinteringController {
     private final DocumentBrowserService documentBrowserService;
     private final DebouncedTaskRunner<InitialPageData> initialDataLoader;
     private final DebouncedTaskRunner<List<ProductionRepository.FurnaceItemSuggestionRow>> suggestionsLoader;
+    private final DebouncedTaskRunner<PresinteringService.ConfirmBatchResult> confirmationLoader;
     private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
     private final Map<Integer, String> productNameByItemIdState = new LinkedHashMap<>();
     private Integer latestFiringIdState;
+    private String feedbackAfterReload;
+    private boolean feedbackAfterReloadIsError;
     private PresinteringPlanningSnapshot planningState = new PresinteringPlanningSnapshot(
             new LinkedHashMap<>(),
             new LinkedHashMap<>(),
@@ -50,6 +53,7 @@ public class PresinteringController {
         this.documentBrowserService = documentBrowserService;
         this.initialDataLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.suggestionsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
+        this.confirmationLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
 
         setupActions();
     }
@@ -117,6 +121,11 @@ public class PresinteringController {
         view.setOnFurnaceSelectionChanged(this::onFurnaceSelected);
         view.setTemplateNames(data.templateNames(), data.selectedTemplateName());
         view.showLoadSuccess();
+        if (feedbackAfterReload != null) {
+            view.setFeedback(feedbackAfterReload, feedbackAfterReloadIsError);
+            feedbackAfterReload = null;
+            feedbackAfterReloadIsError = false;
+        }
     }
 
     private void clearLoadedData() {
@@ -151,32 +160,43 @@ public class PresinteringController {
     }
 
     private void confirmAllPlannedFurnaces() {
-        try {
-            PresinteringService.ConfirmBatchResult result = service.confirmBatch(
-                    new PresinteringService.ConfirmBatchCommand(
-                            planningState.plannedByFurnace(),
-                            furnaceNameByIdState,
-                            furnaceConfigById,
-                            view.getTemplateSelector().getValue()
-                    )
-            );
-            if (result.documentPath() != null) {
-                documentBrowserService.openDocument(result.documentPath());
-            }
+        PresinteringService.ConfirmBatchCommand command = new PresinteringService.ConfirmBatchCommand(
+                copyPlan(planningState.plannedByFurnace()),
+                new LinkedHashMap<>(furnaceNameByIdState),
+                new LinkedHashMap<>(furnaceConfigById),
+                view.getTemplateSelector().getValue()
+        );
 
-            service.clearLocalPlanState();
-            loadInitialData();
-            view.setFeedback(
-                    "Presinterizzazione confermata su " + result.confirmedFurnaces() + " forni."
-                            + " · firing: " + result.firingIds()
-                            + " · ordini collegati: " + result.totalLinkedOrders()
-                            + " · lotti creati: " + result.totalLots()
-                            + (result.documentPath() == null ? "" : " · documento batch aperto: " + result.documentPath()),
-                    false
-            );
-        } catch (Exception e) {
-            view.setFeedback("Errore conferma presinterizzazione: " + e.getMessage(), true);
+        confirmationLoader.runNow(
+                () -> service.confirmBatch(command),
+                view::showConfirmationSaving,
+                this::showConfirmationSuccess,
+                error -> view.showLoadError("Errore conferma presinterizzazione: " + error.getMessage())
+        );
+    }
+
+    private void showConfirmationSuccess(PresinteringService.ConfirmBatchResult result) {
+        if (result.documentPath() != null) {
+            documentBrowserService.openDocument(result.documentPath());
         }
+        service.clearLocalPlanState();
+
+        String documentMessage = result.documentError() != null
+                ? " · conferma salvata, documento non generato: " + result.documentError()
+                : (result.documentPath() == null ? "" : " · documento batch aperto: " + result.documentPath());
+        feedbackAfterReload = "Presinterizzazione confermata su " + result.confirmedFurnaces() + " forni."
+                + " · firing: " + result.firingIds()
+                + " · ordini collegati: " + result.totalLinkedOrders()
+                + " · lotti creati: " + result.totalLots()
+                + documentMessage;
+        feedbackAfterReloadIsError = result.documentError() != null;
+        loadInitialData();
+    }
+
+    private Map<Integer, Map<Integer, Integer>> copyPlan(Map<Integer, Map<Integer, Integer>> source) {
+        Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
+        source.forEach((furnaceId, items) -> copy.put(furnaceId, new LinkedHashMap<>(items)));
+        return copy;
     }
 
     private void syncSelectedFurnaceConfigFromView() {
@@ -355,6 +375,7 @@ public class PresinteringController {
     public void dispose() {
         initialDataLoader.cancel();
         suggestionsLoader.cancel();
+        confirmationLoader.cancel();
     }
 
     private record InitialPageData(PresinteringReadService.InitialData data,
