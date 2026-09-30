@@ -36,6 +36,7 @@ import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
 import com.orodent.tonv2.features.laboratory.itemsetup.view.ItemSetupView;
 import com.orodent.tonv2.features.laboratory.production.controller.BatchProductionController;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
+import com.orodent.tonv2.features.laboratory.production.service.BatchProductionReadService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 import com.orodent.tonv2.features.laboratory.presintering.controller.PresinteringController;
@@ -326,7 +327,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.itemRepo(),
                 app.lineRepo()
         );
-        new BatchProductionController(
+        BatchProductionController controller = new BatchProductionController(
                 view,
                 new BatchProductionService(
                         app.itemRepo(),
@@ -337,11 +338,17 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                         app.templateEditorService(),
                         batchDocumentParamsService
                 ),
-                app.documentBrowserService()
+                new BatchProductionReadService(
+                        app.connectionProvider(),
+                        app.templateEditorService()
+                ),
+                app.documentBrowserService(),
+                app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Produzione batch");
+        controller.loadInitialData();
     }
 
     @Override

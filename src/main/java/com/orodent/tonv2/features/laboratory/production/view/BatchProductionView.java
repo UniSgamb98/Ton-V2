@@ -9,6 +9,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -35,6 +36,7 @@ public class BatchProductionView extends VBox {
     private final TextArea notesArea = new TextArea();
     private final Button produceButton = new Button("Produzione batch");
     private final Label feedbackLabel = new Label();
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
 
     private final List<BatchRow> rows = new ArrayList<>();
     private Product selectedProduct;
@@ -57,6 +59,9 @@ public class BatchProductionView extends VBox {
         templateSelector.setMaxWidth(Double.MAX_VALUE);
 
         feedbackLabel.setStyle("-fx-text-fill: #374151;");
+        progressIndicator.setMaxSize(24, 24);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
         HBox actions = new HBox(10, produceButton);
 
         getChildren().addAll(
@@ -72,6 +77,7 @@ public class BatchProductionView extends VBox {
                 new Label("Template documento"),
                 templateSelector,
                 actions,
+                progressIndicator,
                 feedbackLabel
         );
     }
@@ -170,6 +176,47 @@ public class BatchProductionView extends VBox {
     public void setFeedback(String text, boolean error) {
         feedbackLabel.setText(text);
         feedbackLabel.setStyle(error ? "-fx-text-fill: #b91c1c;" : "-fx-text-fill: #166534;");
+    }
+
+    public void showInitialLoading() {
+        setLoadingState("Caricamento dati produzione...");
+    }
+
+    public void showProductsLoading() {
+        setLoadingState("Caricamento prodotti...");
+    }
+
+    public void showItemsLoading() {
+        setLoadingState("Caricamento item...");
+    }
+
+    public void showLoadSuccess() {
+        setControlsDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        setFeedback("", false);
+    }
+
+    public void showLoadError(String message) {
+        setControlsDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        setFeedback(message, true);
+    }
+
+    private void setLoadingState(String message) {
+        setControlsDisabled(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        setFeedback(message, false);
+    }
+
+    private void setControlsDisabled(boolean disabled) {
+        lineSelector.setDisable(disabled);
+        productButtonsBox.setDisable(disabled);
+        templateSelector.setDisable(disabled);
+        notesArea.setDisable(disabled);
+        produceButton.setDisable(disabled);
     }
 
     public static class BatchRow {

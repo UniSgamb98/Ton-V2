@@ -125,6 +125,11 @@ anche la generazione del documento composizione viene eseguita in background e
 costruisce tutte le repository dentro una connessione scoped. Il pulsante del
 documento firing resta disabilitato finché la funzione non verrà implementata.
 
+Produzione Batch è la feature successiva: apertura pagina, linee, template,
+prodotti e item vengono caricati tramite loader cancellabili e connessioni
+scoped. Il salvataggio resta temporaneamente sul percorso legacy finché ordine e
+righe non saranno racchiusi in una singola transazione.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di
