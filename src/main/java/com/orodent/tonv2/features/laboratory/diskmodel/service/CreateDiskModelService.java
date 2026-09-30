@@ -1,5 +1,10 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.BlankModelHeightOvermaterialRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelLayerRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionRepositoryImpl;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.BlankModelHeightOvermaterial;
 import com.orodent.tonv2.core.database.model.BlankModelLayer;
@@ -13,27 +18,32 @@ import java.util.List;
 
 public class CreateDiskModelService {
 
-    private final BlankModelRepository blankModelRepo;
-    private final BlankModelLayerRepository blankModelLayerRepo;
-    private final BlankModelHeightOvermaterialRepository overmaterialRepo;
-    private final CompositionRepository compositionRepo;
+    private final ConnectionProvider connectionProvider;
 
-    public CreateDiskModelService(BlankModelRepository blankModelRepo,
-                                  BlankModelLayerRepository blankModelLayerRepo,
-                                  BlankModelHeightOvermaterialRepository overmaterialRepo,
-                                  CompositionRepository compositionRepo) {
-        this.blankModelRepo = blankModelRepo;
-        this.blankModelLayerRepo = blankModelLayerRepo;
-        this.overmaterialRepo = overmaterialRepo;
-        this.compositionRepo = compositionRepo;
+    public CreateDiskModelService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
     public BlankModel createDiskModel(CreateDiskModelData modelData,
                                       List<LayerData> layers,
                                       List<HeightRangeData> ranges) {
-        validateModelData(modelData);
-        validateLayers(modelData.numLayers(), layers);
-        List<HeightRangeData> normalizedRanges = validateAndNormalizeRanges(ranges);
+        validate(modelData, layers, ranges);
+        return connectionProvider.withTransaction(connection -> createDiskModel(
+                modelData,
+                layers,
+                validateAndNormalizeRanges(ranges),
+                new BlankModelRepositoryImpl(connection),
+                new BlankModelLayerRepositoryImpl(connection),
+                new BlankModelHeightOvermaterialRepositoryImpl(connection)
+        ));
+    }
+
+    private BlankModel createDiskModel(CreateDiskModelData modelData,
+                                       List<LayerData> layers,
+                                       List<HeightRangeData> normalizedRanges,
+                                       BlankModelRepository blankModelRepo,
+                                       BlankModelLayerRepository blankModelLayerRepo,
+                                       BlankModelHeightOvermaterialRepository overmaterialRepo) {
 
         String normalizedCode = modelData.code().trim();
         int nextVersion = blankModelRepo.findMaxVersionByCode(normalizedCode)
@@ -73,9 +83,32 @@ public class CreateDiskModelService {
                                                           CreateDiskModelData modelData,
                                                           List<LayerData> layers,
                                                           List<HeightRangeData> ranges) {
-        BlankModel newModel = createDiskModel(modelData, layers, ranges);
-        int copiedAssociations = compositionRepo.copyBlankModelAssociations(sourceBlankModelId, newModel.id());
-        return new VersionedSaveResult(newModel.id(), copiedAssociations);
+        if (sourceBlankModelId <= 0) {
+            throw new IllegalArgumentException("Modello disco di origine non valido.");
+        }
+        validate(modelData, layers, ranges);
+        List<HeightRangeData> normalizedRanges = validateAndNormalizeRanges(ranges);
+        return connectionProvider.withTransaction(connection -> {
+            BlankModel newModel = createDiskModel(
+                    modelData,
+                    layers,
+                    normalizedRanges,
+                    new BlankModelRepositoryImpl(connection),
+                    new BlankModelLayerRepositoryImpl(connection),
+                    new BlankModelHeightOvermaterialRepositoryImpl(connection)
+            );
+            CompositionRepository compositionRepo = new CompositionRepositoryImpl(connection);
+            int copiedAssociations = compositionRepo.copyBlankModelAssociations(sourceBlankModelId, newModel.id());
+            return new VersionedSaveResult(newModel.id(), copiedAssociations);
+        });
+    }
+
+    private void validate(CreateDiskModelData modelData,
+                          List<LayerData> layers,
+                          List<HeightRangeData> ranges) {
+        validateModelData(modelData);
+        validateLayers(modelData.numLayers(), layers);
+        validateAndNormalizeRanges(ranges);
     }
 
     private void validateModelData(CreateDiskModelData modelData) {

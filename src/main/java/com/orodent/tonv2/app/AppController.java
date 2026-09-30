@@ -409,42 +409,17 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         CreateDiskModelController controller = new CreateDiskModelController(
                 view,
                 this,
-                new CreateDiskModelService(app.blankModelRepo(), app.blankModelLayerRepo(), app.blankModelHeightOvermaterialRepo(), app.compositionRepo()),
+                new CreateDiskModelService(app.connectionProvider()),
+                new DiskModelArchiveService(app.connectionProvider()),
                 blankModelId == null
                         ? CreateDiskModelController.EditorMode.create()
-                        : CreateDiskModelController.EditorMode.edit(blankModelId)
+                        : CreateDiskModelController.EditorMode.edit(blankModelId),
+                app.backgroundExecutor()
         );
 
-        if (blankModelId != null) {
-            DiskModelArchiveService.DiskModelSnapshot snapshot = new DiskModelArchiveService(
-                    app.connectionProvider()
-            ).loadDiskModelSnapshot(blankModelId);
-
-            if (snapshot != null) {
-                view.fillFromModel(
-                        snapshot.model().code(),
-                        snapshot.model().diameterMm(),
-                        snapshot.model().superiorOvermaterialDefaultMm(),
-                        snapshot.model().inferiorOvermaterialDefaultMm(),
-                        snapshot.model().pressureKgCm2(),
-                        snapshot.model().gramsPerMm(),
-                        snapshot.model().numLayers(),
-                        snapshot.layers().stream().map(layer -> layer.diskPercentage()).toList(),
-                        snapshot.ranges().stream()
-                                .map(range -> new CreateDiskModelView.HeightRangeDraft(
-                                        String.valueOf(range.minHeightMm()),
-                                        String.valueOf(range.maxHeightMm()),
-                                        String.valueOf(range.superiorOvermaterialMm()),
-                                        String.valueOf(range.inferiorOvermaterialMm())
-                                ))
-                                .toList()
-                );
-                controller.markAsClean();
-            }
-        }
-
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle(blankModelId == null ? "TON - Nuovo modello disco" : "TON - Modifica Modello Disco");
+        controller.loadInitialData();
     }
 
     @Override

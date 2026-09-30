@@ -30,6 +30,8 @@ public class CreateDiskModelView extends VBox {
     private final Button addRangeBtn = new Button("Aggiungi fascia altezza");
     private final Button saveBtn = new Button("Salva modello disco");
     private final Button backBtn = new Button("Indietro");
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
+    private final Label statusLabel = new Label();
 
     private final DiskModelPreviewView previewView = new DiskModelPreviewView();
 
@@ -41,7 +43,10 @@ public class CreateDiskModelView extends VBox {
         setPadding(new Insets(20));
         buildLayout();
         bindPreview();
-        getChildren().addAll(header, content);
+        progressIndicator.setMaxSize(24, 24);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        getChildren().addAll(header, content, progressIndicator, statusLabel);
     }
 
     private void buildLayout() {
@@ -224,6 +229,37 @@ public class CreateDiskModelView extends VBox {
 
     public Button getBackButton() {
         return backBtn;
+    }
+
+    public void showInitialLoading() {
+        setLoadingState("Caricamento modello...");
+    }
+
+    public void showSaving() {
+        setLoadingState("Salvataggio modello...");
+    }
+
+    public void showLoadSuccess() {
+        content.setDisable(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        statusLabel.setText("");
+    }
+
+    public void showLoadError(String message) {
+        content.setDisable(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #b91c1c;");
+    }
+
+    private void setLoadingState(String message) {
+        content.setDisable(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #374151;");
     }
 
     public String getCode() { return codeField.getText(); }

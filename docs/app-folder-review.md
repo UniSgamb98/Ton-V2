@@ -142,6 +142,9 @@ programma e tutti i suoi step nella stessa connessione transazionale scoped.
 Setup Item carica i prodotti e gestisce attivazione composizione e creazione item
 in background. I due comandi usano transazioni scoped indipendenti.
 
+L'editor Modello Disco mostra subito la scena, carica le versioni esistenti in
+background e salva modello, layer, fasce e associazioni in una singola transazione.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di
