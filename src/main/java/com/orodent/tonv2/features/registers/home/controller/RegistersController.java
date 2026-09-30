@@ -24,6 +24,7 @@ public class RegistersController {
     private final DebouncedTaskRunner<List<String>> itemSuggestionsLoader;
     private final DebouncedTaskRunner<List<String>> lotSuggestionsLoader;
     private final DebouncedTaskRunner<RegistersSearchService.SearchResult> searchLoader;
+    private final DebouncedTaskRunner<String> compositionDocumentLoader;
 
     private boolean updatingSuggestions;
 
@@ -39,6 +40,7 @@ public class RegistersController {
         this.itemSuggestionsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.millis(250));
         this.lotSuggestionsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.millis(250));
         this.searchLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
+        this.compositionDocumentLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
 
         bindActions();
     }
@@ -159,14 +161,31 @@ public class RegistersController {
 
 
     private void generateCompositionDocument() {
+        String itemCode = getEditorText(view.getArticleComboBox());
+        String lotCode = getEditorText(view.getLotComboBox());
+        itemSuggestionsLoader.cancel();
+        lotSuggestionsLoader.cancel();
+        compositionDocumentLoader.runNow(
+                () -> documentService.generateCompositionDocument(itemCode, lotCode),
+                view::showDocumentGenerationLoading,
+                this::openGeneratedDocument,
+                error -> view.showDocumentGenerationError(documentErrorMessage(error))
+        );
+    }
+
+    private String documentErrorMessage(Throwable error) {
+        if (error instanceof IllegalArgumentException && error.getMessage() != null) {
+            return error.getMessage();
+        }
+        return "Errore durante la generazione del documento.";
+    }
+
+    private void openGeneratedDocument(String documentPath) {
         try {
-            String documentPath = documentService.generateCompositionDocument(
-                    getEditorText(view.getArticleComboBox()),
-                    getEditorText(view.getLotComboBox())
-            );
             documentBrowserService.openDocument(documentPath);
-        } catch (IllegalArgumentException ex) {
-            view.getCompositionSummaryArea().setText(ex.getMessage());
+            view.showDocumentGenerationSuccess();
+        } catch (IllegalArgumentException exception) {
+            view.showDocumentGenerationError(exception.getMessage());
         }
     }
 
@@ -187,7 +206,7 @@ public class RegistersController {
         itemSuggestionsLoader.cancel();
         lotSuggestionsLoader.cancel();
         searchLoader.cancel();
-        documentService.close();
+        compositionDocumentLoader.cancel();
     }
 
     public RegistersView getView() {

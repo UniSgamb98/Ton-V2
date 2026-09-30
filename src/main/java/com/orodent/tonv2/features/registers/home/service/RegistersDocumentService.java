@@ -1,5 +1,14 @@
 package com.orodent.tonv2.features.registers.home.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.BlankModelLayerRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionLayerIngredientRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ItemRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.LineRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.LotRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.PowderRepositoryImpl;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
 import com.orodent.tonv2.core.database.model.Lot;
@@ -22,61 +31,23 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-public class RegistersDocumentService implements AutoCloseable {
+public class RegistersDocumentService {
 
-    private final Connection connection;
-    private final ItemRepository itemRepository;
-    private final LotRepository lotRepository;
-    private final LineRepository lineRepository;
+    private final ConnectionProvider connectionProvider;
     private final TemplateEditorService templateEditorService;
-    private final BatchProductionDocumentParamsService batchDocumentParamsService;
 
-    public RegistersDocumentService(Connection connection,
-                                    ItemRepository itemRepository,
-                                    LotRepository lotRepository,
-                                    LineRepository lineRepository,
-                                    TemplateEditorService templateEditorService,
-                                    BatchProductionDocumentParamsService batchDocumentParamsService) {
-        this.connection = connection;
-        this.itemRepository = itemRepository;
-        this.lotRepository = lotRepository;
-        this.lineRepository = lineRepository;
+    public RegistersDocumentService(ConnectionProvider connectionProvider,
+                                    TemplateEditorService templateEditorService) {
+        this.connectionProvider = connectionProvider;
         this.templateEditorService = templateEditorService;
-        this.batchDocumentParamsService = batchDocumentParamsService;
     }
 
     public String generateCompositionDocument(String itemCodeRaw, String lotCodeRaw) {
         String itemCode = normalize(itemCodeRaw, "Inserisci un codice articolo valido.");
         String lotCode = normalize(lotCodeRaw, "Inserisci un codice lotto valido.");
 
-        Item selectedItem = itemRepository.findByCode(itemCode);
-        if (selectedItem == null) {
-            throw new IllegalArgumentException("Articolo non trovato: " + itemCode);
-        }
-
-        Lot lot = lotRepository.findByCodeAndItem(lotCode, selectedItem.id());
-        if (lot == null) {
-            throw new IllegalArgumentException("Lotto non trovato per l'articolo selezionato: " + lotCode);
-        }
-
-        ProductionOrderSnapshot orderSnapshot = findProductionOrderForItemAndFiring(selectedItem.id(), lot.firingId());
-        List<BatchProductionService.ProductionPlanLine> planLines = findProductionPlanLines(orderSnapshot.productionOrderId());
-
-        if (planLines.isEmpty()) {
-            throw new IllegalArgumentException("Nessuna riga di produzione trovata per l'ordine #" + orderSnapshot.productionOrderId() + ".");
-        }
-
-        Line line = lineRepository.findByProductId(orderSnapshot.productId()).stream()
-                .findFirst()
-                .orElse(new Line(0, "", orderSnapshot.productId()));
-
-        Map<String, Object> params = batchDocumentParamsService.buildParams(
-                BatchProductionDocumentParamsService.ParamsRequest.real(
-                        line,
-                        orderSnapshot.notes(),
-                        planLines
-                )
-        );
+        Map<String, Object> params = connectionProvider.withConnection(connection ->
+                buildDocumentParams(connection, itemCode, lotCode));
 
         String templateName = resolveCompositionTemplateName();
         String templateText = templateEditorService.getTemplateContentByName(templateName);
@@ -99,6 +70,56 @@ public class RegistersDocumentService implements AutoCloseable {
         }
     }
 
+    private Map<String, Object> buildDocumentParams(Connection connection, String itemCode, String lotCode) {
+        ItemRepository itemRepository = new ItemRepositoryImpl(connection);
+        LotRepository lotRepository = new LotRepositoryImpl(connection);
+        LineRepository lineRepository = new LineRepositoryImpl(connection);
+
+        Item selectedItem = itemRepository.findByCode(itemCode);
+        if (selectedItem == null) {
+            throw new IllegalArgumentException("Articolo non trovato: " + itemCode);
+        }
+
+        Lot lot = lotRepository.findByCodeAndItem(lotCode, selectedItem.id());
+        if (lot == null) {
+            throw new IllegalArgumentException("Lotto non trovato per l'articolo selezionato: " + lotCode);
+        }
+
+        ProductionOrderSnapshot orderSnapshot = findProductionOrderForItemAndFiring(
+                connection,
+                selectedItem.id(),
+                lot.firingId()
+        );
+        List<BatchProductionService.ProductionPlanLine> planLines = findProductionPlanLines(
+                connection,
+                itemRepository,
+                orderSnapshot.productionOrderId()
+        );
+
+        if (planLines.isEmpty()) {
+            throw new IllegalArgumentException("Nessuna riga di produzione trovata per l'ordine #" + orderSnapshot.productionOrderId() + ".");
+        }
+
+        Line line = lineRepository.findByProductId(orderSnapshot.productId()).stream()
+                .findFirst()
+                .orElse(new Line(0, "", orderSnapshot.productId()));
+        BatchProductionDocumentParamsService paramsService = new BatchProductionDocumentParamsService(
+                new CompositionRepositoryImpl(connection),
+                new BlankModelRepositoryImpl(connection),
+                new BlankModelLayerRepositoryImpl(connection),
+                new CompositionLayerIngredientRepositoryImpl(connection),
+                new PowderRepositoryImpl(connection),
+                itemRepository,
+                lineRepository
+        );
+
+        return paramsService.buildParams(BatchProductionDocumentParamsService.ParamsRequest.real(
+                line,
+                orderSnapshot.notes(),
+                planLines
+        ));
+    }
+
     private String resolveCompositionTemplateName() {
         String lastTemplateName = templateEditorService.getLastBatchTemplateName();
         if (lastTemplateName != null && !lastTemplateName.isBlank()) {
@@ -112,7 +133,9 @@ public class RegistersDocumentService implements AutoCloseable {
                 .orElseThrow(() -> new IllegalArgumentException("Nessun template composizione disponibile (preset '" + TemplatePresetCodes.PRODUCTION + "')."));
     }
 
-    private ProductionOrderSnapshot findProductionOrderForItemAndFiring(int itemId, int firingId) {
+    private ProductionOrderSnapshot findProductionOrderForItemAndFiring(Connection connection,
+                                                                        int itemId,
+                                                                        int firingId) {
         String sql = """
                 SELECT po.id, po.product_id, po.notes
                 FROM production_order po
@@ -143,7 +166,9 @@ public class RegistersDocumentService implements AutoCloseable {
         throw new IllegalArgumentException("Nessun production_order trovato per item/lot selezionati.");
     }
 
-    private List<BatchProductionService.ProductionPlanLine> findProductionPlanLines(int productionOrderId) {
+    private List<BatchProductionService.ProductionPlanLine> findProductionPlanLines(Connection connection,
+                                                                                    ItemRepository itemRepository,
+                                                                                    int productionOrderId) {
         String sql = """
                 SELECT pol.item_id, pol.quantity, po.composition_id
                 FROM production_order_line pol
@@ -181,17 +206,6 @@ public class RegistersDocumentService implements AutoCloseable {
             throw new IllegalArgumentException(errorMessage);
         }
         return normalized;
-    }
-
-    @Override
-    public void close() {
-        try {
-            if (!connection.isClosed()) {
-                connection.close();
-            }
-        } catch (SQLException exception) {
-            throw new RuntimeException("Errore durante la chiusura della connessione dei registri.", exception);
-        }
     }
 
     private record ProductionOrderSnapshot(int productionOrderId, int productId, String notes) {

@@ -12,6 +12,7 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -73,6 +74,8 @@ public class RegistersView extends VBox {
 
         buildCompositionDocumentButton = new Button("Rigenera documento composizione");
         buildFiringDocumentButton = new Button("Rigenera documento firing");
+        buildFiringDocumentButton.setDisable(true);
+        buildFiringDocumentButton.setTooltip(new Tooltip("Funzionalità non disponibile"));
         HBox actionsBox = new HBox(12, buildCompositionDocumentButton, buildFiringDocumentButton);
 
         getChildren().addAll(header, filtersBox, statusBox, separator, historyTabs, actionsBox);
@@ -138,18 +141,14 @@ public class RegistersView extends VBox {
     }
 
     public void showSearchLoading() {
-        searchButton.setDisable(true);
-        articleComboBox.setDisable(true);
-        lotComboBox.setDisable(true);
+        setPrimaryActionsDisabled(true);
         progressIndicator.setVisible(true);
         progressIndicator.setManaged(true);
         showStatus("Ricerca in corso...", false);
     }
 
     public void showSearchResult(RegistersSearchService.SearchResult result) {
-        searchButton.setDisable(false);
-        articleComboBox.setDisable(false);
-        lotComboBox.setDisable(false);
+        setPrimaryActionsDisabled(false);
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
         compositionSummaryArea.setText(result.compositionOutput());
@@ -159,9 +158,7 @@ public class RegistersView extends VBox {
     }
 
     public void showSearchError(String message) {
-        searchButton.setDisable(false);
-        articleComboBox.setDisable(false);
-        lotComboBox.setDisable(false);
+        setPrimaryActionsDisabled(false);
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
         showStatus(message, true);
@@ -171,6 +168,37 @@ public class RegistersView extends VBox {
         if (!searchButton.isDisabled()) {
             showStatus("Errore durante il caricamento dei suggerimenti.", true);
         }
+    }
+
+    public void showDocumentGenerationLoading() {
+        setPrimaryActionsDisabled(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        showStatus("Generazione documento in corso...", false);
+    }
+
+    public void showDocumentGenerationSuccess() {
+        setPrimaryActionsDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        showStatus("Documento generato e aperto nel browser.", false);
+    }
+
+    public void showDocumentGenerationError(String message) {
+        setPrimaryActionsDisabled(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        String safeMessage = message == null || message.isBlank()
+                ? "Errore durante la generazione del documento."
+                : message;
+        showStatus(safeMessage, true);
+    }
+
+    private void setPrimaryActionsDisabled(boolean disabled) {
+        searchButton.setDisable(disabled);
+        articleComboBox.setDisable(disabled);
+        lotComboBox.setDisable(disabled);
+        buildCompositionDocumentButton.setDisable(disabled);
     }
 
     private void showStatus(String message, boolean error) {

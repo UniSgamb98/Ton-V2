@@ -121,7 +121,9 @@ continuano temporaneamente a usare la connessione legacy sul solo thread JavaFX.
 La prima migrazione successiva agli archivi riguarda Registri: suggerimenti e
 ricerca completa vengono eseguiti in background con connessioni scoped. La
 pagina espone inoltre un cleanup che cancella i loader quando si cambia scena;
-la generazione dei documenti rimane un intervento separato.
+anche la generazione del documento composizione viene eseguita in background e
+costruisce tutte le repository dentro una connessione scoped. Il pulsante del
+documento firing resta disabilitato finché la funzione non verrà implementata.
 
 ## Giudizio complessivo
 

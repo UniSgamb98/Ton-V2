@@ -236,26 +236,12 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.templateEditorService()
         );
 
-        BatchProductionDocumentParamsService batchParamsService = new BatchProductionDocumentParamsService(
-                app.compositionRepo(),
-                app.blankModelRepo(),
-                app.blankModelLayerRepo(),
-                app.compositionLayerIngredientRepo(),
-                app.powderRepo(),
-                app.itemRepo(),
-                app.lineRepo()
-        );
-
         RegistersController controller = new RegistersController(
                 view,
                 searchService,
                 new RegistersDocumentService(
-                        app.database.getConnection(),
-                        app.itemRepo(),
-                        app.lotRepo(),
-                        app.lineRepo(),
-                        app.templateEditorService(),
-                        batchParamsService
+                        app.connectionProvider(),
+                        app.templateEditorService()
                 ),
                 app.documentBrowserService(),
                 app.backgroundExecutor()
