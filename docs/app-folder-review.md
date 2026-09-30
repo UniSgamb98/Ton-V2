@@ -125,10 +125,11 @@ anche la generazione del documento composizione viene eseguita in background e
 costruisce tutte le repository dentro una connessione scoped. Il pulsante del
 documento firing resta disabilitato finché la funzione non verrà implementata.
 
-Produzione Batch è la feature successiva: apertura pagina, linee, template,
-prodotti e item vengono caricati tramite loader cancellabili e connessioni
-scoped. Il salvataggio resta temporaneamente sul percorso legacy finché ordine e
-righe non saranno racchiusi in una singola transazione.
+Produzione Batch carica apertura pagina, linee, template, prodotti e item tramite
+loader cancellabili e connessioni scoped. Anche il salvataggio viene eseguito in
+background: testata e righe dell'ordine condividono una connessione e una singola
+transazione con commit o rollback. La generazione del documento avviene dopo il
+commit e segnala separatamente un proprio eventuale errore.
 
 ## Giudizio complessivo
 

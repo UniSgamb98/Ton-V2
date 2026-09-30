@@ -318,25 +318,11 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showBatchProduction() {
         BatchProductionView view = new BatchProductionView();
         configureHeader(view.getHeader());
-        BatchProductionDocumentParamsService batchDocumentParamsService = new BatchProductionDocumentParamsService(
-                app.compositionRepo(),
-                app.blankModelRepo(),
-                app.blankModelLayerRepo(),
-                app.compositionLayerIngredientRepo(),
-                app.powderRepo(),
-                app.itemRepo(),
-                app.lineRepo()
-        );
         BatchProductionController controller = new BatchProductionController(
                 view,
                 new BatchProductionService(
-                        app.itemRepo(),
-                        app.lineRepo(),
-                        app.compositionRepo(),
-                        app.productRepo(),
-                        app.productionRepo(),
-                        app.templateEditorService(),
-                        batchDocumentParamsService
+                        app.connectionProvider(),
+                        app.templateEditorService()
                 ),
                 new BatchProductionReadService(
                         app.connectionProvider(),

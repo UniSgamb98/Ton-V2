@@ -23,6 +23,7 @@ public class BatchProductionController {
     private final DebouncedTaskRunner<BatchProductionReadService.InitialData> initialDataLoader;
     private final DebouncedTaskRunner<List<Product>> productsLoader;
     private final DebouncedTaskRunner<List<Item>> itemsLoader;
+    private final DebouncedTaskRunner<ProductionCompletion> productionLoader;
 
     public BatchProductionController(BatchProductionView view,
                                      BatchProductionService service,
@@ -36,6 +37,7 @@ public class BatchProductionController {
         this.initialDataLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.productsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.itemsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
+        this.productionLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
 
         setupActions();
     }
@@ -103,34 +105,50 @@ public class BatchProductionController {
         try {
             Line line = view.getLineSelector().getValue();
             List<BatchProductionService.ProductionRequestLine> requestLines = collectLines();
+            String notes = view.getNotesArea().getText();
+            String templateName = view.getTemplateSelector().getValue();
 
-            BatchProductionService.BatchResult result = service.produce(
-                    line,
-                    requestLines,
-                    view.getNotesArea().getText()
-            );
-
-            String documentPath = service.generateDocumentIfTemplateSelected(
-                    view.getTemplateSelector().getValue(),
-                    line,
-                    view.getNotesArea().getText(),
-                    result.plan()
-            );
-
-            if (documentPath != null) {
-                documentBrowserService.openDocument(documentPath);
-            }
-
-            view.setFeedback(
-                    "Batch salvato. Ordine #" + result.persistResult().productionOrderId() +
-                            " con " + result.plan().lines().size() + " righe, quantità totale " + result.persistResult().totalQuantity() + "." +
-                            (documentPath == null ? "" : " Documento generato e aperto nel browser: " + documentPath),
-                    false
+            productionLoader.runNow(
+                    () -> produceAndGenerateDocument(line, requestLines, notes, templateName),
+                    view::showProductionSaving,
+                    completion -> {
+                        view.showLoadSuccess();
+                        if (completion.documentPath() != null) {
+                            documentBrowserService.openDocument(completion.documentPath());
+                        }
+                        BatchProductionService.BatchResult result = completion.result();
+                        String suffix = completion.documentError() == null
+                                ? (completion.documentPath() == null ? "" : " Documento generato e aperto nel browser: " + completion.documentPath())
+                                : " Produzione salvata, ma il documento non è stato generato: " + completion.documentError();
+                        view.setFeedback(
+                                "Batch salvato. Ordine #" + result.persistResult().productionOrderId() +
+                                        " con " + result.plan().lines().size() + " righe, quantità totale " +
+                                        result.persistResult().totalQuantity() + "." + suffix,
+                                completion.documentError() != null
+                        );
+                    },
+                    error -> view.showLoadError(error instanceof IllegalArgumentException
+                            ? error.getMessage()
+                            : "Errore durante il salvataggio batch.")
             );
         } catch (IllegalArgumentException ex) {
             view.setFeedback(ex.getMessage(), true);
-        } catch (Exception ex) {
-            view.setFeedback("Errore durante il salvataggio batch.", true);
+        }
+    }
+
+    private ProductionCompletion produceAndGenerateDocument(
+            Line line,
+            List<BatchProductionService.ProductionRequestLine> requestLines,
+            String notes,
+            String templateName) {
+        BatchProductionService.BatchResult result = service.produce(line, requestLines, notes);
+        try {
+            String documentPath = service.generateDocumentIfTemplateSelected(
+                    templateName, line, notes, result.plan()
+            );
+            return new ProductionCompletion(result, documentPath, null);
+        } catch (RuntimeException exception) {
+            return new ProductionCompletion(result, null, exception.getMessage());
         }
     }
 
@@ -166,5 +184,11 @@ public class BatchProductionController {
         initialDataLoader.cancel();
         productsLoader.cancel();
         itemsLoader.cancel();
+        productionLoader.cancel();
+    }
+
+    private record ProductionCompletion(BatchProductionService.BatchResult result,
+                                        String documentPath,
+                                        String documentError) {
     }
 }

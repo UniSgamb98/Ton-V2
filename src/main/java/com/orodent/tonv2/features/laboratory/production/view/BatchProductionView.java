@@ -190,6 +190,10 @@ public class BatchProductionView extends VBox {
         setLoadingState("Caricamento item...");
     }
 
+    public void showProductionSaving() {
+        setLoadingState("Salvataggio produzione...");
+    }
+
     public void showLoadSuccess() {
         setControlsDisabled(false);
         progressIndicator.setVisible(false);

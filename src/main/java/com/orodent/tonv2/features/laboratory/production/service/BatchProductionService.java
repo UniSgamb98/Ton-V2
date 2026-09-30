@@ -1,15 +1,21 @@
 package com.orodent.tonv2.features.laboratory.production.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.BlankModelLayerRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.BlankModelRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionLayerIngredientRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ItemRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.LineRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.PowderRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ProductionRepositoryImpl;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
-import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LineRepository;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
-import com.orodent.tonv2.core.database.repository.ProductRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
-import com.orodent.tonv2.features.documents.template.service.TemplatePresetCodes;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,70 +28,25 @@ import java.util.Optional;
 
 public class BatchProductionService {
 
-    private final ItemRepository itemRepo;
-    private final LineRepository lineRepo;
-    private final CompositionRepository compositionRepo;
-    private final ProductRepository productRepo;
-    private final ProductionRepository productionRepo;
+    private final ConnectionProvider connectionProvider;
     private final TemplateEditorService templateEditorService;
-    private final BatchProductionDocumentParamsService documentParamsService;
 
-    public BatchProductionService(ItemRepository itemRepo,
-                                  LineRepository lineRepo,
-                                  CompositionRepository compositionRepo,
-                                  ProductRepository productRepo,
-                                  ProductionRepository productionRepo,
-                                  TemplateEditorService templateEditorService,
-                                  BatchProductionDocumentParamsService documentParamsService) {
-        this.itemRepo = itemRepo;
-        this.lineRepo = lineRepo;
-        this.compositionRepo = compositionRepo;
-        this.productRepo = productRepo;
-        this.productionRepo = productionRepo;
+    public BatchProductionService(ConnectionProvider connectionProvider,
+                                  TemplateEditorService templateEditorService) {
+        this.connectionProvider = connectionProvider;
         this.templateEditorService = templateEditorService;
-        this.documentParamsService = documentParamsService;
-    }
-
-    public List<Line> findAllLines() {
-        Map<String, Line> byName = new LinkedHashMap<>();
-        for (Line line : lineRepo.findAll()) {
-            byName.putIfAbsent(line.name(), line);
-        }
-        return new ArrayList<>(byName.values());
-    }
-
-    public List<Product> findProductsByLineName(String lineName) {
-        if (lineName == null || lineName.isBlank()) {
-            return List.of();
-        }
-
-        Map<Integer, Product> productsById = new LinkedHashMap<>();
-        for (Line line : lineRepo.findAll()) {
-            if (!lineName.equals(line.name())) {
-                continue;
-            }
-
-            Product product = productRepo.findById(line.productId());
-            if (product != null) {
-                productsById.putIfAbsent(product.id(), product);
-            }
-        }
-
-        return new ArrayList<>(productsById.values());
-    }
-
-    public Product findProductById(int productId) {
-        return productRepo.findById(productId);
-    }
-
-    public List<Item> findItemsByProduct(int productId) {
-        return itemRepo.findByProduct(productId);
     }
 
     public BatchResult produce(Line line, List<ProductionRequestLine> requestLines, String notes) {
-        ProductionPlan plan = buildPlan(requestLines, line);
-        PersistResult persistResult = persistPlan(plan, LocalDate.now(), notes);
-        return new BatchResult(plan, persistResult);
+        return connectionProvider.withTransaction(connection -> {
+            ItemRepository itemRepo = new ItemRepositoryImpl(connection);
+            LineRepository lineRepo = new LineRepositoryImpl(connection);
+            CompositionRepository compositionRepo = new CompositionRepositoryImpl(connection);
+            ProductionRepository productionRepo = new ProductionRepositoryImpl(connection);
+            ProductionPlan plan = buildPlan(requestLines, line, itemRepo, lineRepo, compositionRepo);
+            PersistResult persistResult = persistPlan(plan, LocalDate.now(), notes, productionRepo);
+            return new BatchResult(plan, persistResult);
+        });
     }
 
     public String generateDocumentIfTemplateSelected(String selectedTemplateName,
@@ -102,12 +63,16 @@ public class BatchProductionService {
         }
 
         templateEditorService.setLastBatchTemplateName(selectedTemplateName);
-        Map<String, Object> params = documentParamsService.buildParams(
-                BatchProductionDocumentParamsService.ParamsRequest.real(
-                        line,
-                        notes,
-                        plan.lines()
-                )
+        Map<String, Object> params = connectionProvider.withConnection(connection ->
+                new BatchProductionDocumentParamsService(
+                        new CompositionRepositoryImpl(connection),
+                        new BlankModelRepositoryImpl(connection),
+                        new BlankModelLayerRepositoryImpl(connection),
+                        new CompositionLayerIngredientRepositoryImpl(connection),
+                        new PowderRepositoryImpl(connection),
+                        new ItemRepositoryImpl(connection),
+                        new LineRepositoryImpl(connection)
+                ).buildParams(BatchProductionDocumentParamsService.ParamsRequest.real(line, notes, plan.lines()))
         );
 
         String payloadJson = templateEditorService.toJson(params);
@@ -125,23 +90,15 @@ public class BatchProductionService {
         }
     }
 
-    public List<String> findTemplateNames() {
-        return templateEditorService.getSavedTemplates().stream()
-                .filter(template -> TemplatePresetCodes.PRODUCTION.equals(template.presetCode()))
-                .map(TemplateEditorService.TemplateSnapshot::name)
-                .toList();
-    }
-
-    public String getLastTemplateName() {
-        return templateEditorService.getLastBatchTemplateName();
-    }
-
     public void setLastTemplateName(String templateName) {
         templateEditorService.setLastBatchTemplateName(templateName);
     }
 
     private ProductionPlan buildPlan(List<ProductionRequestLine> requestLines,
-                                     Line line) {
+                                     Line line,
+                                     ItemRepository itemRepo,
+                                     LineRepository lineRepo,
+                                     CompositionRepository compositionRepo) {
         if (line == null) {
             throw new IllegalArgumentException("Linea di produzione non selezionata.");
         }
@@ -206,7 +163,8 @@ public class BatchProductionService {
 
     private PersistResult persistPlan(ProductionPlan plan,
                                       LocalDate productionDate,
-                                      String notes) {
+                                      String notes,
+                                      ProductionRepository productionRepo) {
         int orderId = productionRepo.insertProductionOrder(
                 plan.line().productId(),
                 plan.compositionId(),

@@ -16,6 +16,26 @@ public interface ConnectionProvider {
         }
     }
 
+    default <T> T withTransaction(ConnectionWork<T> work) {
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                T result = work.execute(connection);
+                connection.commit();
+                return result;
+            } catch (SQLException | RuntimeException | Error exception) {
+                try {
+                    connection.rollback();
+                } catch (SQLException rollbackException) {
+                    exception.addSuppressed(rollbackException);
+                }
+                throw exception;
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("Errore durante la transazione sul database.", exception);
+        }
+    }
+
     @FunctionalInterface
     interface ConnectionWork<T> {
         T execute(Connection connection) throws SQLException;
