@@ -8,6 +8,8 @@ import javafx.scene.paint.Color;
 import java.util.List;
 
 public class DiskModelPreviewView extends VBox {
+    private static final double LAYERS_PREVIEW_HEIGHT = 340;
+    private static final double OVERMATERIAL_PREVIEW_HEIGHT = 32;
 
     private final VBox stack = new VBox(2);
 
@@ -30,15 +32,23 @@ public class DiskModelPreviewView extends VBox {
     public void update(double superiorOvermaterialMm, double inferiorOvermaterialMm, List<Double> layerPercentages) {
         stack.getChildren().clear();
 
-        addSegment("Over sup. " + fmt(superiorOvermaterialMm) + "mm", 18, Color.web("#f8b4b4"));
+        addSegment(
+                "Over sup. " + fmt(superiorOvermaterialMm) + "mm",
+                OVERMATERIAL_PREVIEW_HEIGHT,
+                Color.web("#f8b4b4")
+        );
 
         for (int i = 0; i < layerPercentages.size(); i++) {
             double pct = layerPercentages.get(i);
-            double h = Math.max(12, Math.min(60, pct * 0.9));
+            double h = Math.max(26, Math.min(280, pct / 100.0 * LAYERS_PREVIEW_HEIGHT));
             addSegment("Layer " + (i + 1) + "  " + fmt(pct) + "%", h, pickColor(i));
         }
 
-        addSegment("Over inf. " + fmt(inferiorOvermaterialMm) + "mm", 18, Color.web("#f8b4b4"));
+        addSegment(
+                "Over inf. " + fmt(inferiorOvermaterialMm) + "mm",
+                OVERMATERIAL_PREVIEW_HEIGHT,
+                Color.web("#f8b4b4")
+        );
     }
 
     private void addSegment(String text, double height, Color color) {

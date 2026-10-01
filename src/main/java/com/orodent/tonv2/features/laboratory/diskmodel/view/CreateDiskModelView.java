@@ -27,7 +27,7 @@ public class CreateDiskModelView extends VBox {
     private final TextField gramsPerMmField = new TextField();
     private final TextField numLayersField = new TextField();
 
-    private final VBox layersPercentagesBox = new VBox(8);
+    private final FlowPane layersPercentagesBox = new FlowPane(8, 8);
     private final Label layersSummaryLabel = new Label("Somma layer: 0%");
 
     private final VBox rangesBox = new VBox(8);
@@ -75,6 +75,8 @@ public class CreateDiskModelView extends VBox {
         productionGrid.add(createField("Peso per millimetro", "g/mm", gramsPerMmField), 1, 1);
 
         layersPercentagesBox.getStyleClass().add("layer-list");
+        layersPercentagesBox.setPrefWrapLength(480);
+        layersPercentagesBox.setAlignment(Pos.TOP_LEFT);
         layersSummaryLabel.getStyleClass().addAll("layer-total", "layer-total-invalid");
         VBox layersContent = new VBox(12,
                 createField("Numero strati", null, numLayersField),
@@ -100,7 +102,6 @@ public class CreateDiskModelView extends VBox {
         );
         leftBox.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(leftBox, Priority.ALWAYS);
-        VBox.setVgrow(layersPercentagesBox, Priority.NEVER);
 
         VBox previewCard = new VBox(14, previewView);
         previewCard.getStyleClass().add("preview-card");
@@ -482,6 +483,9 @@ public class CreateDiskModelView extends VBox {
             );
             container.setAlignment(Pos.CENTER_LEFT);
             container.getStyleClass().add("layer-row");
+            container.setMinWidth(230);
+            container.setPrefWidth(230);
+            container.setMaxWidth(230);
             HBox.setHgrow(percentageField, Priority.ALWAYS);
         }
     }

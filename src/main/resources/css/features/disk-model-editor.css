@@ -88,7 +88,9 @@
 }
 
 .layer-list {
-    -fx-spacing: 8;
+    -fx-hgap: 8;
+    -fx-vgap: 8;
+    -fx-alignment: top-left;
 }
 
 .layer-row,
