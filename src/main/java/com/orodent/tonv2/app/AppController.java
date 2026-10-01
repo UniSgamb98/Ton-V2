@@ -19,8 +19,6 @@ import com.orodent.tonv2.features.documents.template.controller.TemplateEditorCo
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
-import com.orodent.tonv2.features.inventory.controller.InventoryController;
-import com.orodent.tonv2.features.inventory.view.InventoryView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
@@ -177,15 +175,6 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         );
     }
 
-    public void showInventory() {
-        InventoryView view = new InventoryView();
-        configureHeader(view.getHeader());
-        new InventoryController(view, app.itemRepo(), app.depotRepo(), app.stockRepo(), app.lotRepo());
-
-        showScene(createSceneWithCSS(view));
-        stage.setTitle("TON - Inventario");
-    }
-
     public void showCubage() {
         CubageView view = new CubageView();
         configureHeader(view.getHeader());
@@ -199,17 +188,16 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     public void showCubageCreation() {
         CubageCreationView view = new CubageCreationView();
         configureHeader(view.getHeader());
-        new CubageCreationController(
+        CubageCreationController controller = new CubageCreationController(
                 view,
-                new CubageCreationService(
-                        app.payloadContractRepo(),
-                        app.payloadContractFieldRepo()
-                ),
-                new CubageFormulaSetPersistenceService(app.database.getConnection())
+                new CubageCreationService(app.connectionProvider()),
+                new CubageFormulaSetPersistenceService(app.connectionProvider()),
+                app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Gestione Calcoli Cubaggio");
+        controller.loadInitialData();
     }
 
     @Override
@@ -481,7 +469,6 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
 
     private void configureHeader(AppHeader header) {
         header.getHomeButton().setOnAction(e -> showHome());
-        header.getInventoryButton().setOnAction( e -> showInventory());
         header.getLaboratoryButton().setOnAction(e -> showLaboratory());
         header.getCubageButton().setOnAction(e -> showCubage());
         header.getDocumentsButton().setOnAction(e -> showDocuments());

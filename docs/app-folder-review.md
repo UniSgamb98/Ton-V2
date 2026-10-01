@@ -148,6 +148,16 @@ background e salva modello, layer, fasce e associazioni in una singola transazio
 L'editor Composizione carica dati iniziali, linee e versioni in background; anche
 il salvataggio usa una connessione scoped e preserva il lifecycle del dirty state.
 
+La Gestione Calcoli Cubaggio carica set, payload, versioni e anteprime in
+background e salva ogni nuova versione in una transazione scoped. Il controller
+annulla i loader quando si lascia la pagina e la view espone stati espliciti di
+caricamento, validazione, salvataggio ed errore.
+
+La vecchia importazione inventario basata su CSV è stata rimossa insieme alla
+schermata Inventario: `CsvPathsLoader`, `CsvPaths`, `CsvParser`,
+`MagazzinoCsvParser` e la relativa voce di navigazione non facevano più parte del
+flusso applicativo corrente.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di

@@ -1,5 +1,7 @@
 package com.orodent.tonv2.features.cubage.creation.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -10,10 +12,10 @@ import java.util.List;
 
 public class CubageFormulaSetPersistenceService {
 
-    private final Connection connection;
+    private final ConnectionProvider connectionProvider;
 
-    public CubageFormulaSetPersistenceService(Connection connection) {
-        this.connection = connection;
+    public CubageFormulaSetPersistenceService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
     public SaveResult save(CubageCreationService.FormulaCompilation compilation) {
@@ -24,61 +26,38 @@ public class CubageFormulaSetPersistenceService {
             throw new IllegalArgumentException("Impossibile salvare: output richiesti mancanti.");
         }
 
-        boolean originalAutoCommit;
-        try {
-            originalAutoCommit = connection.getAutoCommit();
-            connection.setAutoCommit(false);
-        } catch (SQLException e) {
-            throw new RuntimeException("Errore inizializzazione transazione salvataggio formule.", e);
-        }
+        return connectionProvider.withTransaction(connection -> {
+            int nextVersion = findNextVersionByCode(connection, compilation.formulaSetName());
+            int formulaSetId = insertFormulaSet(connection, compilation.formulaSetName(), nextVersion);
 
-        try {
-            int nextVersion = findNextVersionByCode(compilation.formulaSetName());
-            int formulaSetId = insertFormulaSet(compilation.formulaSetName(), nextVersion);
-
-            linkFormulaSetToPayload(formulaSetId, compilation.selectedPayload().payloadContractId());
+            linkFormulaSetToPayload(connection, formulaSetId, compilation.selectedPayload().payloadContractId());
 
             int orderIndex = 0;
             for (CubageCreationService.FormulaDefinition formula : compilation.formulas()) {
-                int formulaId = insertFormula(formulaSetId, formula.variable(), formula.expression(), orderIndex++);
+                int formulaId = insertFormula(connection, formulaSetId, formula.variable(), formula.expression(), orderIndex++);
                 for (String inputFieldKey : formula.inputDependencies()) {
-                    insertFormulaInput(formulaId, inputFieldKey);
+                    insertFormulaInput(connection, formulaId, inputFieldKey);
                 }
             }
-
-            connection.commit();
             return new SaveResult(formulaSetId, nextVersion);
-        } catch (Exception e) {
-            try {
-                connection.rollback();
-            } catch (SQLException rollbackException) {
-                e.addSuppressed(rollbackException);
-            }
-            throw new RuntimeException("Errore salvataggio set di calcolo.", e);
-        } finally {
-            try {
-                connection.setAutoCommit(originalAutoCommit);
-            } catch (SQLException e) {
-                throw new RuntimeException("Errore ripristino auto-commit dopo salvataggio formule.", e);
-            }
-        }
+        });
     }
 
     public List<String> loadFormulaSetCodes() {
         String sql = "SELECT DISTINCT code FROM formula_set ORDER BY code ASC";
-        try (PreparedStatement ps = connection.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            List<String> values = new ArrayList<>();
-            while (rs.next()) {
-                values.add(rs.getString("code"));
+        return connectionProvider.withConnection(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(sql);
+                 ResultSet rs = ps.executeQuery()) {
+                List<String> values = new ArrayList<>();
+                while (rs.next()) {
+                    values.add(rs.getString("code"));
+                }
+                return values;
             }
-            return values;
-        } catch (SQLException e) {
-            throw new RuntimeException("Errore caricamento codici formula_set.", e);
-        }
+        });
     }
 
-    private int findNextVersionByCode(String code) throws SQLException {
+    private int findNextVersionByCode(Connection connection, String code) throws SQLException {
         String sql = "SELECT COALESCE(MAX(version), 0) + 1 AS next_version FROM formula_set WHERE code = ?";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, code);
@@ -91,7 +70,7 @@ public class CubageFormulaSetPersistenceService {
         }
     }
 
-    private int insertFormulaSet(String code, int version) throws SQLException {
+    private int insertFormulaSet(Connection connection, String code, int version) throws SQLException {
         String sql = "INSERT INTO formula_set (code, version) VALUES (?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, code);
@@ -107,7 +86,7 @@ public class CubageFormulaSetPersistenceService {
         }
     }
 
-    private void linkFormulaSetToPayload(int formulaSetId, int payloadContractId) throws SQLException {
+    private void linkFormulaSetToPayload(Connection connection, int formulaSetId, int payloadContractId) throws SQLException {
         String sql = "INSERT INTO formula_set_payload_contract (formula_set_id, payload_contract_id) VALUES (?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, formulaSetId);
@@ -116,7 +95,7 @@ public class CubageFormulaSetPersistenceService {
         }
     }
 
-    private int insertFormula(int formulaSetId, String formulaKey, String expression, int orderIndex) throws SQLException {
+    private int insertFormula(Connection connection, int formulaSetId, String formulaKey, String expression, int orderIndex) throws SQLException {
         String sql = "INSERT INTO formula_set_formula (formula_set_id, formula_key, formula_expression, order_index) VALUES (?, ?, ?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, formulaSetId);
@@ -134,7 +113,7 @@ public class CubageFormulaSetPersistenceService {
         }
     }
 
-    private void insertFormulaInput(int formulaId, String fieldKey) throws SQLException {
+    private void insertFormulaInput(Connection connection, int formulaId, String fieldKey) throws SQLException {
         String sql = "INSERT INTO formula_set_formula_input (formula_id, field_key) VALUES (?, ?)";
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, formulaId);

@@ -1,9 +1,10 @@
 package com.orodent.tonv2.features.cubage.creation.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.PayloadContractFieldRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.PayloadContractRepositoryImpl;
 import com.orodent.tonv2.core.database.model.PayloadContract;
 import com.orodent.tonv2.core.database.model.PayloadContractField;
-import com.orodent.tonv2.core.database.repository.PayloadContractFieldRepository;
-import com.orodent.tonv2.core.database.repository.PayloadContractRepository;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -20,17 +21,15 @@ public class CubageCreationService {
     private static final String INPUT_ROLE = "INPUT";
     private static final String OUTPUT_ROLE = "OUTPUT";
 
-    private final PayloadContractRepository payloadContractRepository;
-    private final PayloadContractFieldRepository payloadContractFieldRepository;
+    private final ConnectionProvider connectionProvider;
 
-    public CubageCreationService(PayloadContractRepository payloadContractRepository,
-                                 PayloadContractFieldRepository payloadContractFieldRepository) {
-        this.payloadContractRepository = payloadContractRepository;
-        this.payloadContractFieldRepository = payloadContractFieldRepository;
+    public CubageCreationService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
     public List<PayloadOption> getLatestPayloadOptions() {
-        Map<String, List<PayloadContract>> groupedByCode = payloadContractRepository.findAll().stream()
+        Map<String, List<PayloadContract>> groupedByCode = connectionProvider.withConnection(connection ->
+                new PayloadContractRepositoryImpl(connection).findAll()).stream()
                 .collect(Collectors.groupingBy(PayloadContract::contractCode));
 
         return groupedByCode.values().stream()
@@ -46,7 +45,11 @@ public class CubageCreationService {
     }
 
     public List<PayloadOption> getAllVersionsForPayload(String payloadCode) {
-        return payloadContractRepository.findByContractCode(payloadCode).stream()
+        if (payloadCode == null || payloadCode.isBlank()) {
+            return List.of();
+        }
+        return connectionProvider.withConnection(connection ->
+                new PayloadContractRepositoryImpl(connection).findByContractCode(payloadCode)).stream()
                 .map(contract -> new PayloadOption(
                         contract.id(),
                         contract.contractCode(),
@@ -60,7 +63,7 @@ public class CubageCreationService {
             return "Nessun payload selezionato.";
         }
 
-        List<PayloadContractField> fields = payloadContractFieldRepository.findByPayloadContractId(option.payloadContractId());
+        List<PayloadContractField> fields = loadFields(option.payloadContractId());
 
         String fieldsSection;
         if (fields.isEmpty()) {
@@ -113,7 +116,7 @@ public class CubageCreationService {
             return FormulaValidationResult.error("Inserisci almeno una formula.");
         }
 
-        List<PayloadContractField> fields = payloadContractFieldRepository.findByPayloadContractId(selectedPayload.payloadContractId());
+        List<PayloadContractField> fields = loadFields(selectedPayload.payloadContractId());
         Set<String> payloadInputFieldKeys = extractInputFieldKeys(fields);
         List<String> requestedFieldKeys = extractOutputFieldKeys(fields);
 
@@ -160,6 +163,11 @@ public class CubageCreationService {
 
         String summary = buildValidationSummary(formulaSetName, selectedPayload, formulas.size(), selectedOutputs, missingRequested);
         return FormulaValidationResult.success(summary, compilation);
+    }
+
+    private List<PayloadContractField> loadFields(int payloadContractId) {
+        return connectionProvider.withConnection(connection ->
+                new PayloadContractFieldRepositoryImpl(connection).findByPayloadContractId(payloadContractId));
     }
 
     private List<FormulaRow> parseAndValidateFormulas(String formulasText, Set<String> payloadInputFieldKeys) {

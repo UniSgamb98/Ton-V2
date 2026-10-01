@@ -11,8 +11,6 @@ module com.orodent.tonv2 {
     requires freemarker;
 
     // Core
-    exports com.orodent.tonv2.core.csv;
-    exports com.orodent.tonv2.core.csv.parser;
     exports com.orodent.tonv2.core.components;
 
     // App
@@ -21,7 +19,6 @@ module com.orodent.tonv2 {
     // Features
     exports com.orodent.tonv2.core.database;
 
-    opens com.orodent.tonv2.core.csv to com.google.gson;
     exports com.orodent.tonv2.core.database.model;
     exports com.orodent.tonv2.core.database.repository;
 }

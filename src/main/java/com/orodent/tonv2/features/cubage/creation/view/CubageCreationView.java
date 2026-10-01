@@ -8,6 +8,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -28,6 +29,8 @@ public class CubageCreationView extends VBox {
     private final TextArea formulaBuilderArea = new TextArea();
     private final TextArea resultsArea = new TextArea();
     private final Button saveCalculationSetButton = new Button("Salva Set di Calcolo");
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
+    private final Label statusLabel = new Label();
 
     public CubageCreationView() {
         setSpacing(16);
@@ -60,6 +63,12 @@ public class CubageCreationView extends VBox {
         resultsArea.setWrapText(true);
         resultsArea.setText("Nessuna validazione eseguita.");
 
+        progressIndicator.setMaxSize(20, 20);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        statusLabel.setVisible(false);
+        statusLabel.setManaged(false);
+
         VBox leftPanel = buildLeftPanel();
         VBox centerPanel = buildCenterPanel();
         VBox rightPanel = buildRightPanel();
@@ -71,7 +80,7 @@ public class CubageCreationView extends VBox {
         centerPanel.setPrefWidth(420);
         rightPanel.setPrefWidth(320);
 
-        HBox footerActions = new HBox(saveCalculationSetButton);
+        HBox footerActions = new HBox(10, progressIndicator, statusLabel, saveCalculationSetButton);
         footerActions.setAlignment(Pos.CENTER_RIGHT);
 
         getChildren().addAll(
@@ -134,6 +143,66 @@ public class CubageCreationView extends VBox {
 
     public void setLegacyPayloadOptions(ObservableList<CubageCreationService.PayloadOption> options) {
         legacyPayloadSelector.setItems(options);
+    }
+
+    public void showInitialLoading() {
+        setBusy(true, "Caricamento dati di cubaggio...");
+        setInputsDisabled(true);
+    }
+
+    public void showPayloadLoading() {
+        setBusy(true, "Caricamento payload...");
+    }
+
+    public void showSaving() {
+        setBusy(true, "Salvataggio set di calcolo...");
+        setInputsDisabled(true);
+    }
+
+    public void showLoadSuccess() {
+        setBusy(false, "");
+        setInputsDisabled(false);
+    }
+
+    public void showLoadError(String message) {
+        setBusy(false, message);
+        setInputsDisabled(false);
+        setResultsText(message);
+    }
+
+    public void showValidationError(String message) {
+        setBusy(false, "Validazione non superata");
+        setInputsDisabled(false);
+        setResultsText(message);
+    }
+
+    public void showSaveSuccess(String message) {
+        setBusy(false, "Salvataggio completato");
+        setInputsDisabled(false);
+        setResultsText(message);
+    }
+
+    public void showSaveError(String message) {
+        setBusy(false, message);
+        setInputsDisabled(false);
+        setResultsText(message);
+    }
+
+    private void setBusy(boolean busy, String status) {
+        progressIndicator.setVisible(busy);
+        progressIndicator.setManaged(busy);
+        statusLabel.setText(status == null ? "" : status);
+        statusLabel.setVisible(status != null && !status.isBlank());
+        statusLabel.setManaged(statusLabel.isVisible());
+    }
+
+    private void setInputsDisabled(boolean disabled) {
+        calculationSetSelector.setDisable(disabled);
+        payloadSelector.setDisable(disabled);
+        legacyPayloadSelector.setDisable(disabled);
+        selectLegacyPayloadButton.setDisable(disabled);
+        formulaBuilderArea.setDisable(disabled);
+        saveCalculationSetButton.setDisable(disabled);
     }
 
     private VBox buildLeftPanel() {
