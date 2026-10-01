@@ -89,7 +89,7 @@ public class PresinteringService {
                 new FiringRepositoryImpl(connection).findLatestId());
     }
 
-    public Optional<LocalPlanState> loadLocalPlanState() {
+    public synchronized Optional<LocalPlanState> loadLocalPlanState() {
         if (!Files.exists(LOCAL_PLAN_PATH)) {
             return Optional.empty();
         }
@@ -106,7 +106,7 @@ public class PresinteringService {
         }
     }
 
-    public void saveLocalPlanState(LocalPlanState state) {
+    public synchronized void saveLocalPlanState(LocalPlanState state) {
         if (state == null) {
             return;
         }
@@ -120,7 +120,7 @@ public class PresinteringService {
         }
     }
 
-    public void clearLocalPlanState() {
+    public synchronized void clearLocalPlanState() {
         try {
             Files.deleteIfExists(LOCAL_PLAN_PATH);
         } catch (Exception ignored) {

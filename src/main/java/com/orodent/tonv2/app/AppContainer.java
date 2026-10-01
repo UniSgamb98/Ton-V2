@@ -59,12 +59,16 @@ public class AppContainer implements ApplicationInitializer {
 
     @Override
     public void shutdown() {
-        backgroundExecutor.shutdownNow();
+        backgroundExecutor.shutdown();
         try {
+            if (!backgroundExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
+                backgroundExecutor.shutdownNow();
+            }
             if (!backgroundExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
                 System.err.println("Alcune operazioni in background non sono terminate entro il timeout.");
             }
         } catch (InterruptedException exception) {
+            backgroundExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
         database.stop();

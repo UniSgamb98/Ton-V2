@@ -29,12 +29,15 @@ public class PresinteringController {
     private final DebouncedTaskRunner<InitialPageData> initialDataLoader;
     private final DebouncedTaskRunner<List<ProductionRepository.FurnaceItemSuggestionRow>> suggestionsLoader;
     private final DebouncedTaskRunner<PresinteringService.ConfirmBatchResult> confirmationLoader;
+    private final DebouncedTaskRunner<Void> localPlanAutosaveRunner;
+    private final DebouncedTaskRunner<Void> localPlanClearRunner;
     private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
     private final Map<Integer, String> productNameByItemIdState = new LinkedHashMap<>();
     private Integer latestFiringIdState;
     private String feedbackAfterReload;
     private boolean feedbackAfterReloadIsError;
+    private PresinteringService.LocalPlanState pendingLocalPlanState;
     private PresinteringPlanningSnapshot planningState = new PresinteringPlanningSnapshot(
             new LinkedHashMap<>(),
             new LinkedHashMap<>(),
@@ -54,6 +57,8 @@ public class PresinteringController {
         this.initialDataLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.suggestionsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.confirmationLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
+        this.localPlanAutosaveRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.millis(300));
+        this.localPlanClearRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
 
         setupActions();
     }
@@ -179,8 +184,6 @@ public class PresinteringController {
         if (result.documentPath() != null) {
             documentBrowserService.openDocument(result.documentPath());
         }
-        service.clearLocalPlanState();
-
         String documentMessage = result.documentError() != null
                 ? " · conferma salvata, documento non generato: " + result.documentError()
                 : (result.documentPath() == null ? "" : " · documento batch aperto: " + result.documentPath());
@@ -190,7 +193,7 @@ public class PresinteringController {
                 + " · lotti creati: " + result.totalLots()
                 + documentMessage;
         feedbackAfterReloadIsError = result.documentError() != null;
-        loadInitialData();
+        clearLocalPlanState(this::loadInitialData);
     }
 
     private Map<Integer, Map<Integer, Integer>> copyPlan(Map<Integer, Map<Integer, Integer>> source) {
@@ -219,7 +222,7 @@ public class PresinteringController {
                         lotCode == null ? null : lotCode.trim()
                 )
         );
-        service.saveLocalPlanState(new PresinteringService.LocalPlanState(
+        scheduleLocalPlanAutosave(new PresinteringService.LocalPlanState(
                 planningState.plannedByFurnace(),
                 furnaceConfigById,
                 latestFiringIdState,
@@ -272,7 +275,7 @@ public class PresinteringController {
 
     private void renderAndPersistPlanningState() {
         view.renderPlanning(planningState, productNameByItemIdState);
-        service.saveLocalPlanState(new PresinteringService.LocalPlanState(
+        scheduleLocalPlanAutosave(new PresinteringService.LocalPlanState(
                 planningState.plannedByFurnace(),
                 furnaceConfigById,
                 latestFiringIdState,
@@ -288,7 +291,7 @@ public class PresinteringController {
         }
 
         if (!java.util.Objects.equals(localState.lastKnownFiringId(), latestFiringId)) {
-            service.clearLocalPlanState();
+            clearLocalPlanState(null);
             return;
         }
 
@@ -349,7 +352,7 @@ public class PresinteringController {
         }
 
         if (restoredPlanByFurnace.isEmpty()) {
-            service.clearLocalPlanState();
+            clearLocalPlanState(null);
             return;
         }
 
@@ -363,7 +366,7 @@ public class PresinteringController {
         furnaceConfigById.putAll(restoredConfigByFurnace);
 
         if (trimmed) {
-            service.saveLocalPlanState(new PresinteringService.LocalPlanState(
+            scheduleLocalPlanAutosave(new PresinteringService.LocalPlanState(
                     restoredPlanByFurnace,
                     restoredConfigByFurnace,
                     latestFiringId,
@@ -376,6 +379,61 @@ public class PresinteringController {
         initialDataLoader.cancel();
         suggestionsLoader.cancel();
         confirmationLoader.cancel();
+        localPlanClearRunner.cancel();
+        if (pendingLocalPlanState != null) {
+            PresinteringService.LocalPlanState finalSnapshot = pendingLocalPlanState;
+            localPlanAutosaveRunner.runNow(
+                    () -> {
+                        service.saveLocalPlanState(finalSnapshot);
+                        return null;
+                    },
+                    () -> {},
+                    ignored -> {},
+                    ignored -> {}
+            );
+        } else {
+            localPlanAutosaveRunner.cancel();
+        }
+    }
+
+    private void scheduleLocalPlanAutosave(PresinteringService.LocalPlanState state) {
+        pendingLocalPlanState = state;
+        localPlanClearRunner.cancel();
+        localPlanAutosaveRunner.runDebounced(
+                () -> {
+                    service.saveLocalPlanState(state);
+                    return null;
+                },
+                () -> {},
+                ignored -> {
+                    if (pendingLocalPlanState == state) {
+                        pendingLocalPlanState = null;
+                    }
+                },
+                ignored -> {}
+        );
+    }
+
+    private void clearLocalPlanState(Runnable onCleared) {
+        pendingLocalPlanState = null;
+        localPlanAutosaveRunner.cancel();
+        localPlanClearRunner.runNow(
+                () -> {
+                    service.clearLocalPlanState();
+                    return null;
+                },
+                () -> {},
+                ignored -> {
+                    if (onCleared != null) {
+                        onCleared.run();
+                    }
+                },
+                ignored -> {
+                    if (onCleared != null) {
+                        onCleared.run();
+                    }
+                }
+        );
     }
 
     private record InitialPageData(PresinteringReadService.InitialData data,

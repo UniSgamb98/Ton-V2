@@ -170,6 +170,12 @@ errore. `Database` espone uno stato esplicito, propaga i fallimenti, usa una hom
 portabile/configurabile e impedisce l'apertura di connessioni prima dello stato
 `READY`; avvio e shutdown sono ora responsabilità di `AppContainer`.
 
+La pianificazione locale di Presinterizzazione usa infine un autosave asincrono
+con debounce: le modifiche ravvicinate vengono consolidate, la cancellazione del
+piano precede il successivo reload e l'ultimo snapshot viene accodato prima del
+cleanup. Lo shutdown dell'executor è diventato graceful per consentire il flush
+delle operazioni brevi già accodate, con fallback forzato dopo il timeout.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di
