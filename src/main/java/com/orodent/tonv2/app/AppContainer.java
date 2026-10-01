@@ -2,7 +2,7 @@ package com.orodent.tonv2.app;
 
 import com.orodent.tonv2.core.database.ConnectionProvider;
 import com.orodent.tonv2.core.database.Database;
-import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.documents.browser.service.DocumentBrowserService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 
 import java.util.concurrent.Executor;

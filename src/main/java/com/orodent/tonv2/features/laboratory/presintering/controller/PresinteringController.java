@@ -3,7 +3,11 @@ package com.orodent.tonv2.features.laboratory.presintering.controller;
 import com.orodent.tonv2.core.database.model.Furnace;
 import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
-import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.documents.browser.service.DocumentBrowserService;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringFurnaceConfig;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringLocalPlanState;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringLocalPlanStore;
+import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringPlanner;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringPlanningSnapshot;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringReadService;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringService;
@@ -29,15 +33,15 @@ public class PresinteringController {
     private final DebouncedTaskRunner<InitialPageData> initialDataLoader;
     private final DebouncedTaskRunner<List<ProductionRepository.FurnaceItemSuggestionRow>> suggestionsLoader;
     private final DebouncedTaskRunner<PresinteringService.ConfirmBatchResult> confirmationLoader;
-    private final DebouncedTaskRunner<Void> localPlanAutosaveRunner;
-    private final DebouncedTaskRunner<Void> localPlanClearRunner;
-    private final java.util.Map<Integer, PresinteringService.FurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
+    private final PresinteringPlanner planner;
+    private final PresinteringLocalPlanStore localPlanStore;
+    private final PresinteringLocalPlanAutosave localPlanAutosave;
+    private final java.util.Map<Integer, PresinteringFurnaceConfig> furnaceConfigById = new java.util.LinkedHashMap<>();
     private final Map<Integer, String> furnaceNameByIdState = new LinkedHashMap<>();
     private final Map<Integer, String> productNameByItemIdState = new LinkedHashMap<>();
     private Integer latestFiringIdState;
     private String feedbackAfterReload;
     private boolean feedbackAfterReloadIsError;
-    private PresinteringService.LocalPlanState pendingLocalPlanState;
     private PresinteringPlanningSnapshot planningState = new PresinteringPlanningSnapshot(
             new LinkedHashMap<>(),
             new LinkedHashMap<>(),
@@ -57,8 +61,9 @@ public class PresinteringController {
         this.initialDataLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.suggestionsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.confirmationLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
-        this.localPlanAutosaveRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.millis(300));
-        this.localPlanClearRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
+        this.planner = new PresinteringPlanner();
+        this.localPlanStore = new PresinteringLocalPlanStore();
+        this.localPlanAutosave = new PresinteringLocalPlanAutosave(localPlanStore, backgroundExecutor);
 
         setupActions();
     }
@@ -79,7 +84,7 @@ public class PresinteringController {
         suggestionsLoader.cancel();
         view.setOnFurnaceSelectionChanged(null);
         initialDataLoader.runNow(
-                () -> new InitialPageData(readService.loadInitialData(), service.loadLocalPlanState()),
+                () -> new InitialPageData(readService.loadInitialData(), localPlanStore.load()),
                 view::showInitialLoading,
                 this::showInitialData,
                 error -> {
@@ -143,7 +148,7 @@ public class PresinteringController {
 
     private void onFurnaceSelected(String selectedFurnace) {
         Integer selectedFurnaceId = view.getSelectedFurnaceId();
-        PresinteringService.FurnaceConfig config = selectedFurnaceId == null
+        PresinteringFurnaceConfig config = selectedFurnaceId == null
                 ? null
                 : furnaceConfigById.get(selectedFurnaceId);
         view.setSelectedFurnaceParameters(
@@ -193,7 +198,7 @@ public class PresinteringController {
                 + " · lotti creati: " + result.totalLots()
                 + documentMessage;
         feedbackAfterReloadIsError = result.documentError() != null;
-        clearLocalPlanState(this::loadInitialData);
+        localPlanAutosave.clear(this::loadInitialData);
     }
 
     private Map<Integer, Map<Integer, Integer>> copyPlan(Map<Integer, Map<Integer, Integer>> source) {
@@ -216,13 +221,13 @@ public class PresinteringController {
         String lotCode = view.getSelectedFurnaceLotCodeField().getText();
         furnaceConfigById.put(
                 selectedFurnaceId,
-                new PresinteringService.FurnaceConfig(
+                new PresinteringFurnaceConfig(
                         maxTemperature,
                         view.getSelectedFurnaceDepartureDatePicker().getValue(),
                         lotCode == null ? null : lotCode.trim()
                 )
         );
-        scheduleLocalPlanAutosave(new PresinteringService.LocalPlanState(
+        localPlanAutosave.schedule(new PresinteringLocalPlanState(
                 planningState.plannedByFurnace(),
                 furnaceConfigById,
                 latestFiringIdState,
@@ -244,7 +249,7 @@ public class PresinteringController {
             return;
         }
 
-        PresinteringService.PlanDisksResult result = service.planDisks(planningState, selectedFurnaceId, requestedByItem);
+        PresinteringPlanner.PlanResult result = planner.planDisks(planningState, selectedFurnaceId, requestedByItem);
         planningState = result.state();
 
         if (result.insertedQuantity() <= 0) {
@@ -264,7 +269,7 @@ public class PresinteringController {
             return;
         }
 
-        PresinteringPlanningSnapshot updatedState = service.removePlannedItem(planningState, selectedFurnaceId, itemId);
+        PresinteringPlanningSnapshot updatedState = planner.removePlannedItem(planningState, selectedFurnaceId, itemId);
         if (updatedState.equals(planningState)) {
             return;
         }
@@ -275,7 +280,7 @@ public class PresinteringController {
 
     private void renderAndPersistPlanningState() {
         view.renderPlanning(planningState, productNameByItemIdState);
-        scheduleLocalPlanAutosave(new PresinteringService.LocalPlanState(
+        localPlanAutosave.schedule(new PresinteringLocalPlanState(
                 planningState.plannedByFurnace(),
                 furnaceConfigById,
                 latestFiringIdState,
@@ -283,15 +288,15 @@ public class PresinteringController {
         ));
     }
 
-    private void restoreLocalPlanIfStillValid(Optional<PresinteringService.LocalPlanState> savedState,
+    private void restoreLocalPlanIfStillValid(Optional<PresinteringLocalPlanState> savedState,
                                               Integer latestFiringId) {
-        PresinteringService.LocalPlanState localState = savedState.orElse(null);
+        PresinteringLocalPlanState localState = savedState.orElse(null);
         if (localState == null) {
             return;
         }
 
         if (!java.util.Objects.equals(localState.lastKnownFiringId(), latestFiringId)) {
-            clearLocalPlanState(null);
+            localPlanAutosave.clear(null);
             return;
         }
 
@@ -334,25 +339,25 @@ public class PresinteringController {
             }
         }
 
-        Map<Integer, PresinteringService.FurnaceConfig> restoredConfigByFurnace = new LinkedHashMap<>();
-        for (Map.Entry<Integer, PresinteringService.FurnaceConfig> configEntry : localState.furnaceConfigById().entrySet()) {
+        Map<Integer, PresinteringFurnaceConfig> restoredConfigByFurnace = new LinkedHashMap<>();
+        for (Map.Entry<Integer, PresinteringFurnaceConfig> configEntry : localState.furnaceConfigById().entrySet()) {
             Integer furnaceId = configEntry.getKey();
             if (!furnaceNameByIdState.containsKey(furnaceId)) {
                 trimmed = true;
                 continue;
             }
-            PresinteringService.FurnaceConfig config = configEntry.getValue();
+            PresinteringFurnaceConfig config = configEntry.getValue();
             if (config == null) {
                 trimmed = true;
                 continue;
             }
             LocalDate departureDate = config.departureDate();
             Integer maxTemperature = config.maxTemperature();
-            restoredConfigByFurnace.put(furnaceId, new PresinteringService.FurnaceConfig(maxTemperature, departureDate, config.lotCode()));
+            restoredConfigByFurnace.put(furnaceId, new PresinteringFurnaceConfig(maxTemperature, departureDate, config.lotCode()));
         }
 
         if (restoredPlanByFurnace.isEmpty()) {
-            clearLocalPlanState(null);
+            localPlanAutosave.clear(null);
             return;
         }
 
@@ -366,7 +371,7 @@ public class PresinteringController {
         furnaceConfigById.putAll(restoredConfigByFurnace);
 
         if (trimmed) {
-            scheduleLocalPlanAutosave(new PresinteringService.LocalPlanState(
+            localPlanAutosave.schedule(new PresinteringLocalPlanState(
                     restoredPlanByFurnace,
                     restoredConfigByFurnace,
                     latestFiringId,
@@ -379,64 +384,10 @@ public class PresinteringController {
         initialDataLoader.cancel();
         suggestionsLoader.cancel();
         confirmationLoader.cancel();
-        localPlanClearRunner.cancel();
-        if (pendingLocalPlanState != null) {
-            PresinteringService.LocalPlanState finalSnapshot = pendingLocalPlanState;
-            localPlanAutosaveRunner.runNow(
-                    () -> {
-                        service.saveLocalPlanState(finalSnapshot);
-                        return null;
-                    },
-                    () -> {},
-                    ignored -> {},
-                    ignored -> {}
-            );
-        } else {
-            localPlanAutosaveRunner.cancel();
-        }
-    }
-
-    private void scheduleLocalPlanAutosave(PresinteringService.LocalPlanState state) {
-        pendingLocalPlanState = state;
-        localPlanClearRunner.cancel();
-        localPlanAutosaveRunner.runDebounced(
-                () -> {
-                    service.saveLocalPlanState(state);
-                    return null;
-                },
-                () -> {},
-                ignored -> {
-                    if (pendingLocalPlanState == state) {
-                        pendingLocalPlanState = null;
-                    }
-                },
-                ignored -> {}
-        );
-    }
-
-    private void clearLocalPlanState(Runnable onCleared) {
-        pendingLocalPlanState = null;
-        localPlanAutosaveRunner.cancel();
-        localPlanClearRunner.runNow(
-                () -> {
-                    service.clearLocalPlanState();
-                    return null;
-                },
-                () -> {},
-                ignored -> {
-                    if (onCleared != null) {
-                        onCleared.run();
-                    }
-                },
-                ignored -> {
-                    if (onCleared != null) {
-                        onCleared.run();
-                    }
-                }
-        );
+        localPlanAutosave.dispose();
     }
 
     private record InitialPageData(PresinteringReadService.InitialData data,
-                                   Optional<PresinteringService.LocalPlanState> localPlanState) {
+                                   Optional<PresinteringLocalPlanState> localPlanState) {
     }
 }

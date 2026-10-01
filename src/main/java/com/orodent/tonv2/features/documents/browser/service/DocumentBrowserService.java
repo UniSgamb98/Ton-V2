@@ -1,4 +1,4 @@
-package com.orodent.tonv2.features.document.service;
+package com.orodent.tonv2.features.documents.browser.service;
 
 import java.awt.Desktop;
 import java.net.URI;

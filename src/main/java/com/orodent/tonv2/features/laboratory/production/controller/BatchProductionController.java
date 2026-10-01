@@ -4,7 +4,7 @@ import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Line;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
-import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.documents.browser.service.DocumentBrowserService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionReadService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;

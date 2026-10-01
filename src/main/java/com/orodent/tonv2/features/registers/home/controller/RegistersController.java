@@ -1,7 +1,7 @@
 package com.orodent.tonv2.features.registers.home.controller;
 
 import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
-import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.documents.browser.service.DocumentBrowserService;
 import com.orodent.tonv2.features.registers.home.service.RegistersDocumentService;
 import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
 import com.orodent.tonv2.features.registers.home.view.RegistersView;

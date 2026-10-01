@@ -1,5 +1,7 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.controller;
 
+import com.orodent.tonv2.features.laboratory.diskmodel.model.LayerPercentageDraft;
+import com.orodent.tonv2.features.laboratory.diskmodel.model.HeightRangeDraft;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.ui.form.ConfirmUnsavedChangesDialog;
 import com.orodent.tonv2.core.ui.form.DirtyStateTracker;
@@ -125,7 +127,7 @@ public class CreateDiskModelController {
                 snapshot.model().superiorOvermaterialDefaultMm(), snapshot.model().inferiorOvermaterialDefaultMm(),
                 snapshot.model().pressureKgCm2(), snapshot.model().gramsPerMm(), snapshot.model().numLayers(),
                 snapshot.layers().stream().map(layer -> layer.diskPercentage()).toList(),
-                snapshot.ranges().stream().map(range -> new CreateDiskModelView.HeightRangeDraft(
+                snapshot.ranges().stream().map(range -> new HeightRangeDraft(
                         String.valueOf(range.minHeightMm()), String.valueOf(range.maxHeightMm()),
                         String.valueOf(range.superiorOvermaterialMm()), String.valueOf(range.inferiorOvermaterialMm())
                 )).toList()

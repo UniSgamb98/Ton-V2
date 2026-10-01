@@ -115,8 +115,9 @@ di task, debounce, cancellazione e risultati obsoleti è raccolta nel componente
 riutilizzabile `DebouncedTaskRunner`. Gli archivi e il servizio Template usano
 ora un `ConnectionProvider`: ogni operazione apre una connessione dedicata e la
 chiude al termine. Le operazioni migrate possono così usare il pool di worker
-senza condividere la stessa sessione JDBC. Le repository non ancora migrate
-continuano temporaneamente a usare la connessione legacy sul solo thread JavaFX.
+senza condividere la stessa sessione JDBC. Tutte le operazioni applicative
+migrate aprono ormai connessioni scoped; il contenitore non conserva più una
+sessione JDBC condivisa.
 
 La prima migrazione successiva agli archivi riguarda Registri: suggerimenti e
 ricerca completa vengono eseguiti in background con connessioni scoped. La

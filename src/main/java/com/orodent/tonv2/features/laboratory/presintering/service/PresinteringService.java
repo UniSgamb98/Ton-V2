@@ -14,26 +14,14 @@ import com.orodent.tonv2.core.database.repository.ProductionRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.service.TemplatePresetCodes;
 
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 public class PresinteringService {
-    private static final Path LOCAL_PLAN_PATH = Path.of(
-            System.getProperty("user.home"),
-            ".ton",
-            "presintering-local-plan.bin"
-    );
-
     private final ConnectionProvider connectionProvider;
     private final TemplateEditorService templateEditorService;
 
@@ -89,48 +77,9 @@ public class PresinteringService {
                 new FiringRepositoryImpl(connection).findLatestId());
     }
 
-    public synchronized Optional<LocalPlanState> loadLocalPlanState() {
-        if (!Files.exists(LOCAL_PLAN_PATH)) {
-            return Optional.empty();
-        }
-        try (ObjectInputStream in = new ObjectInputStream(Files.newInputStream(LOCAL_PLAN_PATH))) {
-            Object raw = in.readObject();
-            if (!(raw instanceof LocalPlanState state)) {
-                clearLocalPlanState();
-                return Optional.empty();
-            }
-            return Optional.of(state);
-        } catch (Exception ignored) {
-            clearLocalPlanState();
-            return Optional.empty();
-        }
-    }
-
-    public synchronized void saveLocalPlanState(LocalPlanState state) {
-        if (state == null) {
-            return;
-        }
-        try {
-            Files.createDirectories(LOCAL_PLAN_PATH.getParent());
-            try (ObjectOutputStream out = new ObjectOutputStream(Files.newOutputStream(LOCAL_PLAN_PATH))) {
-                out.writeObject(state);
-            }
-        } catch (Exception ignored) {
-            // Best effort local save.
-        }
-    }
-
-    public synchronized void clearLocalPlanState() {
-        try {
-            Files.deleteIfExists(LOCAL_PLAN_PATH);
-        } catch (Exception ignored) {
-            // Best effort local delete.
-        }
-    }
-
     private List<BatchConfirmationRequest> buildBatchConfirmationRequests(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
                                                                           Map<Integer, String> furnaceNameById,
-                                                                          Map<Integer, FurnaceConfig> furnaceConfigById) {
+                                                                          Map<Integer, PresinteringFurnaceConfig> furnaceConfigById) {
         if (plannedByFurnace == null || plannedByFurnace.isEmpty()) {
             throw new IllegalArgumentException("Nessun forno con nuovi item da confermare.");
         }
@@ -143,7 +92,7 @@ public class PresinteringService {
                 continue;
             }
 
-            FurnaceConfig config = furnaceConfigById == null ? null : furnaceConfigById.get(furnaceId);
+            PresinteringFurnaceConfig config = furnaceConfigById == null ? null : furnaceConfigById.get(furnaceId);
             String furnaceName = furnaceNameById == null
                     ? "Forno " + furnaceId
                     : furnaceNameById.getOrDefault(furnaceId, "Forno " + furnaceId);
@@ -466,122 +415,7 @@ public class PresinteringService {
         }
     }
 
-    public PlanDisksResult planDisks(PresinteringPlanningSnapshot currentState,
-                                     int furnaceId,
-                                     Map<Integer, Integer> requestedByItem) {
-        if (currentState == null) {
-            throw new IllegalArgumentException("Stato pianificazione non disponibile.");
-        }
-        if (furnaceId <= 0) {
-            throw new IllegalArgumentException("Forno non valido.");
-        }
-        if (requestedByItem == null || requestedByItem.isEmpty()) {
-            return new PlanDisksResult(currentState, 0);
-        }
-
-        Map<Integer, Integer> availableByItem = new LinkedHashMap<>(currentState.availableByItemId());
-        Map<Integer, Map<Integer, Integer>> plannedByFurnace = deepCopyPlan(currentState.plannedByFurnace());
-        Map<Integer, Integer> targetPlan = plannedByFurnace.computeIfAbsent(furnaceId, ignored -> new LinkedHashMap<>());
-
-        int inserted = 0;
-        for (Map.Entry<Integer, Integer> entry : requestedByItem.entrySet()) {
-            int itemId = entry.getKey();
-            int requested = entry.getValue() == null ? 0 : entry.getValue();
-            int available = availableByItem.getOrDefault(itemId, 0);
-            int toInsert = Math.min(requested, available);
-            if (toInsert <= 0) {
-                continue;
-            }
-            availableByItem.put(itemId, available - toInsert);
-            targetPlan.merge(itemId, toInsert, Integer::sum);
-            inserted += toInsert;
-        }
-
-        PresinteringPlanningSnapshot updatedState = new PresinteringPlanningSnapshot(
-                availableByItem,
-                plannedByFurnace,
-                new LinkedHashMap<>(currentState.itemCodeById()),
-                null
-        );
-        return new PlanDisksResult(updatedState, inserted);
-    }
-
-    public PresinteringPlanningSnapshot removePlannedItem(PresinteringPlanningSnapshot currentState,
-                                                          int furnaceId,
-                                                          int itemId) {
-        if (currentState == null) {
-            throw new IllegalArgumentException("Stato pianificazione non disponibile.");
-        }
-        if (furnaceId <= 0 || itemId <= 0) {
-            return currentState;
-        }
-
-        Map<Integer, Integer> availableByItem = new LinkedHashMap<>(currentState.availableByItemId());
-        Map<Integer, Map<Integer, Integer>> plannedByFurnace = deepCopyPlan(currentState.plannedByFurnace());
-        Map<Integer, Integer> plannedItems = plannedByFurnace.get(furnaceId);
-        if (plannedItems == null) {
-            return currentState;
-        }
-
-        Integer removedQty = plannedItems.remove(itemId);
-        if (removedQty == null || removedQty <= 0) {
-            return currentState;
-        }
-
-        availableByItem.merge(itemId, removedQty, Integer::sum);
-        if (plannedItems.isEmpty()) {
-            plannedByFurnace.remove(furnaceId);
-        }
-
-        return new PresinteringPlanningSnapshot(
-                availableByItem,
-                plannedByFurnace,
-                new LinkedHashMap<>(currentState.itemCodeById()),
-                null
-        );
-    }
-
-    private Map<Integer, Map<Integer, Integer>> deepCopyPlan(Map<Integer, Map<Integer, Integer>> source) {
-        Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
-        if (source == null) {
-            return copy;
-        }
-        for (Map.Entry<Integer, Map<Integer, Integer>> entry : source.entrySet()) {
-            copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
-        }
-        return copy;
-    }
-
     public record ConfirmationResult(int firingId, int linkedProductionOrders, int lotCount) {
-    }
-
-    public record FurnaceConfig(Integer maxTemperature, LocalDate departureDate, String lotCode) implements java.io.Serializable {
-    }
-
-    public record LocalPlanState(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
-                                 Map<Integer, FurnaceConfig> furnaceConfigById,
-                                 Integer lastKnownFiringId,
-                                 Instant savedAt) implements java.io.Serializable {
-        public LocalPlanState {
-            plannedByFurnace = plannedByFurnace == null
-                    ? new LinkedHashMap<>()
-                    : deepCopy(plannedByFurnace);
-            furnaceConfigById = furnaceConfigById == null
-                    ? new LinkedHashMap<>()
-                    : new LinkedHashMap<>(furnaceConfigById);
-            savedAt = savedAt == null ? Instant.now() : savedAt;
-        }
-
-        private static Map<Integer, Map<Integer, Integer>> deepCopy(Map<Integer, Map<Integer, Integer>> source) {
-            Map<Integer, Map<Integer, Integer>> copy = new LinkedHashMap<>();
-            if (source == null) {
-                return copy;
-            }
-            for (Map.Entry<Integer, Map<Integer, Integer>> entry : source.entrySet()) {
-                copy.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
-            }
-            return copy;
-        }
     }
 
     public record BatchConfirmationRequest(int furnaceId,
@@ -594,7 +428,7 @@ public class PresinteringService {
 
     public record ConfirmBatchCommand(Map<Integer, Map<Integer, Integer>> plannedByFurnace,
                                       Map<Integer, String> furnaceNameById,
-                                      Map<Integer, FurnaceConfig> furnaceConfigById,
+                                      Map<Integer, PresinteringFurnaceConfig> furnaceConfigById,
                                       String selectedTemplateName) {
     }
 
@@ -615,8 +449,5 @@ public class PresinteringService {
     }
 
     private record LineAllocationKey(int productionOrderId, int itemId) {
-    }
-
-    public record PlanDisksResult(PresinteringPlanningSnapshot state, int insertedQuantity) {
     }
 }

@@ -1,5 +1,7 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.view;
 
+import com.orodent.tonv2.features.laboratory.diskmodel.model.LayerPercentageDraft;
+import com.orodent.tonv2.features.laboratory.diskmodel.model.HeightRangeDraft;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.partial.DiskModelPreviewView;
 import javafx.geometry.Insets;
@@ -375,9 +377,6 @@ public class CreateDiskModelView extends VBox {
             return 0.0;
         }
     }
-
-    public record HeightRangeDraft(String minHeight, String maxHeight, String superiorOvermaterial, String inferiorOvermaterial) {}
-    public record LayerPercentageDraft(int layerNumber, String percentage) {}
 
     private static class LayerPercentageRow {
         private final int layerNumber;
