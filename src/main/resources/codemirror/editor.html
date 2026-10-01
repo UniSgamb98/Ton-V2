@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>{{CODE_MIRROR_CSS}}</style>
+  <script>{{CODE_MIRROR_JS}}</script>
+  {{MODE_SCRIPTS}}
+  <style>
+    html, body { height: 100%; margin: 0; background: #0f172a; }
+    .CodeMirror { height: 100vh; font-size: 13px; background: #0f172a; color: #e2e8f0; }
+    .CodeMirror-gutters { background: #1e293b; border-right: 1px solid #334155; }
+    .CodeMirror-cursor { border-left: 2px solid #f8fafc !important; }
+    .CodeMirror-focused .CodeMirror-selected { background: #334155 !important; }
+    .cm-keyword { color: #fda4af !important; }
+    .cm-atom { color: #93c5fd !important; }
+    .cm-number { color: #fcd34d !important; }
+    .cm-def { color: #86efac !important; }
+    .cm-variable, .cm-variable-2, .cm-variable-3 { color: #e2e8f0 !important; }
+    .cm-property { color: #67e8f9 !important; }
+    .cm-string { color: #bef264 !important; }
+    .cm-comment { color: #cbd5e1 !important; font-style: italic; }
+    .cm-tag { color: #f9a8d4 !important; }
+    .cm-attribute { color: #fdba74 !important; }
+  </style>
+</head>
+<body>
+<textarea id="editor"></textarea>
+<script>
+  window.editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+    lineNumbers: true,
+    mode: {{EDITOR_MODE}},
+    tabSize: 2,
+    indentUnit: 2,
+    matchBrackets: true,
+    autoCloseBrackets: true
+  });
+
+  window.focusEditorLine = function(line) {
+    window.editor.focus();
+    window.editor.setCursor({line: line, ch: 0});
+    window.editor.scrollIntoView({line: line, ch: 0}, 120);
+  };
+
+  window.insertSnippet = function(snippet) {
+    const doc = window.editor.getDoc();
+    const cursor = doc.getCursor();
+    const marker = '£';
+    const markerIndex = snippet.indexOf(marker);
+    const sanitized = markerIndex >= 0 ? snippet.replace(marker, '') : snippet;
+    doc.replaceRange(sanitized, cursor);
+    if (markerIndex >= 0) {
+      const from = doc.indexFromPos(cursor);
+      doc.setCursor(doc.posFromIndex(from + markerIndex));
+    }
+    window.editor.focus();
+  };
+</script>
+</body>
+</html>

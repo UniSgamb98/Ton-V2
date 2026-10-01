@@ -2,7 +2,8 @@ package com.orodent.tonv2.features.documents.template.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
-import com.orodent.tonv2.features.documents.template.view.components.CodeMirrorEditor;
+import com.orodent.tonv2.core.ui.editor.CodeEditorLanguage;
+import com.orodent.tonv2.core.ui.editor.CodeMirrorEditor;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -29,8 +30,8 @@ public class TemplateEditorView extends VBox {
     private final ComboBox<String> presetSelector = new ComboBox<>();
     private final TextField templateNameField = new TextField();
 
-    private final CodeMirrorEditor templateEditor = new CodeMirrorEditor("htmlmixed", "");
-    private final CodeMirrorEditor sqlEditor = new CodeMirrorEditor("text/x-sql", "SELECT line.name AS line.name FROM line");
+    private final CodeMirrorEditor templateEditor = new CodeMirrorEditor(CodeEditorLanguage.HTML, "");
+    private final CodeMirrorEditor sqlEditor = new CodeMirrorEditor(CodeEditorLanguage.SQL, "SELECT line.name AS line.name FROM line");
 
     private final Button snippetVariableButton = new Button("Variabile");
     private final Button snippetIfButton = new Button("If");
@@ -302,8 +303,13 @@ public class TemplateEditorView extends VBox {
     public AppHeader getHeader() { return header; }
     public ComboBox<String> getPresetSelector() { return presetSelector; }
     public TextField getTemplateNameField() { return templateNameField; }
-    public CodeMirrorEditor getTemplateEditor() { return templateEditor; }
-    public CodeMirrorEditor getSqlEditor() { return sqlEditor; }
+    public String getTemplateContent() { return templateEditor.getValue(); }
+    public void setTemplateContent(String content) { templateEditor.setValue(content); }
+    public void insertTemplateSnippet(String snippet) { templateEditor.insertSnippet(snippet); }
+    public void focusTemplateEditor() { templateEditor.focusEditor(); }
+    public void focusTemplateLine(int lineNumber) { templateEditor.focusLine(lineNumber); }
+    public String getSqlQuery() { return sqlEditor.getValue(); }
+    public void setSqlQuery(String query) { sqlEditor.setValue(query); }
     public Button getSnippetVariableButton() { return snippetVariableButton; }
     public Button getSnippetIfButton() { return snippetIfButton; }
     public Button getSnippetListButton() { return snippetListButton; }

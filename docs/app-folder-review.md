@@ -185,3 +185,13 @@ interfacce di navigazione. Per la dimensione attuale del progetto, tuttavia,
 `AppController` è già oltre la soglia in cui aggiungere feature rimane semplice:
 la priorità dovrebbe essere correggere i percorsi senza effetto e chiarire il
 lifecycle, poi distribuire l'assemblaggio delle feature in componenti dedicati.
+
+## Editor di codice incorporato
+
+L'integrazione CodeMirror è ora un componente infrastrutturale in `core/ui/editor`
+e non appartiene più alla feature Template. Linguaggi, caricamento delle risorse,
+composizione della pagina HTML e codifica sicura delle stringhe JavaScript hanno
+responsabilità separate. `TemplateEditorView` mantiene privati gli editor concreti
+e offre al controller soltanto operazioni semantiche su template e query; in
+questo modo un futuro cambio del motore di editing non si propaga nel workflow o
+nel controller della feature.

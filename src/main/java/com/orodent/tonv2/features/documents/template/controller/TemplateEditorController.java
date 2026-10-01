@@ -45,8 +45,8 @@ public class TemplateEditorController {
         this.saveRunner = new DebouncedTaskRunner<>(executor, Duration.ZERO);
         this.dirtyStateTracker = new DirtyStateTracker()
                 .track("templateName", () -> normalize(view.getTemplateNameField().getText()))
-                .track("templateContent", () -> normalize(view.getTemplateEditor().getValue()))
-                .track("sqlQuery", () -> normalize(view.getSqlEditor().getValue()))
+                .track("templateContent", () -> normalize(view.getTemplateContent()))
+                .track("sqlQuery", () -> normalize(view.getSqlQuery()))
                 .track("presetCode", () -> normalize(view.getPresetSelector().getValue()));
 
         view.configureEditMode(editorMode.editTemplateId() != null);
@@ -69,8 +69,8 @@ public class TemplateEditorController {
     private void applyInitialState(TemplateEditorWorkflowService.EditorState state) {
         applyingInitialState = true;
         view.getTemplateNameField().setText(state.defaultTemplateName());
-        view.getTemplateEditor().setValue(state.defaultTemplateContent());
-        view.getSqlEditor().setValue(state.sqlQuery() == null ? "" : state.sqlQuery());
+        view.setTemplateContent(state.defaultTemplateContent());
+        view.setSqlQuery(state.sqlQuery() == null ? "" : state.sqlQuery());
         view.getPresetSelector().getItems().setAll(state.presetCodes());
         view.getPresetSelector().setValue(state.defaultPresetCode());
         presetJsonPayload = state.previewJsonPayload();
@@ -82,19 +82,19 @@ public class TemplateEditorController {
     }
 
     private void setupActions() {
-        view.getSnippetVariableButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("${variable£}"));
-        view.getSnippetIfButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("""
+        view.getSnippetVariableButton().setOnAction(e -> view.insertTemplateSnippet("${variable£}"));
+        view.getSnippetIfButton().setOnAction(e -> view.insertTemplateSnippet("""
                 <#if condition>
                   <!-- contenuto -->£
                 </#if>
                 """));
-        view.getSnippetListButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("""
+        view.getSnippetListButton().setOnAction(e -> view.insertTemplateSnippet("""
                 <#list items as item>
                   <p>Codice: ${item.code}£</p>
                 </#list>
                 """));
-        view.getSnippetAssignButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<#assign nomeVariabile = \"valore£\">"));
-        view.getSnippetItemsTableButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("""
+        view.getSnippetAssignButton().setOnAction(e -> view.insertTemplateSnippet("<#assign nomeVariabile = \"valore£\">"));
+        view.getSnippetItemsTableButton().setOnAction(e -> view.insertTemplateSnippet("""
                 <table>
                   <thead><tr><th>Codice</th><th>Qta</th><th>Altezza</th></tr></thead>
                   <tbody>
@@ -104,8 +104,8 @@ public class TemplateEditorController {
                   </tbody>
                 </table>
                 """));
-        view.getSnippetHeaderButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<header><h1>${line.name!}£</h1></header>"));
-        view.getSnippetFooterButton().setOnAction(e -> view.getTemplateEditor().insertSnippet("<footer><p>Documento generato automaticamente£</p></footer>"));
+        view.getSnippetHeaderButton().setOnAction(e -> view.insertTemplateSnippet("<header><h1>${line.name!}£</h1></header>"));
+        view.getSnippetFooterButton().setOnAction(e -> view.insertTemplateSnippet("<footer><p>Documento generato automaticamente£</p></footer>"));
 
         view.getVariablesTree().setOnMouseClicked(event -> insertSelectedVariable());
         view.getFetchDbButton().setOnAction(e -> fetchVariablesFromDb());
@@ -123,8 +123,8 @@ public class TemplateEditorController {
         if (selected == null || !selected.isLeaf()) return;
         String expression = buildExpression(selected);
         if (!expression.isBlank()) {
-            view.getTemplateEditor().insertSnippet("${" + expression + "}");
-            view.getTemplateEditor().focusEditor();
+            view.insertTemplateSnippet("${" + expression + "}");
+            view.focusTemplateEditor();
         }
     }
 
@@ -141,7 +141,7 @@ public class TemplateEditorController {
     }
 
     private void fetchVariablesFromDb() {
-        String sqlQuery = view.getSqlEditor().getValue();
+        String sqlQuery = view.getSqlQuery();
         queryRunner.runNow(
                 () -> workflowService.fetchQueryPayload(sqlQuery),
                 view::showQueryLoading,
@@ -162,17 +162,17 @@ public class TemplateEditorController {
     }
 
     private void validateTemplate() {
-        TemplateEditorService.ValidationResult result = workflowService.validateTemplate(view.getTemplateEditor().getValue());
+        TemplateEditorService.ValidationResult result = workflowService.validateTemplate(view.getTemplateContent());
         view.setFeedback(result.message(), !result.valid());
     }
 
     private void previewTemplate() {
         TemplateEditorService.PreviewResult result = workflowService.previewTemplate(
-                view.getTemplateEditor().getValue(), previewJsonPayload);
+                view.getTemplateContent(), previewJsonPayload);
         if (!result.success()) {
             view.setFeedback(result.htmlOrError(), true);
-            if (result.errorLine() != null) view.getTemplateEditor().focusLine(result.errorLine());
-            else view.getTemplateEditor().focusEditor();
+            if (result.errorLine() != null) view.focusTemplateLine(result.errorLine());
+            else view.focusTemplateEditor();
             return;
         }
         view.renderPreview(result.htmlOrError());
@@ -183,8 +183,8 @@ public class TemplateEditorController {
         navigateAfterSuccessfulSave = navigateOnSuccess;
         SaveRequest request = new SaveRequest(
                 view.getTemplateNameField().getText(),
-                view.getTemplateEditor().getValue(),
-                view.getSqlEditor().getValue(),
+                view.getTemplateContent(),
+                view.getSqlQuery(),
                 view.getPresetSelector().getValue());
         saveRunner.runNow(
                 () -> editorMode.editTemplateId() == null
