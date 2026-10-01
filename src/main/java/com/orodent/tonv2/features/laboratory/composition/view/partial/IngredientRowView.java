@@ -7,6 +7,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 
 import java.util.List;
 
@@ -33,7 +34,8 @@ public class IngredientRowView extends HBox {
         /* ---- Powder selector ---- */
 
         powderSelector.setPromptText("Polvere");
-        powderSelector.setPrefWidth(200);
+        powderSelector.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(powderSelector, Priority.ALWAYS);
 
         // verrà popolato dal controller (come per Product)
         powderSelector.valueProperty().addListener((obs, old, val) -> {
@@ -46,7 +48,8 @@ public class IngredientRowView extends HBox {
         /* ---- Percentage ---- */
 
         percentageField.setPromptText("%");
-        percentageField.setPrefWidth(60);
+        percentageField.setPrefWidth(82);
+        percentageField.setMaxWidth(82);
 
         percentageField.textProperty().addListener((obs, old, val) -> {
             try {
@@ -59,6 +62,7 @@ public class IngredientRowView extends HBox {
         });
 
         /* ---- Remove ---- */
+        removeBtn.getStyleClass().add("remove-ingredient-action");
 
         getChildren().addAll(
                 powderSelector,

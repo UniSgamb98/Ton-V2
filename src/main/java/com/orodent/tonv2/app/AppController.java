@@ -259,7 +259,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showView(view, controller::dispose);
+        showView(view, controller::dispose, "/css/features/composition-editor.css");
         stage.setTitle(productId == null ? "TON - Nuova composizione" : "TON - Modifica Composizione");
         controller.loadInitialData();
     }

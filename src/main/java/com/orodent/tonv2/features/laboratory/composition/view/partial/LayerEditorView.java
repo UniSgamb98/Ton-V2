@@ -4,7 +4,6 @@ import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
 import com.orodent.tonv2.features.laboratory.composition.service.LayerMetricsService;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -28,6 +27,7 @@ public class LayerEditorView extends HBox {
     private final Button removeLayerBtn = new Button("✕");
 
     private Runnable onRemove;
+    private Runnable onMetricsChanged;
 
     public LayerEditorView(LayerDraft layerDraft, List<Powder> availablePowders) {
         this.layerDraft = layerDraft;
@@ -37,14 +37,15 @@ public class LayerEditorView extends HBox {
 
     private void buildUI() {
         setSpacing(10);
-        setPadding(new Insets(10));
         getStyleClass().add("layer-editor");
-        getStyleClass().add("light-pane");
+        setMaxWidth(Double.MAX_VALUE);
 
         title = new Label("Layer " + layerDraft.layerNumber());
         title.getStyleClass().add("layer-title");
 
         metricsLabel.getStyleClass().add("layer-title");
+        metricsLabel.setVisible(false);
+        metricsLabel.setManaged(false);
 
         removeLayerBtn.setOnAction(e -> {
             if (onRemove != null) {
@@ -61,8 +62,11 @@ public class LayerEditorView extends HBox {
         }
 
         addIngredientBtn.setOnAction(e -> addIngredient());
+        addIngredientBtn.getStyleClass().add("add-ingredient-action");
 
         VBox body = new VBox(10, header, ingredientsBox, addIngredientBtn);
+        body.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(body, javafx.scene.layout.Priority.ALWAYS);
         getChildren().add(body);
 
         refreshMetrics();
@@ -80,6 +84,25 @@ public class LayerEditorView extends HBox {
     public void setLayerRemovalEnabled(boolean enabled) {
         removeLayerBtn.setVisible(enabled);
         removeLayerBtn.setManaged(enabled);
+    }
+
+    public void setOnMetricsChanged(Runnable onMetricsChanged) {
+        this.onMetricsChanged = onMetricsChanged;
+    }
+
+    public int getIngredientCount() {
+        return layerDraft.ingredients().size();
+    }
+
+    public double getTotalPercentage() {
+        return layerDraft.ingredients().stream()
+                .mapToDouble(IngredientDraft::percentage)
+                .filter(value -> value > 0)
+                .sum();
+    }
+
+    public String getMetricsText() {
+        return metricsLabel.getText();
     }
 
     private void addIngredient() {
@@ -108,11 +131,14 @@ public class LayerEditorView extends HBox {
     private void refreshMetrics() {
         LayerMetricsService.LayerMetrics metrics = layerMetricsService.calculate(layerDraft, availablePowders);
 
-        String layerText = "| T: " + formatDecimal(metrics.weightedTranslucency(), 2);
-        String strengthText = "| R: " + formatDecimal(metrics.weightedStrength(), 0) + " MPa";
-        String yttriaText = "| " + metrics.yttriaSummary();
+        String layerText = "Traslucenza: " + formatDecimal(metrics.weightedTranslucency(), 2);
+        String strengthText = "Resistenza: " + formatDecimal(metrics.weightedStrength(), 0) + " MPa";
+        String yttriaText = "Ittria: " + metrics.yttriaSummary();
 
-        metricsLabel.setText(layerText + " " + strengthText + " " + yttriaText);
+        metricsLabel.setText(layerText + "\n" + strengthText + "\n" + yttriaText);
+        if (onMetricsChanged != null) {
+            onMetricsChanged.run();
+        }
     }
 
     private String formatDecimal(Double value, int decimals) {
