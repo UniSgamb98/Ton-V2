@@ -7,6 +7,7 @@ import javafx.scene.AccessibleRole;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -18,6 +19,9 @@ import javafx.scene.shape.SVGPath;
 
 public class LaboratoryView extends VBox {
     private static final double CONTENT_MAX_WIDTH = 1180;
+    private static final double CREATION_CARD_WIDTH = 190;
+    private static final double CREATION_CARD_HEIGHT = 198;
+    private static final double CREATION_CARD_CONTENT_WIDTH = 156;
 
     private final AppHeader header;
     private final Button createCompositionButton;
@@ -58,7 +62,7 @@ public class LaboratoryView extends VBox {
                 "presintering", "Presinterizzazione", "Prepara e registra la presinterizzazione", "operation-card"
         );
 
-        TilePane creationCards = createTilePane(190, 174, 4);
+        TilePane creationCards = createTilePane(CREATION_CARD_WIDTH, CREATION_CARD_HEIGHT, 4);
         creationCards.getChildren().addAll(
                 createDiskModelButton,
                 createCompositionButton,
@@ -150,16 +154,20 @@ public class LaboratoryView extends VBox {
         Label title = new Label(titleText);
         title.getStyleClass().add("card-title");
         title.setWrapText(true);
-        title.setMaxWidth(Double.MAX_VALUE);
+        title.setPrefWidth(CREATION_CARD_CONTENT_WIDTH);
+        title.setMinHeight(Region.USE_PREF_SIZE);
         title.setAlignment(Pos.CENTER);
 
         Label description = new Label(descriptionText);
         description.getStyleClass().add("card-description");
         description.setWrapText(true);
-        description.setMaxWidth(Double.MAX_VALUE);
+        description.setTextOverrun(OverrunStyle.CLIP);
+        description.setPrefWidth(CREATION_CARD_CONTENT_WIDTH);
+        description.setMinHeight(Region.USE_PREF_SIZE);
         description.setAlignment(Pos.CENTER);
 
         VBox graphic = new VBox(8, numberRow, icon, title, description);
+        graphic.setPrefWidth(CREATION_CARD_CONTENT_WIDTH);
         graphic.setAlignment(Pos.TOP_CENTER);
         graphic.setFillWidth(true);
 
