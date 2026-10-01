@@ -5,6 +5,8 @@ import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -34,8 +36,11 @@ public class IngredientRowView extends HBox {
         /* ---- Powder selector ---- */
 
         powderSelector.setPromptText("Polvere");
+        powderSelector.setMinWidth(120);
+        powderSelector.setPrefWidth(240);
         powderSelector.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(powderSelector, Priority.ALWAYS);
+        powderSelector.setButtonCell(createCompactPowderCell());
 
         // verrà popolato dal controller (come per Product)
         powderSelector.valueProperty().addListener((obs, old, val) -> {
@@ -48,6 +53,7 @@ public class IngredientRowView extends HBox {
         /* ---- Percentage ---- */
 
         percentageField.setPromptText("%");
+        percentageField.setMinWidth(82);
         percentageField.setPrefWidth(82);
         percentageField.setMaxWidth(82);
 
@@ -63,12 +69,26 @@ public class IngredientRowView extends HBox {
 
         /* ---- Remove ---- */
         removeBtn.getStyleClass().add("remove-ingredient-action");
+        removeBtn.setMinSize(36, 32);
+        removeBtn.setPrefSize(36, 32);
 
         getChildren().addAll(
                 powderSelector,
                 percentageField,
                 removeBtn
         );
+    }
+
+    private ListCell<Powder> createCompactPowderCell() {
+        ListCell<Powder> cell = new ListCell<>() {
+            @Override
+            protected void updateItem(Powder powder, boolean empty) {
+                super.updateItem(powder, empty);
+                setText(empty || powder == null ? null : powder.toString());
+            }
+        };
+        cell.setTextOverrun(OverrunStyle.ELLIPSIS);
+        return cell;
     }
 
     public void setOnRemove(Runnable action) {
