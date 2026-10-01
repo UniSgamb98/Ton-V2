@@ -19,11 +19,10 @@ feature possono dipendere da interfacce piccole (`DocumentsNavigator`,
 `AppController`. Anche la creazione centralizzata dello header e della scena
 evita che ogni feature debba conoscere lo `Stage`.
 
-Il principale limite è che `AppController` ha assunto contemporaneamente i
-ruoli di router, composition root e assembler di tutte le feature. Con oltre
-cinquecento righe e numerosi costruttori concreti, ogni nuova schermata aumenta
-l'accoppiamento e rende difficile collaudare la navigazione senza avviare
-JavaFX e il database.
+Il precedente accentramento di routing, composition root e assemblaggio in
+`AppController` è stato risolto con assembler distinti per area funzionale. Il
+controller applicativo conserva ora soltanto routing, configurazione globale
+degli header e lifecycle della pagina attiva.
 
 ## Problemi rilevati
 
@@ -57,22 +56,18 @@ JavaFX e il database.
    debba chiuderle. È consigliabile esporre un provider/transactor con contratto
    di ownership chiaro, evitando anche l'accesso diretto al campo `database`.
 
-5. **`AppController` è difficile da testare in isolamento.** Il costruttore
-   crea concretamente `AppContainer`, carica il CSS, naviga alla home e mostra
-   lo stage. L'iniezione di `AppContainer` (o di un'interfaccia di dipendenze),
-   insieme alla separazione tra costruzione e `start()`, consentirebbe test di
-   navigazione e lifecycle con sostituti controllati.
+5. **Testabilità di `AppController` (mitigata).** Il controller riceve
+   `AppContainer`, mentre gli assembler isolano la costruzione concreta delle
+   feature. Rimangono da aggiungere test JavaFX mirati al routing e al lifecycle.
 
-6. **Assemblaggio duplicato.** `BatchProductionDocumentParamsService` viene
-   composto in più metodi con lo stesso insieme di repository. Spostare questi
-   factory method in un assembler dedicato o nel container elimina il rischio
-   che le configurazioni divergano.
+6. **Assemblaggio duplicato (risolto).** La costruzione delle schermate e dei
+   relativi servizi è centralizzata negli assembler di area; in particolare il
+   workflow Template viene composto in un solo punto.
 
 ### Bassa priorità
 
-7. **API della scena troppo generica.** `createSceneWithCSS` accetta `Object`
-   e lo converte a `Parent` a runtime. Accettare direttamente `Parent` rende il
-   contratto verificabile dal compilatore.
+7. **API della scena troppo generica (risolto).** `createSceneWithCSS` accetta
+   ora direttamente `Parent`, rendendo il contratto verificabile dal compilatore.
 
 8. **Home vuota.** `HomeView` aggiunge un `VBox` senza contenuto. Se la home è
    intenzionalmente un contenitore futuro, un placeholder visibile renderebbe
@@ -179,12 +174,11 @@ delle operazioni brevi già accodate, con fallback forzato dopo il timeout.
 
 ## Giudizio complessivo
 
-La cartella è funzionale come composition root di un'applicazione desktop di
-dimensioni contenute e mostra una buona direzione nella separazione delle
-interfacce di navigazione. Per la dimensione attuale del progetto, tuttavia,
-`AppController` è già oltre la soglia in cui aggiungere feature rimane semplice:
-la priorità dovrebbe essere correggere i percorsi senza effetto e chiarire il
-lifecycle, poi distribuire l'assemblaggio delle feature in componenti dedicati.
+La cartella mantiene una separazione chiara tra bootstrap, dipendenze condivise,
+routing e assemblaggio delle feature. `AppController` non conosce più i
+controller o i servizi concreti delle schermate; i prossimi interventi possono
+quindi concentrarsi sui test del lifecycle e sulle destinazioni non ancora
+implementate.
 
 ## Editor di codice incorporato
 
@@ -195,3 +189,13 @@ responsabilità separate. `TemplateEditorView` mantiene privati gli editor concr
 e offre al controller soltanto operazioni semantiche su template e query; in
 questo modo un futuro cambio del motore di editing non si propaga nel workflow o
 nel controller della feature.
+
+## Assemblaggio delle feature
+
+L'assemblaggio concreto delle schermate è stato separato dal router in quattro
+componenti dedicati per Documents, Laboratory, Registers e Cubage. Ogni assembler
+restituisce un `AppPage`, che descrive root JavaFX, header, titolo e callback di
+apertura/chiusura. `AppController` può quindi limitarsi alla scelta della
+destinazione, alla configurazione della navigazione globale e al lifecycle della
+pagina attiva; inoltre la creazione della `Scene` accetta ora direttamente un
+`Parent`, senza cast da `Object` a runtime.
