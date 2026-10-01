@@ -304,7 +304,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showView(view, controller::dispose);
+        showView(view, controller::dispose, "/css/features/batch-production.css");
         stage.setTitle("TON - Produzione batch");
         controller.loadInitialData();
     }

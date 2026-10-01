@@ -1,0 +1,240 @@
+.batch-production-view {
+    -fx-background-color: #1e1e1e;
+}
+
+.batch-production-scroll,
+.batch-production-scroll > .viewport,
+.batch-production-scroll .corner {
+    -fx-background-color: transparent;
+}
+
+.batch-page-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #ffffff;
+}
+
+.batch-page-subtitle,
+.batch-section-description {
+    -fx-text-fill: #a9b0b8;
+}
+
+.batch-page-subtitle {
+    -fx-font-size: 14px;
+}
+
+.batch-section-card,
+.batch-summary-card {
+    -fx-background-color: #292929;
+    -fx-background-radius: 12;
+    -fx-border-color: #3b3b3b;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 18;
+}
+
+.batch-section-number {
+    -fx-background-color: #007acc;
+    -fx-background-radius: 999;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.batch-section-title,
+.batch-summary-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #f4f4f4;
+}
+
+.batch-section-description {
+    -fx-font-size: 12px;
+}
+
+.batch-field-label,
+.batch-summary-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #b7bdc4;
+}
+
+.batch-selector,
+.batch-notes,
+.batch-quantity-field {
+    -fx-background-color: #202020;
+    -fx-background-radius: 7;
+    -fx-border-color: #484848;
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #737a82;
+}
+
+.batch-selector:focused,
+.batch-notes:focused,
+.batch-quantity-field:focused {
+    -fx-border-color: #168bd2;
+}
+
+.batch-selector .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+}
+
+.batch-notes .content {
+    -fx-background-color: #202020;
+}
+
+.batch-product-list {
+    -fx-background-color: #232323;
+    -fx-background-radius: 9;
+    -fx-border-color: #393939;
+    -fx-border-radius: 9;
+    -fx-padding: 10;
+}
+
+.batch-product-button {
+    -fx-background-color: #303030;
+    -fx-background-radius: 8;
+    -fx-border-color: #494949;
+    -fx-border-radius: 8;
+    -fx-text-fill: #e3e7ea;
+    -fx-alignment: center-left;
+    -fx-text-alignment: left;
+    -fx-padding: 10 14;
+    -fx-cursor: hand;
+}
+
+.batch-product-button:hover {
+    -fx-background-color: #363d42;
+    -fx-border-color: #6db8e8;
+}
+
+.batch-product-button-selected {
+    -fx-background-color: #17364a;
+    -fx-border-color: #168bd2;
+    -fx-text-fill: white;
+}
+
+.batch-empty-state {
+    -fx-text-fill: #8f979f;
+    -fx-font-style: italic;
+    -fx-padding: 10 4;
+}
+
+.batch-item-row {
+    -fx-background-color: #232323;
+    -fx-background-radius: 9;
+    -fx-border-color: #3d3d3d;
+    -fx-border-radius: 9;
+    -fx-padding: 10 12;
+}
+
+.batch-item-row-active {
+    -fx-background-color: #20343f;
+    -fx-border-color: #168bd2;
+}
+
+.batch-item-code {
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #f1f3f5;
+}
+
+.batch-item-detail,
+.batch-items-total {
+    -fx-font-size: 12px;
+    -fx-text-fill: #aeb5bc;
+}
+
+.batch-quantity-field {
+    -fx-pref-width: 74;
+    -fx-min-width: 64;
+    -fx-pref-height: 34;
+}
+
+.batch-quantity-step,
+.batch-secondary-action {
+    -fx-background-color: transparent;
+    -fx-background-radius: 7;
+    -fx-border-color: #555b61;
+    -fx-border-radius: 7;
+    -fx-text-fill: #dce1e5;
+    -fx-cursor: hand;
+}
+
+.batch-quantity-step:hover,
+.batch-secondary-action:hover {
+    -fx-background-color: #363a3e;
+    -fx-border-color: #6db8e8;
+}
+
+.batch-secondary-action {
+    -fx-padding: 7 12;
+}
+
+.batch-summary-card {
+    -fx-min-height: 310;
+}
+
+.batch-summary-value {
+    -fx-font-size: 13px;
+    -fx-text-fill: #f3f4f6;
+}
+
+.batch-readiness {
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-padding: 8 10;
+}
+
+.batch-readiness-ready {
+    -fx-background-color: rgba(34, 197, 94, 0.13);
+    -fx-border-color: rgba(34, 197, 94, 0.35);
+    -fx-text-fill: #77df9a;
+}
+
+.batch-readiness-warning {
+    -fx-background-color: rgba(245, 158, 11, 0.13);
+    -fx-border-color: rgba(245, 158, 11, 0.35);
+    -fx-text-fill: #f3bd5b;
+}
+
+.batch-action-bar {
+    -fx-background-color: #252526;
+    -fx-border-color: #3b3b3b transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 12 28;
+}
+
+.batch-primary-action {
+    -fx-background-color: #007acc;
+    -fx-background-radius: 7;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-padding: 9 18;
+}
+
+.batch-primary-action:hover {
+    -fx-background-color: #168bd2;
+}
+
+.batch-primary-action:disabled {
+    -fx-opacity: 0.45;
+}
+
+.batch-feedback {
+    -fx-font-size: 12px;
+    -fx-text-fill: #a9b0b8;
+}
+
+.batch-feedback-success {
+    -fx-text-fill: #77df9a;
+}
+
+.batch-feedback-error {
+    -fx-text-fill: #ff999f;
+}
