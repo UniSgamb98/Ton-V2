@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class AppContainer {
+public class AppContainer implements ApplicationInitializer {
 
     private static final int BACKGROUND_WORKER_COUNT = 3;
 
@@ -20,7 +20,7 @@ public class AppContainer {
     private final DocumentBrowserService documentBrowserService;
 
     // --- Database ---
-    protected final Database database;
+    private final Database database;
     private final ConnectionProvider connectionProvider;
 
     // Migrated operations use one scoped connection per task, so workers can
@@ -36,9 +36,7 @@ public class AppContainer {
             return thread;
         });
 
-        // DATABASE
         this.database = new Database();
-        database.start();
         this.connectionProvider = database;
 
         // SHARED SERVICES
@@ -54,6 +52,12 @@ public class AppContainer {
     public Executor backgroundExecutor() { return backgroundExecutor; }
     public ConnectionProvider connectionProvider() { return connectionProvider; }
 
+    @Override
+    public void initialize() {
+        database.start();
+    }
+
+    @Override
     public void shutdown() {
         backgroundExecutor.shutdownNow();
         try {
@@ -63,5 +67,6 @@ public class AppContainer {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
+        database.stop();
     }
 }

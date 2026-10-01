@@ -164,6 +164,12 @@ I servizi parametri dei preset aprono connessioni scoped; questo ha permesso di
 rimuovere definitivamente la connessione JDBC condivisa e le repository legacy
 da `AppContainer`.
 
+Anche il bootstrap è asincrono: `MainApp` mostra subito una scena di avvio e
+inizializza Derby sul pool di background, offrendo retry e chiusura in caso di
+errore. `Database` espone uno stato esplicito, propaga i fallimenti, usa una home
+portabile/configurabile e impedisce l'apertura di connessioni prima dello stato
+`READY`; avvio e shutdown sono ora responsabilità di `AppContainer`.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di

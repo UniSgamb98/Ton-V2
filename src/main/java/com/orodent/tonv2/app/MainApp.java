@@ -1,23 +1,55 @@
 package com.orodent.tonv2.app;
 
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
 import javafx.stage.Stage;
+
+import java.util.Objects;
 
 public class MainApp extends Application {
 
-    AppController appController;
+    private AppContainer appContainer;
+    private AppController appController;
+    private StartupController startupController;
 
-    /*
-    AppController è una classe che fa le veci da Router dell'app. Tutti i Controller delle
-    varie pagine chiederanno ad AppController di cambiare vista.
-     */
     @Override
     public void start(Stage stage) {
-        appController = new AppController(stage);
+        appContainer = new AppContainer();
+        StartupView startupView = new StartupView();
+        Scene startupScene = new Scene(startupView, 900, 700);
+        startupScene.getStylesheets().add(Objects.requireNonNull(
+                getClass().getResource("/css/global.css")).toExternalForm());
+
+        startupController = new StartupController(
+                startupView,
+                appContainer,
+                appContainer.backgroundExecutor(),
+                () -> showApplication(stage),
+                Platform::exit
+        );
+
+        stage.setTitle("TON - Avvio");
+        stage.setScene(startupScene);
+        stage.show();
+        startupController.initialize();
+    }
+
+    private void showApplication(Stage stage) {
+        startupController.dispose();
+        startupController = null;
+        appController = new AppController(stage, appContainer);
     }
 
     @Override
-    public void stop(){
-        appController.shutdown();
+    public void stop() {
+        if (startupController != null) {
+            startupController.dispose();
+        }
+        if (appController != null) {
+            appController.shutdown();
+        } else if (appContainer != null) {
+            appContainer.shutdown();
+        }
     }
 }

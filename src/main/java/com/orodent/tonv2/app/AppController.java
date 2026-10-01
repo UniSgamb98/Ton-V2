@@ -77,14 +77,12 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     di essere fermato in un secondo momento oppure se sta leggendo un flusso di dati.
      */
 
-    public AppController(Stage stage) {
+    public AppController(Stage stage, AppContainer app) {
         this.stage = stage;
-        this.app = new AppContainer();
+        this.app = app;
         this.cssPath = Objects.requireNonNull(getClass().getResource("/css/global.css")).toExternalForm();
 
         showHome();
-        stage.setOnCloseRequest(e -> shutdown());
-        stage.show();
     }
 
     /*
@@ -468,6 +466,5 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         runActivePageCleanup();
         activePageCleanup = () -> {};
         app.shutdown();
-        app.database.stop();
     }
 }
