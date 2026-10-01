@@ -318,7 +318,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showView(view, controller::dispose);
+        showView(view, controller::dispose, "/css/item-setup.css");
         stage.setTitle("TON - Setup Item");
         controller.loadInitialData();
     }

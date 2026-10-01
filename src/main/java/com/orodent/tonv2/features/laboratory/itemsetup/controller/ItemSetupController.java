@@ -17,6 +17,7 @@ public class ItemSetupController {
     private final DebouncedTaskRunner<List<Product>> productsLoader;
     private final DebouncedTaskRunner<Integer> activationRunner;
     private final DebouncedTaskRunner<Item> creationRunner;
+    private final DebouncedTaskRunner<ItemSetupService.ProductSetupStatus> productSetupRunner;
 
     public ItemSetupController(ItemSetupView view,
                                ItemSetupService service,
@@ -26,6 +27,7 @@ public class ItemSetupController {
         this.productsLoader = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.activationRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
         this.creationRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.ZERO);
+        this.productSetupRunner = new DebouncedTaskRunner<>(backgroundExecutor, Duration.millis(100));
 
         setupActions();
     }
@@ -42,6 +44,22 @@ public class ItemSetupController {
     private void setupActions() {
         view.getActivateLatestCompositionButton().setOnAction(e -> activateLatestComposition());
         view.getCreateItemButton().setOnAction(e -> createItem());
+        view.getProductSelector().valueProperty().addListener((obs, oldProduct, newProduct) -> {
+            if (newProduct == null) {
+                view.showProductSetup(ItemSetupService.ProductSetupStatus.empty());
+                return;
+            }
+            loadProductSetup(newProduct);
+        });
+    }
+
+    private void loadProductSetup(Product product) {
+        productSetupRunner.runDebounced(
+                () -> service.findProductSetupStatus(product.id()),
+                view::showProductSetupLoading,
+                view::showProductSetup,
+                error -> view.showLoadError("Errore durante la verifica della configurazione prodotto.")
+        );
     }
 
     private void activateLatestComposition() {
@@ -50,8 +68,10 @@ public class ItemSetupController {
             activationRunner.runNow(
                     () -> service.activateLatestComposition(product.id()),
                     view::showActivationLoading,
-                    compositionId -> view.showSuccess(
-                            "Composizione ID: " + compositionId + " attivata con successo."),
+                    compositionId -> {
+                        view.showSuccess("Composizione #" + compositionId + " attivata con successo.");
+                        loadProductSetup(product);
+                    },
                     error -> view.showLoadError(error instanceof IllegalArgumentException
                             ? error.getMessage()
                             : "Errore durante l'aggiornamento della composizione attiva.")
@@ -70,7 +90,7 @@ public class ItemSetupController {
             creationRunner.runNow(
                     () -> service.createItemForActiveComposition(itemCode, product.id(), heightMm),
                     view::showCreationLoading,
-                    item -> view.showSuccess("Item pronto: " + item.code() + " (id " + item.id() + ")"),
+                    item -> view.showSuccess("Articolo pronto: " + item.code() + " (id " + item.id() + ")"),
                     error -> view.showLoadError(error instanceof IllegalArgumentException
                             ? error.getMessage()
                             : "Errore durante la creazione item.")
@@ -108,5 +128,6 @@ public class ItemSetupController {
         productsLoader.cancel();
         activationRunner.cancel();
         creationRunner.cancel();
+        productSetupRunner.cancel();
     }
 }

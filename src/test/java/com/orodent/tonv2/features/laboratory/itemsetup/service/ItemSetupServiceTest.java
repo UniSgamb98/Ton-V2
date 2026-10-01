@@ -33,4 +33,19 @@ class ItemSetupServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.activateLatestComposition(0));
         assertFalse(connectionOpened.get());
     }
+
+    @Test
+    void invalidProductSetupStatusDoesNotOpenDatabaseConnection() {
+        AtomicBoolean connectionOpened = new AtomicBoolean();
+        ItemSetupService service = new ItemSetupService(() -> {
+            connectionOpened.set(true);
+            throw new AssertionError("The database must not be opened for an invalid product");
+        });
+
+        ItemSetupService.ProductSetupStatus status = service.findProductSetupStatus(0);
+
+        assertFalse(status.hasActiveComposition());
+        assertFalse(status.hasBlankModel());
+        assertFalse(connectionOpened.get());
+    }
 }
