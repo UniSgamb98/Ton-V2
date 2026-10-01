@@ -1,16 +1,19 @@
 package com.orodent.tonv2.features.laboratory.composition.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.BlankModelRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionLayerIngredientRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.CompositionRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.LineRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.PowderRepositoryImpl;
+import com.orodent.tonv2.core.database.implementation.ProductRepositoryImpl;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Composition;
 import com.orodent.tonv2.core.database.model.CompositionLayerIngredient;
 import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.BlankModelRepository;
-import com.orodent.tonv2.core.database.repository.CompositionLayerIngredientRepository;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
-import com.orodent.tonv2.core.database.repository.LineRepository;
-import com.orodent.tonv2.core.database.repository.PowderRepository;
-import com.orodent.tonv2.core.database.repository.ProductRepository;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
 
@@ -21,32 +24,22 @@ import java.util.Optional;
 import java.util.TreeMap;
 
 public class CreateCompositionService {
-    private final PowderRepository powderRepo;
-    private final CompositionRepository compositionRepo;
-    private final CompositionLayerIngredientRepository compositionLayerIngredientRepo;
-    private final ProductRepository productRepo;
-    private final LineRepository lineRepo;
-    private final BlankModelRepository blankModelRepo;
+    private final ConnectionProvider connectionProvider;
 
-    public CreateCompositionService(PowderRepository powderRepo,
-                                    CompositionRepository compositionRepo,
-                                    CompositionLayerIngredientRepository compositionLayerIngredientRepo,
-                                    ProductRepository productRepo,
-                                    LineRepository lineRepo,
-                                    BlankModelRepository blankModelRepo) {
-        this.powderRepo = powderRepo;
-        this.compositionRepo = compositionRepo;
-        this.compositionLayerIngredientRepo = compositionLayerIngredientRepo;
-        this.productRepo = productRepo;
-        this.lineRepo = lineRepo;
-        this.blankModelRepo = blankModelRepo;
+    public CreateCompositionService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
     }
 
-    public List<Product> findAllProducts() {
-        return productRepo.findAll();
+    public InitialData loadInitialData() {
+        return connectionProvider.withConnection(connection -> new InitialData(
+                new ProductRepositoryImpl(connection).findAll(),
+                latestBlankModels(new BlankModelRepositoryImpl(connection)),
+                new PowderRepositoryImpl(connection).findAll(),
+                new LineRepositoryImpl(connection).findDistinctNames()
+        ));
     }
 
-    public List<BlankModel> findAllBlankModels() {
+    private List<BlankModel> latestBlankModels(BlankModelRepository blankModelRepo) {
         java.util.LinkedHashMap<String, BlankModel> latestByCode = new java.util.LinkedHashMap<>();
         for (BlankModel model : blankModelRepo.findAll()) {
             latestByCode.putIfAbsent(model.code(), model);
@@ -54,43 +47,28 @@ public class CreateCompositionService {
         return new java.util.ArrayList<>(latestByCode.values());
     }
 
-    public List<Powder> findAllPowders() {
-        return powderRepo.findAll();
-    }
-
-    public List<String> findAllLineNames() {
-        return lineRepo.findDistinctNames();
-    }
-
-
     public List<String> findLineNamesByProductId(int productId) {
-        return lineRepo.findByProductId(productId).stream()
+        return connectionProvider.withConnection(connection -> new LineRepositoryImpl(connection).findByProductId(productId).stream()
                 .map(com.orodent.tonv2.core.database.model.Line::name)
                 .distinct()
-                .toList();
+                .toList());
     }
 
     public Optional<LatestCompositionData> loadLatestComposition(int productId) {
-        Optional<Composition> latestComposition = compositionRepo.findLatestByProduct(productId);
-        if (latestComposition.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Composition composition = latestComposition.get();
-        Integer blankModelId = compositionRepo.findBlankModelIdByCompositionId(composition.id()).orElse(null);
-
-        Map<Integer, LayerDraft> byLayer = new TreeMap<>();
-
-        for (CompositionLayerIngredient ingredient : compositionLayerIngredientRepo.findByCompositionId(composition.id())) {
-            LayerDraft draft = byLayer.computeIfAbsent(ingredient.layerNumber(), LayerDraft::new);
-            draft.ingredients().add(new IngredientDraft(
-                    ingredient.powderId(),
-                    ingredient.percentage()
-            ));
-        }
-
-        List<LayerDraft> layerDrafts = new ArrayList<>(byLayer.values());
-        return Optional.of(new LatestCompositionData(composition.notes(), blankModelId, layerDrafts));
+        return connectionProvider.withConnection(connection -> {
+            CompositionRepository compositionRepo = new CompositionRepositoryImpl(connection);
+            Optional<Composition> latestComposition = compositionRepo.findLatestByProduct(productId);
+            if (latestComposition.isEmpty()) return Optional.empty();
+            Composition composition = latestComposition.get();
+            Integer blankModelId = compositionRepo.findBlankModelIdByCompositionId(composition.id()).orElse(null);
+            Map<Integer, LayerDraft> byLayer = new TreeMap<>();
+            for (CompositionLayerIngredient ingredient : new CompositionLayerIngredientRepositoryImpl(connection)
+                    .findByCompositionId(composition.id())) {
+                LayerDraft draft = byLayer.computeIfAbsent(ingredient.layerNumber(), LayerDraft::new);
+                draft.ingredients().add(new IngredientDraft(ingredient.powderId(), ingredient.percentage()));
+            }
+            return Optional.of(new LatestCompositionData(composition.notes(), blankModelId, new ArrayList<>(byLayer.values())));
+        });
     }
 
     public void saveComposition(SaveCompositionRequest request) {
@@ -110,18 +88,23 @@ public class CreateCompositionService {
 
         Integer existingProductId = request.product() == null ? null : request.product().id();
         String newProductCode = request.newProductCode() == null ? null : request.newProductCode().trim();
-        compositionRepo.createVersionWithModelAndActivateForLine(
+        connectionProvider.withConnection(connection -> {
+            new CompositionRepositoryImpl(connection).createVersionWithModelAndActivateForLine(
                 existingProductId,
                 newProductCode,
                 request.lineName().trim(),
                 request.blankModel().id(),
                 request.layers().size(),
                 request.notes(),
-                ingredients
-        );
+                ingredients);
+            return null;
+        });
     }
 
     private void validateRequest(SaveCompositionRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Dati composizione mancanti.");
+        }
         if (request.product() == null && (request.newProductCode() == null || request.newProductCode().isBlank())) {
             throw new IllegalArgumentException("Seleziona o crea un prodotto prima di salvare la composizione.");
         }
@@ -162,6 +145,12 @@ public class CreateCompositionService {
     public record LatestCompositionData(String notes,
                                         Integer blankModelId,
                                         List<LayerDraft> layerDrafts) {
+    }
+
+    public record InitialData(List<Product> products,
+                              List<BlankModel> blankModels,
+                              List<Powder> powders,
+                              List<String> lineNames) {
     }
 
     public record SaveCompositionRequest(Product product,

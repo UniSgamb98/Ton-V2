@@ -145,6 +145,9 @@ in background. I due comandi usano transazioni scoped indipendenti.
 L'editor Modello Disco mostra subito la scena, carica le versioni esistenti in
 background e salva modello, layer, fasce e associazioni in una singola transazione.
 
+L'editor Composizione carica dati iniziali, linee e versioni in background; anche
+il salvataggio usa una connessione scoped e preserva il lifecycle del dirty state.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di

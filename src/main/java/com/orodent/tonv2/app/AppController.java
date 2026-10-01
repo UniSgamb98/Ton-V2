@@ -270,28 +270,18 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         CreateCompositionController controller = new CreateCompositionController(
                 view,
                 this,
-                new CreateCompositionService(
-                        app.powderRepo(),
-                        app.compositionRepo(),
-                        app.compositionLayerIngredientRepo(),
-                        app.productRepo(),
-                        app.lineRepo(),
-                        app.blankModelRepo()
-                ),
+                new CreateCompositionService(app.connectionProvider()),
+                new CompositionArchiveService(app.connectionProvider()),
                 productId == null
                         ? CreateCompositionController.EditorMode.create()
-                        : CreateCompositionController.EditorMode.edit()
+                        : CreateCompositionController.EditorMode.edit(),
+                productId,
+                app.backgroundExecutor()
         );
 
-        if (productId != null) {
-            CompositionArchiveService archiveService = new CompositionArchiveService(app.connectionProvider());
-            archiveService.loadCompositionSnapshot(productId)
-                    .ifPresent(controller::preloadFromArchiveSnapshot);
-            controller.markAsClean();
-        }
-
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle(productId == null ? "TON - Nuova composizione" : "TON - Modifica Composizione");
+        controller.loadInitialData();
     }
 
 

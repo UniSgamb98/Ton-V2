@@ -32,6 +32,8 @@ public class CreateCompositionView extends VBox {
 
     private final Button saveBtn = new Button("Salva composizione");
     private final Button backBtn = new Button("Indietro");
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
+    private final Label statusLabel = new Label();
 
     private final List<LayerDraft> layers = new ArrayList<>();
     private List<Powder> availablePowders = new ArrayList<>();
@@ -42,11 +44,42 @@ public class CreateCompositionView extends VBox {
 
         buildLayout();
 
-        getChildren().addAll(header, content);
+        progressIndicator.setMaxSize(24, 24);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        getChildren().addAll(header, content, progressIndicator, statusLabel);
     }
 
     public void setAvailablePowders(List<Powder> powders) {
         this.availablePowders = powders;
+    }
+
+    public void showInitialLoading() { setLoadingState("Caricamento dati composizione..."); }
+    public void showLinesLoading() { setLoadingState("Caricamento linee..."); }
+    public void showLatestVersionLoading() { setLoadingState("Caricamento ultima versione..."); }
+    public void showSaving() { setLoadingState("Salvataggio composizione..."); }
+
+    public void showLoadSuccess() {
+        content.setDisable(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        statusLabel.setText("");
+    }
+
+    public void showLoadError(String message) {
+        content.setDisable(false);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #b91c1c;");
+    }
+
+    private void setLoadingState(String message) {
+        content.setDisable(true);
+        progressIndicator.setVisible(true);
+        progressIndicator.setManaged(true);
+        statusLabel.setText(message);
+        statusLabel.setStyle("-fx-text-fill: #374151;");
     }
 
     private void buildLayout() {

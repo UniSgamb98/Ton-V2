@@ -5,6 +5,9 @@ import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.ui.form.ConfirmUnsavedChangesDialog;
 import com.orodent.tonv2.core.ui.form.DirtyStateTracker;
+import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
+import com.orodent.tonv2.core.ui.draft.IngredientDraft;
+import com.orodent.tonv2.core.ui.draft.LayerDraft;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionDraftStateService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
@@ -12,10 +15,11 @@ import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionV
 import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
+import javafx.util.Duration;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 public class CreateCompositionController {
 
@@ -28,21 +32,39 @@ public class CreateCompositionController {
     private final EditorMode editorMode;
     private final CompositionDraftStateService draftStateService;
     private final DirtyStateTracker dirtyStateTracker;
+    private final CompositionArchiveService archiveService;
+    private final Integer sourceProductId;
+    private final DebouncedTaskRunner<InitialPageData> initialDataLoader;
+    private final DebouncedTaskRunner<List<String>> productLinesLoader;
+    private final DebouncedTaskRunner<Optional<CreateCompositionService.LatestCompositionData>> latestVersionLoader;
+    private final DebouncedTaskRunner<Void> saveRunner;
+    private boolean applyingInitialData;
 
     public CreateCompositionController(CreateCompositionView view,
                                        LaboratoryNavigator navigator,
-                                       CreateCompositionService service) {
-        this(view, navigator, service, EditorMode.create());
+                                       CreateCompositionService service,
+                                       CompositionArchiveService archiveService,
+                                       Executor executor) {
+        this(view, navigator, service, archiveService, EditorMode.create(), null, executor);
     }
 
     public CreateCompositionController(CreateCompositionView view,
                                        LaboratoryNavigator navigator,
                                        CreateCompositionService service,
-                                       EditorMode editorMode) {
+                                       CompositionArchiveService archiveService,
+                                       EditorMode editorMode,
+                                       Integer sourceProductId,
+                                       Executor executor) {
         this.view = view;
         this.navigator = navigator;
         this.service = service;
         this.editorMode = editorMode;
+        this.archiveService = archiveService;
+        this.sourceProductId = sourceProductId;
+        this.initialDataLoader = new DebouncedTaskRunner<>(executor, Duration.ZERO);
+        this.productLinesLoader = new DebouncedTaskRunner<>(executor, Duration.millis(100));
+        this.latestVersionLoader = new DebouncedTaskRunner<>(executor, Duration.ZERO);
+        this.saveRunner = new DebouncedTaskRunner<>(executor, Duration.ZERO);
         this.draftStateService = new CompositionDraftStateService();
         this.dirtyStateTracker = new DirtyStateTracker()
                 .track("productId", () -> view.getProductSelector().getValue() == null ? null : view.getProductSelector().getValue().id())
@@ -53,34 +75,33 @@ public class CreateCompositionController {
 
         view.configureEditMode(editorMode.editMode());
         view.setLineSelectorLocked(editorMode.editMode());
-        loadProducts();
-        loadLines();
-        loadBlankModels();
-        loadPowders();
         setupActions();
+        if (!editorMode.editMode()) dirtyStateTracker.captureInitialState();
+    }
+
+    public void loadInitialData() {
+        initialDataLoader.runNow(
+                () -> new InitialPageData(service.loadInitialData(), sourceProductId == null
+                        ? Optional.empty() : archiveService.loadCompositionSnapshot(sourceProductId)),
+                view::showInitialLoading,
+                this::applyInitialData,
+                error -> view.showLoadError("Errore durante il caricamento della composizione.")
+        );
+    }
+
+    private void applyInitialData(InitialPageData pageData) {
+        applyingInitialData = true;
+        var data = pageData.data();
+        view.getProductSelector().getItems().setAll(data.products());
+        view.getProductSelector().getItems().addFirst(NEW_PRODUCT_OPTION);
+        view.getLineSelector().getItems().setAll(data.lineNames());
+        view.getLineSelector().getItems().addFirst(NEW_LINE_OPTION);
+        view.getBlankModelSelector().getItems().setAll(data.blankModels());
+        view.setAvailablePowders(data.powders());
+        pageData.snapshot().ifPresent(this::preloadFromArchiveSnapshot);
+        applyingInitialData = false;
         dirtyStateTracker.captureInitialState();
-    }
-
-    private void loadProducts() {
-        view.getProductSelector().getItems().setAll(service.findAllProducts());
-        if (!view.getProductSelector().getItems().contains(NEW_PRODUCT_OPTION)) {
-            view.getProductSelector().getItems().addFirst(NEW_PRODUCT_OPTION);
-        }
-    }
-
-    private void loadPowders() {
-        view.setAvailablePowders(service.findAllPowders());
-    }
-
-    private void loadLines() {
-        view.getLineSelector().getItems().setAll(service.findAllLineNames());
-        if (!view.getLineSelector().getItems().contains(NEW_LINE_OPTION)) {
-            view.getLineSelector().getItems().addFirst(NEW_LINE_OPTION);
-        }
-    }
-
-    private void loadBlankModels() {
-        view.getBlankModelSelector().getItems().setAll(service.findAllBlankModels());
+        view.showLoadSuccess();
     }
 
     private void setupActions() {
@@ -106,6 +127,9 @@ public class CreateCompositionController {
     }
 
     private void applyLineSelectionForProduct(Product newProduct, Product oldProduct) {
+        if (applyingInitialData) {
+            return;
+        }
         if (newProduct == null) {
             return;
         }
@@ -121,10 +145,15 @@ public class CreateCompositionController {
             return;
         }
 
-        List<String> lines = service.findLineNamesByProductId(newProduct.id());
-        if (!lines.isEmpty()) {
-            view.getLineSelector().setValue(lines.get(0));
-        }
+        productLinesLoader.runDebounced(
+                () -> service.findLineNamesByProductId(newProduct.id()),
+                view::showLinesLoading,
+                lines -> {
+                    if (!lines.isEmpty()) view.getLineSelector().setValue(lines.getFirst());
+                    view.showLoadSuccess();
+                },
+                error -> view.showLoadError("Errore durante il caricamento delle linee.")
+        );
     }
 
     private void navigateBackWithConfirmation() {
@@ -141,9 +170,7 @@ public class CreateCompositionController {
         );
 
         if (choice == ConfirmUnsavedChangesDialog.UserChoice.SAVE) {
-            if (saveComposition(false)) {
-                navigator.showLaboratoryCompositionArchive();
-            }
+            saveComposition(false);
             return;
         }
 
@@ -159,12 +186,20 @@ public class CreateCompositionController {
             return;
         }
 
-        Optional<CreateCompositionService.LatestCompositionData> latest = service.loadLatestComposition(selectedProduct.id());
+        latestVersionLoader.runNow(
+                () -> service.loadLatestComposition(selectedProduct.id()),
+                view::showLatestVersionLoading,
+                this::applyLatestVersion,
+                error -> view.showLoadError("Errore durante il caricamento dell'ultima versione.")
+        );
+    }
+
+    private void applyLatestVersion(Optional<CreateCompositionService.LatestCompositionData> latest) {
         if (latest.isEmpty()) {
+            view.showLoadSuccess();
             showWarning("Nessuna versione trovata", "Non esiste ancora una composizione da caricare per questo prodotto.");
             return;
         }
-
         CreateCompositionService.LatestCompositionData data = latest.get();
         if (data.blankModelId() != null) {
             view.getBlankModelSelector().getItems().stream()
@@ -175,6 +210,7 @@ public class CreateCompositionController {
 
         view.setNotes(data.notes());
         view.replaceLayers(data.layerDrafts());
+        view.showLoadSuccess();
     }
 
     public void preloadFromArchiveSnapshot(CompositionArchiveService.CompositionSnapshot snapshot) {
@@ -202,48 +238,59 @@ public class CreateCompositionController {
         dirtyStateTracker.captureInitialState();
     }
 
-    private boolean saveComposition(boolean navigateToLaboratory) {
+    private void saveComposition(boolean navigateToLaboratory) {
         ProductSelection productSelection = resolveProductSelection();
         if (productSelection == null) {
-            return false;
+            return;
         }
 
         String lineName = resolveLineName();
         if (lineName == null) {
-            return false;
+            return;
         }
 
         BlankModel blankModel = view.getBlankModelSelector().getValue();
         view.renumberLayers();
 
         try {
-            service.saveComposition(new CreateCompositionService.SaveCompositionRequest(
+            CreateCompositionService.SaveCompositionRequest request = new CreateCompositionService.SaveCompositionRequest(
                     productSelection.product(),
                     productSelection.newProductCode(),
                     lineName,
                     blankModel,
-                    view.getLayers(),
+                    copyLayers(view.getLayers()),
                     view.getNotes()
-            ));
-
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setHeaderText("Composizione Salvata");
-            alert.setContentText("La ricetta è stata registrata correttamente.");
-            alert.showAndWait();
-
-            dirtyStateTracker.captureInitialState();
-
-            if (navigateToLaboratory) {
-                navigator.showLaboratory();
-            }
-            return true;
+            );
+            saveRunner.runNow(
+                    () -> { service.saveComposition(request); return null; },
+                    view::showSaving,
+                    ignored -> showSaveSuccess(navigateToLaboratory),
+                    error -> view.showLoadError("Errore salvataggio composizione: " + error.getMessage())
+            );
         } catch (IllegalArgumentException ex) {
             showWarning("Validazione dati", ex.getMessage());
-            return false;
-        } catch (RuntimeException ex) {
-            showDbError("Errore salvataggio composizione", ex);
-            return false;
         }
+    }
+
+    private void showSaveSuccess(boolean navigateToLaboratory) {
+        view.showLoadSuccess();
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setHeaderText("Composizione Salvata");
+        alert.setContentText("La ricetta è stata registrata correttamente.");
+        alert.showAndWait();
+        dirtyStateTracker.captureInitialState();
+        if (navigateToLaboratory) navigator.showLaboratory();
+        else navigator.showLaboratoryCompositionArchive();
+    }
+
+    private List<LayerDraft> copyLayers(List<LayerDraft> source) {
+        return source.stream().map(layer -> {
+            LayerDraft copy = new LayerDraft(layer.layerNumber());
+            copy.setNotes(layer.notes());
+            layer.ingredients().forEach(ingredient -> copy.ingredients().add(
+                    new IngredientDraft(ingredient.powderId(), ingredient.percentage())));
+            return copy;
+        }).toList();
     }
 
     private String normalize(String value) {
@@ -337,21 +384,15 @@ public class CreateCompositionController {
         warning.showAndWait();
     }
 
-    private void showDbError(String header, RuntimeException ex) {
-        Throwable cause = ex;
-        while (cause != null && !(cause instanceof SQLException)) {
-            cause = cause.getCause();
-        }
+    public void dispose() {
+        initialDataLoader.cancel();
+        productLinesLoader.cancel();
+        latestVersionLoader.cancel();
+        saveRunner.cancel();
+    }
 
-        String message = ex.getMessage();
-        if (cause instanceof SQLException sqlEx && "45000".equals(sqlEx.getSQLState())) {
-            message = sqlEx.getMessage();
-        }
-
-        Alert error = new Alert(Alert.AlertType.ERROR);
-        error.setHeaderText(header);
-        error.setContentText(message);
-        error.showAndWait();
+    private record InitialPageData(CreateCompositionService.InitialData data,
+                                   Optional<CompositionArchiveService.CompositionSnapshot> snapshot) {
     }
 
     private record ProductSelection(Product product, String newProductCode) {}
