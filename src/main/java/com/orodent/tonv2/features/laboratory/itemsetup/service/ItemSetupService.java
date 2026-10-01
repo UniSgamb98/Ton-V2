@@ -10,6 +10,7 @@ import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.database.repository.CompositionRepository;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
+import com.orodent.tonv2.features.laboratory.itemsetup.model.ProductSetupStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -99,17 +100,4 @@ public class ItemSetupService {
                 new ProductRepositoryImpl(connection).findAll());
     }
 
-    public record ProductSetupStatus(Integer activeCompositionId, String blankModelCode) {
-        public static ProductSetupStatus empty() {
-            return new ProductSetupStatus(null, null);
-        }
-
-        public boolean hasActiveComposition() {
-            return activeCompositionId != null;
-        }
-
-        public boolean hasBlankModel() {
-            return blankModelCode != null && !blankModelCode.isBlank();
-        }
-    }
 }

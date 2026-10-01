@@ -1,5 +1,6 @@
 package com.orodent.tonv2.features.laboratory.itemsetup.service;
 
+import com.orodent.tonv2.features.laboratory.itemsetup.model.ProductSetupStatus;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,7 +43,7 @@ class ItemSetupServiceTest {
             throw new AssertionError("The database must not be opened for an invalid product");
         });
 
-        ItemSetupService.ProductSetupStatus status = service.findProductSetupStatus(0);
+        ProductSetupStatus status = service.findProductSetupStatus(0);
 
         assertFalse(status.hasActiveComposition());
         assertFalse(status.hasBlankModel());

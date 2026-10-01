@@ -22,6 +22,7 @@ import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompos
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
+import com.orodent.tonv2.features.laboratory.diskmodel.presentation.DiskModelEditorState;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.DiskModelArchiveService;
 import com.orodent.tonv2.features.laboratory.firingprogram.controller.FiringProgramController;
@@ -374,7 +375,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     }
 
     private void showCreateDiskModelInternal(Integer blankModelId) {
-        CreateDiskModelView view = new CreateDiskModelView();
+        CreateDiskModelView view = new CreateDiskModelView(new DiskModelEditorState());
         configureHeader(view.getHeader());
         CreateDiskModelController controller = new CreateDiskModelController(
                 view,

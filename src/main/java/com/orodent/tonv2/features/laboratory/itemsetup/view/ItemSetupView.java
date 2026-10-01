@@ -1,8 +1,10 @@
 package com.orodent.tonv2.features.laboratory.itemsetup.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.core.components.EditorActionBar;
+import com.orodent.tonv2.core.components.NumberedSectionCard;
 import com.orodent.tonv2.core.database.model.Product;
-import com.orodent.tonv2.features.laboratory.itemsetup.service.ItemSetupService;
+import com.orodent.tonv2.features.laboratory.itemsetup.presentation.ItemSetupViewState;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -16,7 +18,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -47,12 +48,11 @@ public class ItemSetupView extends VBox {
 
     private final Label feedbackLabel = new Label();
     private final ProgressIndicator progressIndicator = new ProgressIndicator();
-    private ItemSetupService.ProductSetupStatus productSetupStatus = ItemSetupService.ProductSetupStatus.empty();
     private boolean loading;
+    private ItemSetupViewState renderedState;
 
     public ItemSetupView() {
         buildLayout();
-        bindSummary();
         progressIndicator.setMaxSize(24, 24);
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
@@ -89,14 +89,14 @@ public class ItemSetupView extends VBox {
         articleGrid.getColumnConstraints().addAll(wideColumn, heightColumn);
 
         VBox leftColumn = new VBox(18,
-                createSectionCard("1", "Seleziona il prodotto",
+                new NumberedSectionCard("item", "1", "Seleziona il prodotto",
                         "Il prodotto determina la composizione e il modello disco utilizzati.",
                         createField("Prodotto", productSelector)),
-                createSectionCard("2", "Composizione attiva",
+                new NumberedSectionCard("item", "2", "Composizione attiva",
                         "Verifica la configurazione prima di creare l'articolo.",
                         new VBox(7, compositionStateLabel, compositionDetailsLabel),
                         activateLatestCompositionButton),
-                createSectionCard("3", "Dati articolo",
+                new NumberedSectionCard("item", "3", "Dati articolo",
                         "Inserisci il codice identificativo e l'altezza dell'articolo.", articleGrid)
         );
         HBox.setHgrow(leftColumn, Priority.ALWAYS);
@@ -126,25 +126,15 @@ public class ItemSetupView extends VBox {
         editorScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
         feedbackLabel.getStyleClass().add("item-feedback");
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
         createItemButton.getStyleClass().add("item-primary-action");
-        HBox actionBar = new HBox(12, progressIndicator, feedbackLabel, spacer, createItemButton);
-        actionBar.setAlignment(Pos.CENTER_LEFT);
-        actionBar.getStyleClass().add("item-action-bar");
+        HBox status = new HBox(12, progressIndicator, feedbackLabel);
+        status.setAlignment(Pos.CENTER_LEFT);
+        EditorActionBar actionBar = new EditorActionBar(
+                "item-action-bar", null, status, createItemButton
+        );
 
         content.setCenter(editorScrollPane);
         content.setBottom(actionBar);
-        showProductSetup(ItemSetupService.ProductSetupStatus.empty());
-    }
-
-    private void bindSummary() {
-        productSelector.valueProperty().addListener((obs, oldValue, newValue) -> {
-            productSetupStatus = ItemSetupService.ProductSetupStatus.empty();
-            refreshSummary();
-        });
-        itemCodeField.textProperty().addListener((obs, oldValue, newValue) -> refreshSummary());
-        heightField.textProperty().addListener((obs, oldValue, newValue) -> refreshSummary());
     }
 
     private VBox createSummaryCard() {
@@ -190,24 +180,6 @@ public class ItemSetupView extends VBox {
         return createField("Altezza", field);
     }
 
-    private VBox createSectionCard(String number, String titleText, String descriptionText, Node... nodes) {
-        Label numberLabel = new Label(number);
-        numberLabel.getStyleClass().add("item-section-number");
-        numberLabel.setMinSize(30, 30);
-        numberLabel.setAlignment(Pos.CENTER);
-        Label title = new Label(titleText);
-        title.getStyleClass().add("item-section-title");
-        Label description = new Label(descriptionText);
-        description.getStyleClass().add("item-section-description");
-        description.setWrapText(true);
-        HBox heading = new HBox(12, numberLabel, new VBox(2, title, description));
-        heading.setAlignment(Pos.CENTER_LEFT);
-        VBox card = new VBox(16, heading);
-        card.getChildren().addAll(nodes);
-        card.getStyleClass().add("item-section-card");
-        return card;
-    }
-
     public AppHeader getHeader() { return header; }
     public ComboBox<Product> getProductSelector() { return productSelector; }
     public Button getActivateLatestCompositionButton() { return activateLatestCompositionButton; }
@@ -218,73 +190,22 @@ public class ItemSetupView extends VBox {
     public void showProductSetupLoading() {
         compositionStateLabel.setText("Verifica configurazione...");
         compositionDetailsLabel.setText("");
-        productSetupStatus = ItemSetupService.ProductSetupStatus.empty();
-        refreshSummary();
     }
 
-    public void showProductSetup(ItemSetupService.ProductSetupStatus status) {
-        productSetupStatus = status == null ? ItemSetupService.ProductSetupStatus.empty() : status;
-        if (!productSetupStatus.hasActiveComposition()) {
-            compositionStateLabel.setText("Nessuna composizione attiva");
-            compositionDetailsLabel.setText("Puoi rendere attiva l'ultima composizione disponibile.");
-        } else if (!productSetupStatus.hasBlankModel()) {
-            compositionStateLabel.setText("Composizione #" + productSetupStatus.activeCompositionId());
-            compositionDetailsLabel.setText("La composizione attiva non ha un modello disco associato.");
-        } else {
-            compositionStateLabel.setText("✓ Composizione #" + productSetupStatus.activeCompositionId());
-            compositionDetailsLabel.setText("Modello disco: " + productSetupStatus.blankModelCode());
-        }
-        refreshSummary();
-    }
-
-    private void refreshSummary() {
-        Product product = productSelector.getValue();
-        String code = itemCodeField.getText() == null ? "" : itemCodeField.getText().trim();
-        String height = heightField.getText() == null ? "" : heightField.getText().trim();
-
-        summaryProductValue.setText(product == null ? "Non selezionato" : product.code());
-        summaryCompositionValue.setText(productSetupStatus.hasActiveComposition()
-                ? "#" + productSetupStatus.activeCompositionId() + "  ✓" : "Non disponibile");
-        summaryBlankModelValue.setText(productSetupStatus.hasBlankModel()
-                ? productSetupStatus.blankModelCode() + "  ✓" : "Non disponibile");
-        summaryCodeValue.setText(code.isEmpty() ? "—" : code);
-        summaryHeightValue.setText(height.isEmpty() ? "—" : height + " mm");
-
-        String readiness;
-        boolean ready;
-        if (product == null) {
-            readiness = "Seleziona un prodotto";
-            ready = false;
-        } else if (!productSetupStatus.hasActiveComposition()) {
-            readiness = "Attiva una composizione";
-            ready = false;
-        } else if (!productSetupStatus.hasBlankModel()) {
-            readiness = "Modello disco mancante";
-            ready = false;
-        } else if (code.isEmpty()) {
-            readiness = "Inserisci il codice";
-            ready = false;
-        } else if (!isPositiveNumber(height)) {
-            readiness = "Inserisci un'altezza valida";
-            ready = false;
-        } else {
-            readiness = "Pronto per la creazione  ✓";
-            ready = true;
-        }
-
-        readinessLabel.setText(readiness);
+    public void render(ItemSetupViewState state) {
+        renderedState = state;
+        compositionStateLabel.setText(state.compositionStateTitle());
+        compositionDetailsLabel.setText(state.compositionStateDetails());
+        summaryProductValue.setText(state.productText());
+        summaryCompositionValue.setText(state.compositionText());
+        summaryBlankModelValue.setText(state.blankModelText());
+        summaryCodeValue.setText(state.itemCodeText());
+        summaryHeightValue.setText(state.heightText());
+        readinessLabel.setText(state.readinessText());
         readinessLabel.getStyleClass().removeAll("item-readiness-ready", "item-readiness-warning");
-        readinessLabel.getStyleClass().add(ready ? "item-readiness-ready" : "item-readiness-warning");
-        activateLatestCompositionButton.setDisable(loading || product == null);
-        createItemButton.setDisable(loading || !ready);
-    }
-
-    private boolean isPositiveNumber(String value) {
-        try {
-            return Double.parseDouble(value.replace(',', '.')) > 0;
-        } catch (NumberFormatException exception) {
-            return false;
-        }
+        readinessLabel.getStyleClass().add(state.ready() ? "item-readiness-ready" : "item-readiness-warning");
+        activateLatestCompositionButton.setDisable(loading || productSelector.getValue() == null);
+        createItemButton.setDisable(loading || !state.ready());
     }
 
     public void setFeedback(String text, boolean error) {
@@ -329,6 +250,8 @@ public class ItemSetupView extends VBox {
         editorScrollPane.setDisable(false);
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
-        refreshSummary();
+        if (renderedState != null) {
+            render(renderedState);
+        }
     }
 }

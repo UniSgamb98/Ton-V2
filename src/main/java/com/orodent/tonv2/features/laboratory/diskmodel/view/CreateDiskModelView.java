@@ -1,10 +1,12 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.core.components.EditorActionBar;
+import com.orodent.tonv2.core.components.NumberedSectionCard;
+import com.orodent.tonv2.features.laboratory.diskmodel.presentation.DiskModelEditorState;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.partial.DiskModelPreviewView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
@@ -16,6 +18,7 @@ public class CreateDiskModelView extends VBox {
     private static final double CONTENT_MAX_WIDTH = 1120;
 
     private final AppHeader header = new AppHeader("Laboratorio - Nuovo Modello Disco");
+    private final DiskModelEditorState editorState;
     private final BorderPane content = new BorderPane();
     private final ScrollPane editorScrollPane = new ScrollPane();
 
@@ -43,7 +46,8 @@ public class CreateDiskModelView extends VBox {
     private final List<HeightRangeRow> rangeRows = new ArrayList<>();
     private final List<LayerPercentageRow> layerRows = new ArrayList<>();
 
-    public CreateDiskModelView() {
+    public CreateDiskModelView(DiskModelEditorState editorState) {
+        this.editorState = editorState;
         buildLayout();
         bindPreview();
         progressIndicator.setMaxSize(24, 24);
@@ -93,10 +97,10 @@ public class CreateDiskModelView extends VBox {
         addRangeBtn.getStyleClass().add("secondary-action");
 
         VBox leftBox = new VBox(18,
-                createSectionCard("1", "Informazioni principali", "Identifica il modello e le sue dimensioni.", identityGrid),
-                createSectionCard("2", "Parametri di produzione", "Definisci pressatura e sovramateriali predefiniti.", productionGrid),
-                createSectionCard("3", "Struttura degli strati", "Distribuisci il modello assicurandoti che il totale sia 100%.", layersContent),
-                createSectionCard("4", "Fasce di altezza", "Configurazione opzionale", rangesDescription,
+                new NumberedSectionCard("editor", "1", "Informazioni principali", "Identifica il modello e le sue dimensioni.", identityGrid),
+                new NumberedSectionCard("editor", "2", "Parametri di produzione", "Definisci pressatura e sovramateriali predefiniti.", productionGrid),
+                new NumberedSectionCard("editor", "3", "Struttura degli strati", "Distribuisci il modello assicurandoti che il totale sia 100%.", layersContent),
+                new NumberedSectionCard("editor", "4", "Fasce di altezza", "Configurazione opzionale", rangesDescription,
                 rangesBox,
                 addRangeBtn)
         );
@@ -131,17 +135,15 @@ public class CreateDiskModelView extends VBox {
         editorScrollPane.setFitToWidth(true);
         editorScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
         backBtn.setVisible(false);
         backBtn.setManaged(false);
 
         saveBtn.getStyleClass().add("primary-save-action");
         backBtn.getStyleClass().add("back-action");
         statusLabel.getStyleClass().add("editor-status");
-        HBox bottom = new HBox(12, backBtn, progressIndicator, statusLabel, spacer, saveBtn);
-        bottom.setAlignment(Pos.CENTER_LEFT);
-        bottom.getStyleClass().add("editor-action-bar");
+        HBox status = new HBox(12, progressIndicator, statusLabel);
+        status.setAlignment(Pos.CENTER_LEFT);
+        EditorActionBar bottom = new EditorActionBar("editor-action-bar", backBtn, status, saveBtn);
 
         content.setCenter(editorScrollPane);
         content.setBottom(bottom);
@@ -191,28 +193,6 @@ public class CreateDiskModelView extends VBox {
         return new VBox(6, label, fieldContainer);
     }
 
-    private VBox createSectionCard(String number, String titleText, String descriptionText, Node... contentNodes) {
-        Label numberLabel = new Label(number);
-        numberLabel.getStyleClass().add("editor-section-number");
-        numberLabel.setMinSize(30, 30);
-        numberLabel.setAlignment(Pos.CENTER);
-
-        Label title = new Label(titleText);
-        title.getStyleClass().add("editor-section-title");
-        Label description = new Label(descriptionText);
-        description.getStyleClass().add("editor-section-description");
-        description.setWrapText(true);
-
-        VBox headingText = new VBox(2, title, description);
-        HBox heading = new HBox(12, numberLabel, headingText);
-        heading.setAlignment(Pos.CENTER_LEFT);
-
-        VBox card = new VBox(16, heading);
-        card.getChildren().addAll(contentNodes);
-        card.getStyleClass().add("editor-section-card");
-        return card;
-    }
-
     private void bindPreview() {
         superiorOvermaterialField.textProperty().addListener((obs, oldVal, newVal) -> refreshPreview());
         inferiorOvermaterialField.textProperty().addListener((obs, oldVal, newVal) -> refreshPreview());
@@ -220,7 +200,7 @@ public class CreateDiskModelView extends VBox {
     }
 
     private void rebuildLayerRows() {
-        int layers = parseIntSafe(numLayersField.getText());
+        int layers = editorState.parseLayerCount(numLayersField.getText());
         layerRows.clear();
         layersPercentagesBox.getChildren().clear();
 
@@ -230,9 +210,9 @@ public class CreateDiskModelView extends VBox {
             return;
         }
 
-        double defaultPct = 100.0 / layers;
+        List<Double> defaultPercentages = editorState.distributeLayers(layers);
         for (int i = 1; i <= layers; i++) {
-            LayerPercentageRow row = new LayerPercentageRow(i, defaultPct);
+            LayerPercentageRow row = new LayerPercentageRow(i, defaultPercentages.get(i - 1));
             row.percentageField.textProperty().addListener((obs, oldVal, newVal) -> {
                 updateLayerSummary();
                 refreshPreview();
@@ -246,10 +226,10 @@ public class CreateDiskModelView extends VBox {
     }
 
     private void updateLayerSummary() {
-        double sum = getLayerPercentageValues().stream().mapToDouble(Double::doubleValue).sum();
-        layersSummaryLabel.setText(String.format(java.util.Locale.ROOT, "Somma layer: %.2f%%", sum));
+        DiskModelEditorState.LayerSummary summary = editorState.summarizeLayers(getLayerPercentageTexts());
+        layersSummaryLabel.setText(String.format(java.util.Locale.ROOT, "Somma layer: %.2f%%", summary.total()));
         layersSummaryLabel.getStyleClass().removeAll("layer-total-valid", "layer-total-invalid");
-        if (Math.abs(sum - 100.0) < 0.0001) {
+        if (summary.valid()) {
             layersSummaryLabel.setText(layersSummaryLabel.getText() + "  ✓");
             layersSummaryLabel.getStyleClass().add("layer-total-valid");
         } else {
@@ -258,13 +238,16 @@ public class CreateDiskModelView extends VBox {
     }
 
     private void refreshPreview() {
-        double sup = parseDoubleSafe(superiorOvermaterialField.getText());
-        double inf = parseDoubleSafe(inferiorOvermaterialField.getText());
-        List<Double> percentages = getLayerPercentageValues();
-        if (percentages.isEmpty()) {
-            percentages = List.of(100.0);
-        }
-        previewView.update(sup, inf, percentages);
+        DiskModelEditorState.PreviewData preview = editorState.createPreview(
+                superiorOvermaterialField.getText(),
+                inferiorOvermaterialField.getText(),
+                getLayerPercentageTexts()
+        );
+        previewView.update(
+                preview.superiorOvermaterial(),
+                preview.inferiorOvermaterial(),
+                preview.percentages()
+        );
     }
 
     private void addRangeRow() {
@@ -436,29 +419,12 @@ public class CreateDiskModelView extends VBox {
         return drafts;
     }
 
-    private List<Double> getLayerPercentageValues() {
-        List<Double> values = new ArrayList<>();
+    private List<String> getLayerPercentageTexts() {
+        List<String> values = new ArrayList<>();
         for (LayerPercentageRow row : layerRows) {
-            values.add(parseDoubleSafe(row.percentageField.getText()));
+            values.add(row.percentageField.getText());
         }
         return values;
-    }
-
-    private int parseIntSafe(String raw) {
-        try {
-            return Integer.parseInt(raw == null ? "" : raw.trim());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private double parseDoubleSafe(String raw) {
-        try {
-            String normalized = (raw == null ? "" : raw.trim()).replace(',', '.');
-            return Double.parseDouble(normalized);
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
     }
 
     public record HeightRangeDraft(String minHeight, String maxHeight, String superiorOvermaterial, String inferiorOvermaterial) {}

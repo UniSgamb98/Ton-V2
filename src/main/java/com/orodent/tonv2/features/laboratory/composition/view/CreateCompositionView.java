@@ -1,11 +1,13 @@
 package com.orodent.tonv2.features.laboratory.composition.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.core.components.EditorActionBar;
+import com.orodent.tonv2.core.components.NumberedSectionCard;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Powder;
 import com.orodent.tonv2.core.database.model.Product;
-import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
+import com.orodent.tonv2.features.laboratory.composition.presentation.CompositionLayerViewState;
 import com.orodent.tonv2.features.laboratory.composition.view.partial.LayerEditorView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -22,12 +24,12 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 public class CreateCompositionView extends VBox {
     private static final double CONTENT_MAX_WIDTH = 1180;
@@ -60,6 +62,8 @@ public class CreateCompositionView extends VBox {
     private final List<ToggleButton> layerNavigationButtons = new ArrayList<>();
     private List<Powder> availablePowders = new ArrayList<>();
     private int selectedLayerIndex = -1;
+    private Function<LayerDraft, CompositionLayerViewState> layerStateProvider =
+            layer -> CompositionLayerViewState.empty(layer.layerNumber());
 
     public CreateCompositionView() {
         buildLayout();
@@ -142,11 +146,11 @@ public class CreateCompositionView extends VBox {
 
         VBox editorContent = new VBox(24,
                 new VBox(6, pageTitleLabel, pageSubtitle),
-                createSectionCard("1", "Informazioni composizione",
+                new NumberedSectionCard("composition", "1", "Informazioni composizione",
                         "Scegli prodotto, linea e modello disco da utilizzare.", identityContent),
-                createSectionCard("2", "Configurazione strati",
+                new NumberedSectionCard("composition", "2", "Configurazione strati",
                         "Seleziona uno strato e definisci le polveri che lo compongono.", layerWorkspace),
-                createSectionCard("3", "Note generali",
+                new NumberedSectionCard("composition", "3", "Note generali",
                         "Aggiungi indicazioni valide per l'intera composizione.", notesArea)
         );
         editorContent.setMaxWidth(CONTENT_MAX_WIDTH);
@@ -160,17 +164,17 @@ public class CreateCompositionView extends VBox {
         editorScrollPane.setFitToWidth(true);
         editorScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
         backBtn.setVisible(false);
         backBtn.setManaged(false);
         backBtn.getStyleClass().add("composition-back-action");
         saveBtn.getStyleClass().add("composition-save-action");
         statusLabel.getStyleClass().add("composition-status");
 
-        HBox actionBar = new HBox(12, backBtn, progressIndicator, statusLabel, spacer, saveBtn);
-        actionBar.setAlignment(Pos.CENTER_LEFT);
-        actionBar.getStyleClass().add("composition-action-bar");
+        HBox status = new HBox(12, progressIndicator, statusLabel);
+        status.setAlignment(Pos.CENTER_LEFT);
+        EditorActionBar actionBar = new EditorActionBar(
+                "composition-action-bar", backBtn, status, saveBtn
+        );
 
         content.setCenter(editorScrollPane);
         content.setBottom(actionBar);
@@ -182,28 +186,12 @@ public class CreateCompositionView extends VBox {
         return new VBox(6, label, control);
     }
 
-    private VBox createSectionCard(String number, String titleText, String descriptionText, Node... nodes) {
-        Label numberLabel = new Label(number);
-        numberLabel.getStyleClass().add("composition-section-number");
-        numberLabel.setMinSize(30, 30);
-        numberLabel.setAlignment(Pos.CENTER);
-
-        Label title = new Label(titleText);
-        title.getStyleClass().add("composition-section-title");
-        Label description = new Label(descriptionText);
-        description.getStyleClass().add("composition-section-description");
-        description.setWrapText(true);
-
-        HBox heading = new HBox(12, numberLabel, new VBox(2, title, description));
-        heading.setAlignment(Pos.CENTER_LEFT);
-        VBox card = new VBox(16, heading);
-        card.getChildren().addAll(nodes);
-        card.getStyleClass().add("composition-section-card");
-        return card;
-    }
-
     public void setAvailablePowders(List<Powder> powders) {
         this.availablePowders = powders;
+    }
+
+    public void setLayerStateProvider(Function<LayerDraft, CompositionLayerViewState> layerStateProvider) {
+        this.layerStateProvider = layerStateProvider;
     }
 
     public void showInitialLoading() { setLoadingState("Caricamento dati composizione..."); }
@@ -248,7 +236,7 @@ public class CreateCompositionView extends VBox {
         LayerEditorView layerView = new LayerEditorView(layerDraft, availablePowders);
         layerView.setLayerRemovalEnabled(false);
         layerView.setOnRemove(() -> {});
-        layerView.setOnMetricsChanged(() -> refreshLayerState(index));
+        layerView.setOnChanged(() -> refreshLayerState(index));
         layerViews.add(layerView);
 
         ToggleButton navigationButton = new ToggleButton();
@@ -275,16 +263,14 @@ public class CreateCompositionView extends VBox {
         if (index < 0 || index >= layerViews.size()) {
             return;
         }
-        LayerEditorView view = layerViews.get(index);
-        double total = view.getTotalPercentage();
-        String state = Math.abs(total - 100.0) < 0.0001 ? "✓" : total <= 0 ? "○" : "!";
+        CompositionLayerViewState state = layerStateProvider.apply(layers.get(index));
         layerNavigationButtons.get(index).setText(String.format(
                 java.util.Locale.ROOT,
                 "Layer %d    %s%n%d polveri · %.2f%%",
                 index + 1,
-                state,
-                view.getIngredientCount(),
-                total
+                state.statusSymbol(),
+                state.ingredientCount(),
+                state.totalPercentage()
         ));
         if (selectedLayerIndex == index) {
             refreshSelectedLayerSummary();
@@ -299,15 +285,18 @@ public class CreateCompositionView extends VBox {
             return;
         }
 
-        LayerEditorView view = layerViews.get(selectedLayerIndex);
-        double total = view.getTotalPercentage();
+        CompositionLayerViewState state = layerStateProvider.apply(layers.get(selectedLayerIndex));
         selectedLayerTitle.setText("Layer " + (selectedLayerIndex + 1));
-        selectedLayerTotal.setText(String.format(java.util.Locale.ROOT, "Totale: %.2f%%", total));
+        selectedLayerTotal.setText(String.format(
+                java.util.Locale.ROOT,
+                "Totale: %.2f%%",
+                state.totalPercentage()
+        ));
         selectedLayerTotal.getStyleClass().removeAll("layer-completion-valid", "layer-completion-invalid");
         selectedLayerTotal.getStyleClass().add(
-                Math.abs(total - 100.0) < 0.0001 ? "layer-completion-valid" : "layer-completion-invalid"
+                state.valid() ? "layer-completion-valid" : "layer-completion-invalid"
         );
-        selectedLayerMetrics.setText(view.getMetricsText());
+        selectedLayerMetrics.setText(state.metricsText());
     }
 
     public void setLayerCount(int layerCount) {
@@ -372,14 +361,9 @@ public class CreateCompositionView extends VBox {
 
     public void replaceLayers(List<LayerDraft> newLayers) {
         clearLayers();
-        for (LayerDraft newLayer : newLayers) {
-            LayerDraft draft = new LayerDraft(newLayer.layerNumber());
-            draft.setNotes(newLayer.notes());
-            newLayer.ingredients().forEach(ingredient -> draft.ingredients().add(
-                    new IngredientDraft(ingredient.powderId(), ingredient.percentage())
-            ));
-            layers.add(draft);
-            createLayerView(draft);
+        for (LayerDraft layer : newLayers) {
+            layers.add(layer);
+            createLayerView(layer);
         }
         renumberLayers();
         if (!layerViews.isEmpty()) {
