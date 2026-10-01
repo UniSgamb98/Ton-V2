@@ -9,6 +9,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -50,6 +51,8 @@ public class TemplateEditorView extends VBox {
     private final Button previewLandscapeButton = new Button("A4 Orizzontale");
 
     private final TextArea feedbackArea = new TextArea();
+    private final ProgressIndicator progressIndicator = new ProgressIndicator();
+    private final Label operationStatusLabel = new Label();
 
     private final WebView previewWebView = new WebView();
     private final StackPane previewPageFrame = new StackPane(previewWebView);
@@ -100,7 +103,14 @@ public class TemplateEditorView extends VBox {
         queryAndVariables.setMinHeight(220);
         HBox.setHgrow(queryAndVariables, Priority.ALWAYS);
 
-        HBox actions = new HBox(10, fetchDbButton, validateButton, previewButton, saveButton, backButton);
+        progressIndicator.setMaxSize(20, 20);
+        progressIndicator.setVisible(false);
+        progressIndicator.setManaged(false);
+        operationStatusLabel.setVisible(false);
+        operationStatusLabel.setManaged(false);
+
+        HBox actions = new HBox(10, fetchDbButton, validateButton, previewButton, saveButton, backButton,
+                progressIndicator, operationStatusLabel);
         backButton.setVisible(false);
         backButton.setManaged(false);
 
@@ -218,6 +228,75 @@ public class TemplateEditorView extends VBox {
         feedbackArea.setStyle(error
                 ? "-fx-control-inner-background: #fff1f2; -fx-text-fill: #b91c1c;"
                 : "-fx-control-inner-background: #f0fdf4; -fx-text-fill: #166534;");
+    }
+
+    public void showInitialLoading() {
+        setBusy(true, "Caricamento editor...");
+        setActionsDisabled(true);
+        presetSelector.setDisable(true);
+    }
+
+    public void showLoadSuccess() {
+        setBusy(false, "");
+        setActionsDisabled(false);
+        presetSelector.setDisable(false);
+    }
+
+    public void showLoadError(String message) {
+        setBusy(false, "Caricamento non riuscito");
+        setActionsDisabled(true);
+        backButton.setDisable(false);
+        setFeedback(message, true);
+    }
+
+    public void showQueryLoading() {
+        setBusy(true, "Esecuzione query...");
+        fetchDbButton.setDisable(true);
+    }
+
+    public void showQuerySuccess() {
+        setBusy(false, "");
+        fetchDbButton.setDisable(false);
+        setFeedback("Variabili query aggiunte alle variabili preset.", false);
+    }
+
+    public void showQueryError(String message) {
+        setBusy(false, "Query non riuscita");
+        fetchDbButton.setDisable(false);
+        setFeedback(message == null ? "Errore durante l'esecuzione della query." : message, true);
+    }
+
+    public void showSaving() {
+        setBusy(true, "Salvataggio template...");
+        saveButton.setDisable(true);
+        backButton.setDisable(true);
+    }
+
+    public void showSaveResult(String message, boolean success) {
+        setBusy(false, success ? "Salvataggio completato" : "Salvataggio non riuscito");
+        saveButton.setDisable(false);
+        backButton.setDisable(false);
+        setFeedback(message, !success);
+    }
+
+    public void showSaveError(String message) {
+        showSaveResult(message == null ? "Errore durante il salvataggio del template." : message, false);
+    }
+
+    private void setBusy(boolean busy, String message) {
+        progressIndicator.setVisible(busy);
+        progressIndicator.setManaged(busy);
+        operationStatusLabel.setText(message == null ? "" : message);
+        operationStatusLabel.setVisible(message != null && !message.isBlank());
+        operationStatusLabel.setManaged(operationStatusLabel.isVisible());
+    }
+
+    private void setActionsDisabled(boolean disabled) {
+        fetchDbButton.setDisable(disabled);
+        validateButton.setDisable(disabled);
+        previewButton.setDisable(disabled);
+        saveButton.setDisable(disabled);
+        backButton.setDisable(disabled);
     }
 
     public AppHeader getHeader() { return header; }

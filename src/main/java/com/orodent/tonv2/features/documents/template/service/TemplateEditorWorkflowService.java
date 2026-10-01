@@ -2,15 +2,14 @@ package com.orodent.tonv2.features.documents.template.service;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.orodent.tonv2.core.database.ConnectionProvider;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionDocumentParamsService;
 import com.orodent.tonv2.features.laboratory.presintering.service.PresinteringDocumentParamsService;
 
 import java.lang.reflect.Type;
-import java.sql.Connection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 public class TemplateEditorWorkflowService {
 
@@ -25,25 +24,25 @@ public class TemplateEditorWorkflowService {
             """;
 
     private final TemplateEditorService templateEditorService;
-    private final Supplier<Connection> connectionSupplier;
+    private final ConnectionProvider connectionProvider;
     private final BatchProductionDocumentParamsService batchPresetService;
     private final PresinteringDocumentParamsService presinteringPresetService;
     private final Map<String, Map<String, Object>> presetPayloadByCode = new LinkedHashMap<>();
     private final Gson gson = new Gson();
 
     public TemplateEditorWorkflowService(TemplateEditorService templateEditorService,
-                                         Supplier<Connection> connectionSupplier,
+                                         ConnectionProvider connectionProvider,
                                          BatchProductionDocumentParamsService batchPresetService,
                                          PresinteringDocumentParamsService presinteringPresetService) {
         this.templateEditorService = templateEditorService;
-        this.connectionSupplier = connectionSupplier;
+        this.connectionProvider = connectionProvider;
         this.batchPresetService = batchPresetService;
         this.presinteringPresetService = presinteringPresetService;
 
-        loadPresets();
     }
 
     public EditorState initializeEditorState() {
+        loadPresets();
         Map<String, Object> defaultPayload = presetPayloadByCode.getOrDefault(TemplatePresetCodes.PRODUCTION, Map.of());
         return new EditorState(
                 DEFAULT_TEMPLATE_NAME,
@@ -53,11 +52,13 @@ public class TemplateEditorWorkflowService {
                 templateEditorService.toJson(defaultPayload),
                 templateEditorService.extractVariablesFromParamsMap(defaultPayload),
                 null,
+                "",
                 false
         );
     }
 
     public EditorState initializeEditorStateForEdit(int templateId) {
+        loadPresets();
         TemplateEditorService.TemplateSnapshot template = templateEditorService.getTemplateById(templateId);
         if (template == null) {
             throw new IllegalArgumentException("Template non trovato: id=" + templateId);
@@ -74,6 +75,7 @@ public class TemplateEditorWorkflowService {
                 templateEditorService.toJson(selectedPreset),
                 templateEditorService.extractVariablesFromParamsMap(selectedPreset),
                 template.id(),
+                template.sqlQuery(),
                 true
         );
     }
@@ -96,9 +98,15 @@ public class TemplateEditorWorkflowService {
     }
 
     public QueryPayloadState fetchQueryPayload(String sqlQuery) {
-        try (Connection connection = connectionSupplier.get()) {
-            TemplateEditorService.QueryVariablesResult result = templateEditorService.extractVariablesFromQuery(sqlQuery, connection);
-            return new QueryPayloadState(result.sampleJsonPayload());
+        if (sqlQuery == null || sqlQuery.isBlank()) {
+            throw new IllegalArgumentException("Inserisci una query SQL.");
+        }
+        try {
+            return connectionProvider.withConnection(connection -> {
+                TemplateEditorService.QueryVariablesResult result =
+                        templateEditorService.extractVariablesFromQuery(sqlQuery, connection);
+                return new QueryPayloadState(result.sampleJsonPayload());
+            });
         } catch (Exception ex) {
             throw new IllegalArgumentException(ex.getMessage(), ex);
         }
@@ -147,6 +155,7 @@ public class TemplateEditorWorkflowService {
     }
 
     private void loadPresets() {
+        presetPayloadByCode.clear();
         Map<String, Object> batchPreset = batchPresetService.buildParams(
                 BatchProductionDocumentParamsService.ParamsRequest.preset("Preset automatico da DB", 1)
         );
@@ -198,6 +207,7 @@ public class TemplateEditorWorkflowService {
                               String previewJsonPayload,
                               List<TemplateEditorService.VariableNode> variables,
                               Integer templateId,
+                              String sqlQuery,
                               boolean editMode) {
     }
 

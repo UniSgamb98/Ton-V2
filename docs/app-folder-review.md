@@ -158,6 +158,12 @@ schermata Inventario: `CsvPathsLoader`, `CsvPaths`, `CsvParser`,
 `MagazzinoCsvParser` e la relativa voce di navigazione non facevano più parte del
 flusso applicativo corrente.
 
+L'editor Template mostra ora la scena prima di caricare preset e contenuto, esegue
+query SQL e salvataggi in background e annulla i task quando si lascia la pagina.
+I servizi parametri dei preset aprono connessioni scoped; questo ha permesso di
+rimuovere definitivamente la connessione JDBC condivisa e le repository legacy
+da `AppContainer`.
+
 ## Giudizio complessivo
 
 La cartella è funzionale come composition root di un'applicazione desktop di

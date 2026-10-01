@@ -1,5 +1,7 @@
 package com.orodent.tonv2.features.laboratory.presintering.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.ItemRepositoryImpl;
 import com.orodent.tonv2.core.database.model.Item;
 import com.orodent.tonv2.core.database.repository.ItemRepository;
 
@@ -12,17 +14,27 @@ import java.util.Map;
 
 public class PresinteringDocumentParamsService {
 
+    private final ConnectionProvider connectionProvider;
     private final ItemRepository itemRepo;
 
     public PresinteringDocumentParamsService(ItemRepository itemRepo) {
+        this.connectionProvider = null;
         this.itemRepo = itemRepo;
+    }
+
+    public PresinteringDocumentParamsService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
+        this.itemRepo = null;
     }
 
     public Map<String, Object> buildParams(ParamsRequest request) {
         if (request == null) {
             return Map.of();
         }
-
+        if (connectionProvider != null) {
+            return connectionProvider.withConnection(connection ->
+                    new PresinteringDocumentParamsService(new ItemRepositoryImpl(connection)).buildParams(request));
+        }
         Map<Integer, Integer> plannedItems = request.plannedItemsByItemId() == null
                 ? Map.of()
                 : request.plannedItemsByItemId();
@@ -68,6 +80,10 @@ public class PresinteringDocumentParamsService {
     }
 
     public Map<String, Object> buildBatchParams(List<FurnaceBatchRequest> furnaces) {
+        if (connectionProvider != null) {
+            return connectionProvider.withConnection(connection ->
+                    new PresinteringDocumentParamsService(new ItemRepositoryImpl(connection)).buildBatchParams(furnaces));
+        }
         if (furnaces == null || furnaces.isEmpty()) {
             return Map.of("furnaces", List.of(), "generated_at", Instant.now().toString());
         }
@@ -114,6 +130,10 @@ public class PresinteringDocumentParamsService {
     }
 
     public Map<String, Object> buildPresetParams(String notes) {
+        if (connectionProvider != null) {
+            return connectionProvider.withConnection(connection ->
+                    new PresinteringDocumentParamsService(new ItemRepositoryImpl(connection)).buildPresetParams(notes));
+        }
         Item firstItem = itemRepo.findAll().stream().findFirst().orElse(null);
         int itemId = firstItem == null ? 0 : firstItem.id();
         String itemCode = firstItem == null ? "ITEM-DEMO" : firstItem.code();

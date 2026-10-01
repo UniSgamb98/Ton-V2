@@ -16,7 +16,6 @@ import com.orodent.tonv2.features.documents.archive.view.DocumentsArchiveView;
 import com.orodent.tonv2.features.documents.home.controller.DocumentsController;
 import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.documents.template.controller.TemplateEditorController;
-import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
@@ -107,13 +106,15 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         TemplateEditorView view = new TemplateEditorView();
         configureHeader(view.getHeader());
 
-        new TemplateEditorController(
+        TemplateEditorController controller = new TemplateEditorController(
                 view,
-                buildTemplateWorkflowService()
+                buildTemplateWorkflowService(),
+                app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Nuovo documento");
+        controller.loadInitialData();
     }
 
     @Override
@@ -134,42 +135,30 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
 
     @Override
     public void showDocumentsEditTemplate(int templateId) {
-        TemplateEditorService.TemplateSnapshot templateSnapshot = app.templateEditorService().getTemplateById(templateId);
-        if (templateSnapshot == null) {
-            showDocumentsArchive();
-            return;
-        }
-
         TemplateEditorView view = new TemplateEditorView();
         configureHeader(view.getHeader());
 
-        new TemplateEditorController(
+        TemplateEditorController controller = new TemplateEditorController(
                 view,
                 buildTemplateWorkflowService(),
-                TemplateEditorController.EditorMode.edit(templateId, templateSnapshot.sqlQuery(), this)
+                TemplateEditorController.EditorMode.edit(templateId, this),
+                app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view));
+        showScene(createSceneWithCSS(view), controller::dispose);
         stage.setTitle("TON - Modifica template");
+        controller.loadInitialData();
     }
 
     private TemplateEditorWorkflowService buildTemplateWorkflowService() {
-        BatchProductionDocumentParamsService batchPresetService = new BatchProductionDocumentParamsService(
-                app.compositionRepo(),
-                app.blankModelRepo(),
-                app.blankModelLayerRepo(),
-                app.compositionLayerIngredientRepo(),
-                app.powderRepo(),
-                app.itemRepo(),
-                app.lineRepo()
-        );
-        PresinteringDocumentParamsService presinteringPresetService = new PresinteringDocumentParamsService(
-                app.itemRepo()
-        );
+        BatchProductionDocumentParamsService batchPresetService =
+                new BatchProductionDocumentParamsService(app.connectionProvider());
+        PresinteringDocumentParamsService presinteringPresetService =
+                new PresinteringDocumentParamsService(app.connectionProvider());
 
         return new TemplateEditorWorkflowService(
                 app.templateEditorService(),
-                app.database::getConnection,
+                app.connectionProvider(),
                 batchPresetService,
                 presinteringPresetService
         );

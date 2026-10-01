@@ -1,5 +1,7 @@
 package com.orodent.tonv2.features.laboratory.production.service;
 
+import com.orodent.tonv2.core.database.ConnectionProvider;
+import com.orodent.tonv2.core.database.implementation.*;
 import com.orodent.tonv2.core.database.model.*;
 import com.orodent.tonv2.core.database.repository.BlankModelLayerRepository;
 import com.orodent.tonv2.core.database.repository.BlankModelRepository;
@@ -21,6 +23,7 @@ import java.util.Optional;
  */
 public class BatchProductionDocumentParamsService {
 
+    private final ConnectionProvider connectionProvider;
     private final CompositionRepository compositionRepo;
     private final BlankModelRepository blankModelRepo;
     private final BlankModelLayerRepository blankModelLayerRepo;
@@ -36,6 +39,7 @@ public class BatchProductionDocumentParamsService {
                                                 PowderRepository powderRepo,
                                                 ItemRepository itemRepo,
                                                 LineRepository lineRepo) {
+        this.connectionProvider = null;
         this.compositionRepo = compositionRepo;
         this.blankModelRepo = blankModelRepo;
         this.blankModelLayerRepo = blankModelLayerRepo;
@@ -45,7 +49,33 @@ public class BatchProductionDocumentParamsService {
         this.lineRepo = lineRepo;
     }
 
+    public BatchProductionDocumentParamsService(ConnectionProvider connectionProvider) {
+        this.connectionProvider = connectionProvider;
+        this.compositionRepo = null;
+        this.blankModelRepo = null;
+        this.blankModelLayerRepo = null;
+        this.compositionLayerIngredientRepo = null;
+        this.powderRepo = null;
+        this.itemRepo = null;
+        this.lineRepo = null;
+    }
+
     public Map<String, Object> buildParams(ParamsRequest request) {
+        if (request == null) {
+            return Map.of("line", Map.of("name", ""), "notes", "", "items", List.of(), "blank_model", Map.of());
+        }
+        if (connectionProvider != null) {
+            return connectionProvider.withConnection(connection ->
+                    new BatchProductionDocumentParamsService(
+                            new CompositionRepositoryImpl(connection),
+                            new BlankModelRepositoryImpl(connection),
+                            new BlankModelLayerRepositoryImpl(connection),
+                            new CompositionLayerIngredientRepositoryImpl(connection),
+                            new PowderRepositoryImpl(connection),
+                            new ItemRepositoryImpl(connection),
+                            new LineRepositoryImpl(connection)
+                    ).buildParams(request));
+        }
         ResolvedContext context = resolveContext(request);
 
         Map<String, Object> params = new LinkedHashMap<>();
