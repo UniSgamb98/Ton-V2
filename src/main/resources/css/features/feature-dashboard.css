@@ -1,0 +1,117 @@
+.feature-dashboard-view {
+    -fx-background-color: #1e1e1e;
+}
+
+.feature-dashboard-scroll,
+.feature-dashboard-scroll > .viewport,
+.feature-dashboard-scroll .corner {
+    -fx-background-color: transparent;
+}
+
+.feature-dashboard-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #ffffff;
+}
+
+.feature-dashboard-subtitle,
+.feature-dashboard-section-description,
+.dashboard-card-description {
+    -fx-text-fill: #a9b0b8;
+}
+
+.feature-dashboard-subtitle {
+    -fx-font-size: 14px;
+}
+
+.feature-dashboard-section {
+    -fx-padding: 0 0 25 0;
+    -fx-border-color: transparent transparent #353535 transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.feature-dashboard-section-number,
+.dashboard-card-number {
+    -fx-background-color: #007acc;
+    -fx-background-radius: 999;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+}
+
+.feature-dashboard-section-number {
+    -fx-font-size: 14px;
+}
+
+.feature-dashboard-section-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #f4f4f4;
+}
+
+.feature-dashboard-section-description {
+    -fx-font-size: 12px;
+}
+
+.feature-dashboard-card-grid {
+    -fx-alignment: center-left;
+}
+
+.dashboard-action-card {
+    -fx-pref-width: 252;
+    -fx-pref-height: 210;
+    -fx-background-color: #292929;
+    -fx-background-radius: 12;
+    -fx-border-color: #3b3b3b;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-cursor: hand;
+    -fx-padding: 16;
+    -fx-alignment: center;
+}
+
+.dashboard-action-card:hover,
+.dashboard-action-card:focused {
+    -fx-background-color: #30343a;
+    -fx-border-color: #168bd2;
+    -fx-effect: dropshadow(gaussian, rgba(0, 122, 204, 0.20), 14, 0.18, 0, 3);
+}
+
+.dashboard-action-card:pressed {
+    -fx-background-color: #252b30;
+    -fx-translate-y: 1;
+}
+
+.dashboard-card-number {
+    -fx-font-size: 13px;
+}
+
+.dashboard-card-icon-container {
+    -fx-background-color: #222a30;
+    -fx-background-radius: 10;
+}
+
+.dashboard-card-icon {
+    -fx-fill: transparent;
+    -fx-stroke: #6db8e8;
+    -fx-stroke-width: 1.7;
+    -fx-stroke-line-cap: round;
+    -fx-stroke-line-join: round;
+    -fx-scale-x: 1.25;
+    -fx-scale-y: 1.25;
+}
+
+.dashboard-action-card:hover .dashboard-card-icon,
+.dashboard-action-card:focused .dashboard-card-icon {
+    -fx-stroke: #8fd2ff;
+}
+
+.dashboard-card-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #ffffff;
+}
+
+.dashboard-card-description {
+    -fx-font-size: 12px;
+    -fx-font-weight: 400;
+}

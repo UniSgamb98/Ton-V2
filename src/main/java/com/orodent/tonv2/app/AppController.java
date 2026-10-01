@@ -172,7 +172,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new CubageController(view, new CubageService(), this);
 
-        showView(view);
+        showView(view, "/css/features/feature-dashboard.css");
         stage.setTitle("TON - Cubaggio");
     }
 
@@ -271,7 +271,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new DocumentsController(view, this);
 
-        showView(view);
+        showView(view, "/css/features/feature-dashboard.css");
         stage.setTitle("TON - Documentazione");
     }
 
