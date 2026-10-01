@@ -1,6 +1,5 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.view.partial;
 
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
@@ -14,14 +13,15 @@ public class DiskModelPreviewView extends VBox {
 
     public DiskModelPreviewView() {
         setSpacing(8);
-        setPadding(new Insets(10));
         setAlignment(Pos.TOP_CENTER);
+        getStyleClass().add("disk-model-preview");
 
         Label title = new Label("Anteprima modello disco");
-        title.setStyle("-fx-font-weight: bold;");
+        title.getStyleClass().add("preview-title");
 
-        stack.setPrefWidth(220);
-        stack.setMaxWidth(220);
+        stack.setPrefWidth(230);
+        stack.setMaxWidth(230);
+        stack.getStyleClass().add("preview-stack");
 
         getChildren().addAll(title, stack);
         update(1.0, 1.0, List.of(100.0));
@@ -46,10 +46,11 @@ public class DiskModelPreviewView extends VBox {
         box.setMinHeight(height);
         box.setPrefHeight(height);
         box.setMaxWidth(Double.MAX_VALUE);
-        box.setStyle("-fx-background-color: " + toHex(color) + "; -fx-border-color: #374151;");
+        box.setStyle("-fx-background-color: " + toHex(color) + ";");
+        box.getStyleClass().add("preview-segment");
 
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 11px; -fx-text-fill: #000000;");
+        label.getStyleClass().add("preview-segment-label");
         box.getChildren().add(label);
 
         stack.getChildren().add(box);

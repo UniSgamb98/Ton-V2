@@ -1,0 +1,209 @@
+.disk-model-editor {
+    -fx-background-color: #1e1e1e;
+}
+
+.disk-model-scroll,
+.disk-model-scroll > .viewport,
+.disk-model-scroll .corner {
+    -fx-background-color: transparent;
+}
+
+.editor-page-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #ffffff;
+}
+
+.editor-page-subtitle,
+.editor-section-description {
+    -fx-text-fill: #a9b0b8;
+}
+
+.editor-page-subtitle {
+    -fx-font-size: 14px;
+}
+
+.editor-section-card,
+.preview-card {
+    -fx-background-color: #292929;
+    -fx-background-radius: 12;
+    -fx-border-color: #3b3b3b;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 18;
+}
+
+.editor-section-number {
+    -fx-background-color: #007acc;
+    -fx-background-radius: 999;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.editor-section-title,
+.preview-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #f4f4f4;
+}
+
+.editor-section-description {
+    -fx-font-size: 12px;
+}
+
+.editor-field-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #d9dde1;
+}
+
+.editor-text-field,
+.layer-percentage-field,
+.height-range-row .text-field {
+    -fx-background-color: #202020;
+    -fx-background-radius: 7;
+    -fx-border-color: #484848;
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+    -fx-text-fill: #ffffff;
+    -fx-prompt-text-fill: #737a82;
+    -fx-highlight-fill: #007acc;
+    -fx-padding: 8 10;
+}
+
+.editor-text-field:focused,
+.layer-percentage-field:focused,
+.height-range-row .text-field:focused {
+    -fx-border-color: #168bd2;
+    -fx-effect: dropshadow(gaussian, rgba(0, 122, 204, 0.16), 8, 0.12, 0, 0);
+}
+
+.editor-field-unit {
+    -fx-text-fill: #89919a;
+    -fx-font-size: 11px;
+    -fx-background-color: #2c2c2c;
+    -fx-background-radius: 5;
+    -fx-padding: 3 6;
+}
+
+.layer-list {
+    -fx-spacing: 8;
+}
+
+.layer-row,
+.height-range-row {
+    -fx-background-color: #232323;
+    -fx-background-radius: 8;
+    -fx-border-color: #393939;
+    -fx-border-radius: 8;
+    -fx-padding: 9 10;
+}
+
+.layer-row > .label,
+.height-range-row > .label {
+    -fx-text-fill: #cbd0d5;
+    -fx-font-size: 12px;
+}
+
+.layer-total {
+    -fx-background-radius: 7;
+    -fx-padding: 8 10;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+}
+
+.layer-total-valid {
+    -fx-background-color: rgba(34, 197, 94, 0.13);
+    -fx-text-fill: #77df9a;
+    -fx-border-color: rgba(34, 197, 94, 0.35);
+    -fx-border-radius: 7;
+}
+
+.layer-total-invalid {
+    -fx-background-color: rgba(245, 158, 11, 0.13);
+    -fx-text-fill: #f3bd5b;
+    -fx-border-color: rgba(245, 158, 11, 0.35);
+    -fx-border-radius: 7;
+}
+
+.secondary-action,
+.back-action {
+    -fx-background-color: transparent;
+    -fx-border-color: #555b61;
+    -fx-border-radius: 7;
+    -fx-background-radius: 7;
+    -fx-text-fill: #dce1e5;
+    -fx-padding: 8 14;
+}
+
+.secondary-action:hover,
+.back-action:hover {
+    -fx-background-color: #363a3e;
+    -fx-border-color: #6db8e8;
+}
+
+.danger-action {
+    -fx-background-color: transparent;
+    -fx-border-color: #754044;
+    -fx-text-fill: #ff999f;
+    -fx-padding: 7 10;
+}
+
+.danger-action:hover {
+    -fx-background-color: #633036;
+}
+
+.preview-card {
+    -fx-background-color: #25292d;
+    -fx-border-color: #365263;
+}
+
+.disk-model-preview {
+    -fx-spacing: 14;
+    -fx-alignment: top-center;
+}
+
+.preview-stack {
+    -fx-padding: 8 0 0 0;
+}
+
+.preview-segment {
+    -fx-border-color: #59616a;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+}
+
+.preview-segment-label {
+    -fx-font-size: 11px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #15191d;
+}
+
+.editor-action-bar {
+    -fx-background-color: #252526;
+    -fx-border-color: #3b3b3b transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 12 28;
+}
+
+.primary-save-action {
+    -fx-background-color: #007acc;
+    -fx-background-radius: 7;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-padding: 9 18;
+}
+
+.primary-save-action:hover {
+    -fx-background-color: #168bd2;
+}
+
+.editor-status {
+    -fx-font-size: 12px;
+    -fx-text-fill: #a9b0b8;
+}
+
+.editor-status-error {
+    -fx-text-fill: #ff999f;
+}

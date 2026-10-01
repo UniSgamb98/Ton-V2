@@ -387,7 +387,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showView(view, controller::dispose);
+        showView(view, controller::dispose, "/css/features/disk-model-editor.css");
         stage.setTitle(blankModelId == null ? "TON - Nuovo modello disco" : "TON - Modifica Modello Disco");
         controller.loadInitialData();
     }
