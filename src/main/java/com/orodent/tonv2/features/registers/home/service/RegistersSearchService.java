@@ -23,6 +23,14 @@ import com.orodent.tonv2.core.database.repository.ItemRepository;
 import com.orodent.tonv2.core.database.repository.LotRepository;
 import com.orodent.tonv2.core.database.repository.PowderRepository;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorService;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult.CompositionDetails;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult.CompositionLayerDetails;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult.DocumentDetails;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult.FiringDetails;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult.FiringItemDetails;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult.IngredientDetails;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult.RegisterIdentity;
 
 import java.util.Comparator;
 import java.util.List;
@@ -40,26 +48,23 @@ public class RegistersSearchService {
         this.templateEditorService = templateEditorService;
     }
 
-    public SearchResult search(String itemCodeRaw, String lotCodeRaw) {
+    public RegisterSearchResult search(String itemCodeRaw, String lotCodeRaw) {
         String itemCode = normalize(itemCodeRaw);
         String lotCode = normalize(lotCodeRaw);
 
         if (itemCode == null || lotCode == null) {
-            String message = "Inserisci sia Articolo che Lotto per avviare la ricerca.";
-            return SearchResult.error(message);
+            return RegisterSearchResult.failure(RegisterSearchResult.FailureReason.INCOMPLETE_CRITERIA, null);
         }
 
         return withRepositories(repositories -> {
             Item item = repositories.itemRepository().findByCode(itemCode);
             if (item == null) {
-                String message = "Articolo non trovato: " + itemCode;
-                return SearchResult.error(message);
+                return RegisterSearchResult.failure(RegisterSearchResult.FailureReason.ITEM_NOT_FOUND, itemCode);
             }
 
             Lot lot = repositories.lotRepository().findByCodeAndItem(lotCode, item.id());
             if (lot == null) {
-                String message = "Lotto non trovato per l'articolo selezionato: " + lotCode;
-                return SearchResult.error(message);
+                return RegisterSearchResult.failure(RegisterSearchResult.FailureReason.LOT_NOT_FOUND, lotCode);
             }
 
             Firing firing = repositories.firingRepository().findById(lot.firingId());
@@ -67,7 +72,7 @@ public class RegistersSearchService {
             FiringDetails firingDetails = buildFiringDetails(repositories, lot, firing);
             List<DocumentDetails> documents = buildDocumentDetails();
 
-            return SearchResult.success(
+            return RegisterSearchResult.success(
                     new RegisterIdentity(item.code(), lot.code(), composition.version(), lot.firingId()),
                     composition,
                     firingDetails,
@@ -127,7 +132,7 @@ public class RegistersSearchService {
 
         if (activeCompositionId.isEmpty()) {
             return new CompositionDetails(null, item.blankModelId(), item.heightMm(), List.of(),
-                    "Nessuna composizione attiva trovata.");
+                    RegisterSearchResult.CompositionStatus.NO_ACTIVE_COMPOSITION);
         }
 
         int compositionId = activeCompositionId.get();
@@ -140,7 +145,7 @@ public class RegistersSearchService {
 
         if (blankLayers.isEmpty()) {
             return new CompositionDetails(composition.map(Composition::version).orElse(null), blankModelId,
-                    item.heightMm(), List.of(), "Nessuno strato del modello disco trovato.");
+                    item.heightMm(), List.of(), RegisterSearchResult.CompositionStatus.NO_MODEL_LAYERS);
         }
 
         List<CompositionLayerDetails> layers = blankLayers.stream().map(layer -> {
@@ -159,13 +164,13 @@ public class RegistersSearchService {
         }).toList();
 
         return new CompositionDetails(composition.map(Composition::version).orElse(null), blankModelId,
-                item.heightMm(), layers, null);
+                item.heightMm(), layers, RegisterSearchResult.CompositionStatus.AVAILABLE);
     }
 
     private FiringDetails buildFiringDetails(Repositories repositories, Lot lot, Firing firing) {
         if (firing == null) {
             return new FiringDetails(lot.firingId(), null, null, null, List.of(),
-                    "Dettagli del ciclo di sinterizzazione non trovati.");
+                    RegisterSearchResult.FiringStatus.NOT_FOUND);
         }
 
         List<ItemRepository.ItemFiringQuantityRow> itemQuantities = repositories.itemRepository()
@@ -174,7 +179,9 @@ public class RegistersSearchService {
                 .map(row -> new FiringItemDetails(row.itemCode(), row.quantity()))
                 .toList();
         return new FiringDetails(firing.id(), firing.firingDate(), firing.furnace(),
-                firing.maxTemperature(), items, items.isEmpty() ? "Nessun articolo trovato nel ciclo." : null);
+                firing.maxTemperature(), items, items.isEmpty()
+                        ? RegisterSearchResult.FiringStatus.NO_ITEMS
+                        : RegisterSearchResult.FiringStatus.AVAILABLE);
     }
 
     private List<DocumentDetails> buildDocumentDetails() {
@@ -211,27 +218,4 @@ public class RegistersSearchService {
                                 PowderRepository powderRepository) {
     }
 
-    public record SearchResult(boolean success, String message, RegisterIdentity identity,
-                               CompositionDetails composition, FiringDetails firing,
-                               List<DocumentDetails> documents) {
-        static SearchResult success(RegisterIdentity identity, CompositionDetails composition,
-                                    FiringDetails firing, List<DocumentDetails> documents) {
-            return new SearchResult(true, null, identity, composition, firing, List.copyOf(documents));
-        }
-
-        static SearchResult error(String message) {
-            return new SearchResult(false, message, null, null, null, List.of());
-        }
-    }
-
-    public record RegisterIdentity(String itemCode, String lotCode, Integer compositionVersion, int firingId) {}
-    public record CompositionDetails(Integer version, int blankModelId, double heightMm,
-                                     List<CompositionLayerDetails> layers, String notice) {}
-    public record CompositionLayerDetails(int layerNumber, double diskPercentage,
-                                          List<IngredientDetails> ingredients) {}
-    public record IngredientDetails(String name, double percentage) {}
-    public record FiringDetails(int id, java.time.LocalDate date, String furnace, Integer maxTemperature,
-                                List<FiringItemDetails> items, String notice) {}
-    public record FiringItemDetails(String itemCode, int quantity) {}
-    public record DocumentDetails(String name, String presetCode, java.time.Instant savedAt) {}
 }

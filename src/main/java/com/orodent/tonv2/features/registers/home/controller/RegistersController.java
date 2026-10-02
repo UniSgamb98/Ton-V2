@@ -2,6 +2,8 @@ package com.orodent.tonv2.features.registers.home.controller;
 
 import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
 import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult;
+import com.orodent.tonv2.features.registers.home.presentation.RegistersPresenter;
 import com.orodent.tonv2.features.registers.home.service.RegistersDocumentService;
 import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
 import com.orodent.tonv2.features.registers.home.view.RegistersView;
@@ -23,8 +25,9 @@ public class RegistersController {
     private final DocumentBrowserService documentBrowserService;
     private final DebouncedTaskRunner<List<String>> itemSuggestionsLoader;
     private final DebouncedTaskRunner<List<String>> lotSuggestionsLoader;
-    private final DebouncedTaskRunner<RegistersSearchService.SearchResult> searchLoader;
+    private final DebouncedTaskRunner<RegisterSearchResult> searchLoader;
     private final DebouncedTaskRunner<String> compositionDocumentLoader;
+    private final RegistersPresenter presenter = new RegistersPresenter();
 
     private boolean updatingSuggestions;
 
@@ -207,7 +210,7 @@ public class RegistersController {
         searchLoader.runNow(
                 () -> searchService.search(itemCode, lotCode),
                 view::showSearchLoading,
-                view::showSearchResult,
+                result -> view.render(presenter.present(result)),
                 error -> view.showSearchError("Errore durante la ricerca nei registri.")
         );
     }

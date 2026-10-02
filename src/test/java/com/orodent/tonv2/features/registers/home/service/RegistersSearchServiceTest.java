@@ -1,11 +1,12 @@
 package com.orodent.tonv2.features.registers.home.service;
 
+import com.orodent.tonv2.features.registers.home.model.RegisterSearchResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RegistersSearchServiceTest {
@@ -21,10 +22,10 @@ class RegistersSearchServiceTest {
                 null
         );
 
-        RegistersSearchService.SearchResult result = service.search("", "");
+        RegisterSearchResult result = service.search("", "");
 
         assertFalse(result.success());
-        assertEquals("Inserisci sia Articolo che Lotto per avviare la ricerca.", result.message());
+        assertEquals(RegisterSearchResult.FailureReason.INCOMPLETE_CRITERIA, result.failureReason());
         assertNull(result.identity());
         assertFalse(connectionOpened.get());
     }

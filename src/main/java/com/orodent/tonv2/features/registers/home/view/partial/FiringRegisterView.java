@@ -1,6 +1,6 @@
 package com.orodent.tonv2.features.registers.home.view.partial;
 
-import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
+import com.orodent.tonv2.features.registers.home.presentation.RegistersViewState;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
@@ -29,22 +29,22 @@ public class FiringRegisterView extends VBox {
         getStyleClass().add("registers-tab-content");
     }
 
-    public void render(RegistersSearchService.FiringDetails details) {
-        date.setText(details.date() == null ? "Non disponibile" : details.date().toString());
-        furnace.setText(details.furnace() == null || details.furnace().isBlank() ? "Non disponibile" : details.furnace());
-        temperature.setText(details.maxTemperature() == null ? "Non disponibile" : details.maxTemperature() + " °C");
+    public void render(RegistersViewState.FiringViewState details) {
+        date.setText(details.dateText());
+        furnace.setText(details.furnaceText());
+        temperature.setText(details.temperatureText());
         notice.setText(details.notice() == null ? "" : details.notice());
         notice.setVisible(details.notice() != null);
         notice.setManaged(details.notice() != null);
         items.getChildren().clear();
         details.items().forEach(item -> items.getChildren().add(itemRow(item)));
-        total.setText(details.items().stream().mapToInt(RegistersSearchService.FiringItemDetails::quantity).sum() + " pezzi");
+        total.setText(details.totalText());
     }
 
-    private HBox itemRow(RegistersSearchService.FiringItemDetails item) {
+    private HBox itemRow(RegistersViewState.FiringItemViewState item) {
         Label code = new Label(item.itemCode());
         code.getStyleClass().add("registers-row-value");
-        Label quantity = new Label(Integer.toString(item.quantity()));
+        Label quantity = new Label(item.quantityText());
         quantity.getStyleClass().add("registers-quantity-badge");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);

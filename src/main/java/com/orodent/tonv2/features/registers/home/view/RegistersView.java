@@ -1,7 +1,7 @@
 package com.orodent.tonv2.features.registers.home.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
-import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
+import com.orodent.tonv2.features.registers.home.presentation.RegistersViewState;
 import com.orodent.tonv2.features.registers.home.view.partial.CompositionRegisterView;
 import com.orodent.tonv2.features.registers.home.view.partial.DocumentsRegisterView;
 import com.orodent.tonv2.features.registers.home.view.partial.FiringRegisterView;
@@ -203,29 +203,28 @@ public class RegistersView extends VBox {
         showStatus("Ricerca in corso…", false);
     }
 
-    public void showSearchResult(RegistersSearchService.SearchResult result) {
+    public void render(RegistersViewState state) {
         setPrimaryActionsDisabled(false);
         setProgressVisible(false);
-        if (!result.success()) {
+        if (!state.success()) {
             hideResults();
-            showStatus(result.message(), true);
+            showStatus(state.message(), true);
             return;
         }
 
-        RegistersSearchService.RegisterIdentity identity = result.identity();
+        RegistersViewState.IdentityViewState identity = state.identity();
         identityItem.setText(identity.itemCode());
         identityLot.setText(identity.lotCode());
-        identityComposition.setText(identity.compositionVersion() == null
-                ? "Composizione non disponibile" : "Composizione v." + identity.compositionVersion());
-        identityFiring.setText("Firing #" + identity.firingId());
-        compositionView.render(result.composition());
-        firingView.render(result.firing());
-        documentsView.render(result.documents());
+        identityComposition.setText(identity.compositionText());
+        identityFiring.setText(identity.firingText());
+        compositionView.render(state.composition());
+        firingView.render(state.firing());
+        documentsView.render(state.documents());
         emptyState.setVisible(false);
         emptyState.setManaged(false);
         resultsContent.setVisible(true);
         resultsContent.setManaged(true);
-        showStatus("Registro caricato correttamente.", false);
+        showStatus(state.message(), false);
     }
 
     public void showSearchError(String message) {

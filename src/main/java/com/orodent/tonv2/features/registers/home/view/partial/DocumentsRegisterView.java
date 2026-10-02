@@ -1,19 +1,15 @@
 package com.orodent.tonv2.features.registers.home.view.partial;
 
-import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
+import com.orodent.tonv2.features.registers.home.presentation.RegistersViewState;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 public class DocumentsRegisterView extends VBox {
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
-            .withZone(ZoneId.systemDefault());
     private final VBox documents = new VBox(9);
 
     public DocumentsRegisterView() {
@@ -27,7 +23,7 @@ public class DocumentsRegisterView extends VBox {
         getStyleClass().add("registers-tab-content");
     }
 
-    public void render(List<RegistersSearchService.DocumentDetails> entries) {
+    public void render(List<RegistersViewState.DocumentViewState> entries) {
         documents.getChildren().clear();
         if (entries.isEmpty()) {
             Label empty = new Label("Nessun template salvato disponibile.");
@@ -38,13 +34,12 @@ public class DocumentsRegisterView extends VBox {
         entries.forEach(entry -> documents.getChildren().add(documentRow(entry)));
     }
 
-    private HBox documentRow(RegistersSearchService.DocumentDetails entry) {
+    private HBox documentRow(RegistersViewState.DocumentViewState entry) {
         Label icon = new Label("▤");
         icon.getStyleClass().add("registers-document-icon");
         Label name = new Label(entry.name());
         name.getStyleClass().add("registers-row-value");
-        String preset = entry.presetCode() == null || entry.presetCode().isBlank() ? "Nessun preset" : entry.presetCode();
-        Label details = new Label(preset + " · " + DATE_FORMAT.format(entry.savedAt()));
+        Label details = new Label(entry.detailsText());
         details.getStyleClass().add("registers-muted");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);

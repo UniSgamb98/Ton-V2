@@ -1,6 +1,6 @@
 package com.orodent.tonv2.features.registers.home.view.partial;
 
-import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
+import com.orodent.tonv2.features.registers.home.presentation.RegistersViewState;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -36,10 +36,10 @@ public class CompositionRegisterView extends VBox {
 
     public void setAction(Node action) { heading.getChildren().add(action); }
 
-    public void render(RegistersSearchService.CompositionDetails details) {
-        version.setText(details.version() == null ? "Non disponibile" : "Versione " + details.version());
-        model.setText("Modello #" + details.blankModelId());
-        height.setText(format(details.heightMm()) + " mm");
+    public void render(RegistersViewState.CompositionViewState details) {
+        version.setText(details.versionText());
+        model.setText(details.modelText());
+        height.setText(details.heightText());
         notice.setText(details.notice() == null ? "" : details.notice());
         notice.setVisible(details.notice() != null);
         notice.setManaged(details.notice() != null);
@@ -47,10 +47,10 @@ public class CompositionRegisterView extends VBox {
         details.layers().forEach(layer -> layers.getChildren().add(createLayer(layer)));
     }
 
-    private VBox createLayer(RegistersSearchService.CompositionLayerDetails layer) {
-        Label layerTitle = new Label("Strato " + layer.layerNumber());
+    private VBox createLayer(RegistersViewState.CompositionLayerViewState layer) {
+        Label layerTitle = new Label(layer.title());
         layerTitle.getStyleClass().add("registers-layer-title");
-        Label share = new Label(format(layer.diskPercentage()) + "% del disco");
+        Label share = new Label(layer.diskPercentageText());
         share.getStyleClass().add("registers-badge");
         HBox head = new HBox(10, layerTitle, share);
         head.setAlignment(Pos.CENTER_LEFT);
@@ -61,7 +61,7 @@ public class CompositionRegisterView extends VBox {
             layer.ingredients().forEach(ingredient -> {
                 Label name = new Label(ingredient.name());
                 name.getStyleClass().add("registers-ingredient-name");
-                Label percentage = new Label(format(ingredient.percentage()) + "%");
+                Label percentage = new Label(ingredient.percentageText());
                 percentage.getStyleClass().add("registers-ingredient-percentage");
                 Region spacer = new Region();
                 HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -83,5 +83,4 @@ public class CompositionRegisterView extends VBox {
     private Label title(String text) { Label l = new Label(text); l.getStyleClass().add("registers-section-title"); return l; }
     private Label muted(String text) { Label l = new Label(text); l.getStyleClass().add("registers-muted"); return l; }
     private static Label value() { Label l = new Label("—"); l.getStyleClass().add("registers-metric-value"); return l; }
-    private String format(double value) { return value == Math.rint(value) ? Integer.toString((int) value) : Double.toString(value); }
 }
