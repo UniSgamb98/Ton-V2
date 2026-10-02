@@ -46,28 +46,33 @@ public class RegistersSearchService {
 
         if (itemCode == null || lotCode == null) {
             String message = "Inserisci sia Articolo che Lotto per avviare la ricerca.";
-            return SearchResult.error(message, message, message);
+            return SearchResult.error(message);
         }
 
         return withRepositories(repositories -> {
             Item item = repositories.itemRepository().findByCode(itemCode);
             if (item == null) {
                 String message = "Articolo non trovato: " + itemCode;
-                return SearchResult.error(message, message, message);
+                return SearchResult.error(message);
             }
 
             Lot lot = repositories.lotRepository().findByCodeAndItem(lotCode, item.id());
             if (lot == null) {
                 String message = "Lotto non trovato per l'articolo selezionato: " + lotCode;
-                return SearchResult.error(message, message, message);
+                return SearchResult.error(message);
             }
 
             Firing firing = repositories.firingRepository().findById(lot.firingId());
-            String compositionSummary = buildCompositionSummary(repositories, item);
-            String firingSummary = buildFiringSummary(repositories, item, lot, firing);
-            String documentsSummary = buildDocumentsSummary(item, lot, firing);
+            CompositionDetails composition = buildCompositionDetails(repositories, item);
+            FiringDetails firingDetails = buildFiringDetails(repositories, lot, firing);
+            List<DocumentDetails> documents = buildDocumentDetails();
 
-            return SearchResult.success(compositionSummary, firingSummary, documentsSummary);
+            return SearchResult.success(
+                    new RegisterIdentity(item.code(), lot.code(), composition.version(), lot.firingId()),
+                    composition,
+                    firingDetails,
+                    documents
+            );
         });
     }
 
@@ -116,35 +121,17 @@ public class RegistersSearchService {
         });
     }
 
-    private String buildCompositionSummary(Repositories repositories, Item item) {
+    private CompositionDetails buildCompositionDetails(Repositories repositories, Item item) {
         Optional<Integer> activeCompositionId = repositories.compositionRepository()
                 .findActiveCompositionId(item.productId());
 
-        StringBuilder builder = new StringBuilder();
-        builder.append("Articolo: ").append(item.code()).append(System.lineSeparator());
-        builder.append("Item ID: ").append(item.id()).append(System.lineSeparator());
-        builder.append("Product ID: ").append(item.productId()).append(System.lineSeparator());
-
         if (activeCompositionId.isEmpty()) {
-            builder.append("Versione: non trovata").append(System.lineSeparator());
-            builder.append("Blank Model ID: ").append(item.blankModelId()).append(System.lineSeparator());
-            builder.append("Altezza (mm): ").append(item.heightMm()).append(System.lineSeparator());
-            builder.append(System.lineSeparator());
-            builder.append("Composizione:").append(System.lineSeparator());
-            builder.append("Nessuna composizione attiva trovata.");
-            return builder.toString();
+            return new CompositionDetails(null, item.blankModelId(), item.heightMm(), List.of(),
+                    "Nessuna composizione attiva trovata.");
         }
 
         int compositionId = activeCompositionId.get();
         Optional<Composition> composition = repositories.compositionRepository().findById(compositionId);
-
-        builder.append("Versione: ")
-                .append(composition.map(Composition::version).map(String::valueOf).orElse("n/d"))
-                .append(System.lineSeparator());
-        builder.append("Blank Model ID: ").append(item.blankModelId()).append(System.lineSeparator());
-        builder.append("Altezza (mm): ").append(item.heightMm()).append(System.lineSeparator());
-        builder.append(System.lineSeparator());
-        builder.append("Composizione:").append(System.lineSeparator());
 
         List<CompositionLayerIngredient> ingredients = repositories.ingredientRepository().findByCompositionId(compositionId);
         Integer blankModelId = repositories.compositionRepository()
@@ -152,115 +139,50 @@ public class RegistersSearchService {
         List<BlankModelLayer> blankLayers = repositories.blankModelLayerRepository().findByBlankModelId(blankModelId);
 
         if (blankLayers.isEmpty()) {
-            builder.append("Nessuno strato blank model trovato.");
-            return builder.toString();
+            return new CompositionDetails(composition.map(Composition::version).orElse(null), blankModelId,
+                    item.heightMm(), List.of(), "Nessuno strato del modello disco trovato.");
         }
 
-        for (BlankModelLayer layer : blankLayers) {
-            builder.append("Strato ")
-                    .append(layer.layerNumber())
-                    .append(" (")
-                    .append(layer.diskPercentage())
-                    .append("%)")
-                    .append(":")
-                    .append(System.lineSeparator());
-
+        List<CompositionLayerDetails> layers = blankLayers.stream().map(layer -> {
             List<CompositionLayerIngredient> layerIngredients = ingredients.stream()
                     .filter(ingredient -> ingredient.layerNumber() == layer.layerNumber())
                     .toList();
 
-            if (layerIngredients.isEmpty()) {
-                builder.append("- Nessuna polvere associata").append(System.lineSeparator());
-                continue;
-            }
-
-            for (CompositionLayerIngredient ingredient : layerIngredients) {
+            List<IngredientDetails> ingredientDetails = layerIngredients.stream().map(ingredient -> {
                 Powder powder = repositories.powderRepository().findById(ingredient.powderId());
-                String powderLabel;
-                if (powder == null) {
-                    powderLabel = "polvere #" + ingredient.powderId();
-                } else if (powder.name() != null && !powder.name().isBlank()) {
-                    powderLabel = powder.name();
-                } else {
-                    powderLabel = powder.code();
-                }
+                String label = powder == null
+                        ? "Polvere #" + ingredient.powderId()
+                        : powder.name() != null && !powder.name().isBlank() ? powder.name() : powder.code();
+                return new IngredientDetails(label, ingredient.percentage());
+            }).toList();
+            return new CompositionLayerDetails(layer.layerNumber(), layer.diskPercentage(), ingredientDetails);
+        }).toList();
 
-                builder.append("- ")
-                        .append(powderLabel)
-                        .append(" - ")
-                        .append(ingredient.percentage())
-                        .append("%")
-                        .append(System.lineSeparator());
-            }
-        }
-
-        return builder.toString().trim();
+        return new CompositionDetails(composition.map(Composition::version).orElse(null), blankModelId,
+                item.heightMm(), layers, null);
     }
 
-    private String buildFiringSummary(Repositories repositories, Item item, Lot lot, Firing firing) {
-        StringBuilder builder = new StringBuilder();
-        builder.append("Articolo: ").append(item.code()).append(System.lineSeparator());
-        builder.append("Lotto: ").append(lot.code()).append(System.lineSeparator());
-        builder.append("Firing ID: ").append(lot.firingId()).append(System.lineSeparator());
-
+    private FiringDetails buildFiringDetails(Repositories repositories, Lot lot, Firing firing) {
         if (firing == null) {
-            builder.append(System.lineSeparator());
-            builder.append("Dettagli firing non trovati.");
-            return builder.toString();
+            return new FiringDetails(lot.firingId(), null, null, null, List.of(),
+                    "Dettagli del ciclo di sinterizzazione non trovati.");
         }
-
-        builder.append(System.lineSeparator());
-        builder.append("Data firing: ").append(firing.firingDate()).append(System.lineSeparator());
-        builder.append(firing.furnace()).append(System.lineSeparator());
-        builder.append("Temperatura max: ").append(firing.maxTemperature()).append(System.lineSeparator());
 
         List<ItemRepository.ItemFiringQuantityRow> itemQuantities = repositories.itemRepository()
                 .findItemQuantitiesByFiringId(firing.id());
-
-        builder.append(System.lineSeparator());
-        if (itemQuantities.isEmpty()) {
-            builder.append("- Nessun item trovato.");
-        } else {
-            itemQuantities.forEach(row -> builder
-                    .append("- ")
-                    .append(row.itemCode())
-                    .append(" · qty: ")
-                    .append(row.quantity())
-                    .append(System.lineSeparator()));
-        }
-
-        return builder.toString().trim();
+        List<FiringItemDetails> items = itemQuantities.stream()
+                .map(row -> new FiringItemDetails(row.itemCode(), row.quantity()))
+                .toList();
+        return new FiringDetails(firing.id(), firing.firingDate(), firing.furnace(),
+                firing.maxTemperature(), items, items.isEmpty() ? "Nessun articolo trovato nel ciclo." : null);
     }
 
-    private String buildDocumentsSummary(Item item, Lot lot, Firing firing) {
-        List<TemplateEditorService.TemplateSnapshot> templates = templateEditorService.getSavedTemplates().stream()
+    private List<DocumentDetails> buildDocumentDetails() {
+        return templateEditorService.getSavedTemplates().stream()
                 .sorted(Comparator.comparing(TemplateEditorService.TemplateSnapshot::savedAt).reversed())
-                .toList();
-
-        StringBuilder builder = new StringBuilder();
-        builder.append("Documento pronto per ricostruzione dati").append(System.lineSeparator());
-        builder.append("Articolo: ").append(item.code()).append(System.lineSeparator());
-        builder.append("Lotto: ").append(lot.code()).append(System.lineSeparator());
-        builder.append("Firing ID: ").append(firing == null ? "n/d" : firing.id()).append(System.lineSeparator());
-        builder.append(System.lineSeparator());
-
-        if (templates.isEmpty()) {
-            builder.append("Nessun template salvato disponibile.");
-            return builder.toString();
-        }
-
-        builder.append("Template disponibili (ultimi 5):").append(System.lineSeparator());
-        templates.stream()
                 .limit(5)
-                .forEach(template -> builder
-                        .append("- ")
-                        .append(template.name())
-                        .append(" [preset=")
-                        .append(template.presetCode() == null ? "" : template.presetCode())
-                        .append("]")
-                        .append(System.lineSeparator()));
-
-        return builder.toString();
+                .map(template -> new DocumentDetails(template.name(), template.presetCode(), template.savedAt()))
+                .toList();
     }
 
     private String normalize(String value) {
@@ -289,17 +211,27 @@ public class RegistersSearchService {
                                 PowderRepository powderRepository) {
     }
 
-    public record SearchResult(boolean success,
-                               String compositionOutput,
-                               String firingOutput,
-                               String documentsOutput) {
-
-        static SearchResult success(String compositionOutput, String firingOutput, String documentsOutput) {
-            return new SearchResult(true, compositionOutput, firingOutput, documentsOutput);
+    public record SearchResult(boolean success, String message, RegisterIdentity identity,
+                               CompositionDetails composition, FiringDetails firing,
+                               List<DocumentDetails> documents) {
+        static SearchResult success(RegisterIdentity identity, CompositionDetails composition,
+                                    FiringDetails firing, List<DocumentDetails> documents) {
+            return new SearchResult(true, null, identity, composition, firing, List.copyOf(documents));
         }
 
-        static SearchResult error(String compositionOutput, String firingOutput, String documentsOutput) {
-            return new SearchResult(false, compositionOutput, firingOutput, documentsOutput);
+        static SearchResult error(String message) {
+            return new SearchResult(false, message, null, null, null, List.of());
         }
     }
+
+    public record RegisterIdentity(String itemCode, String lotCode, Integer compositionVersion, int firingId) {}
+    public record CompositionDetails(Integer version, int blankModelId, double heightMm,
+                                     List<CompositionLayerDetails> layers, String notice) {}
+    public record CompositionLayerDetails(int layerNumber, double diskPercentage,
+                                          List<IngredientDetails> ingredients) {}
+    public record IngredientDetails(String name, double percentage) {}
+    public record FiringDetails(int id, java.time.LocalDate date, String furnace, Integer maxTemperature,
+                                List<FiringItemDetails> items, String notice) {}
+    public record FiringItemDetails(String itemCode, int quantity) {}
+    public record DocumentDetails(String name, String presetCode, java.time.Instant savedAt) {}
 }

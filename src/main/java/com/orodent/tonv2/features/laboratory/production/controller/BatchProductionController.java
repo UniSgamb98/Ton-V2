@@ -5,12 +5,12 @@ import com.orodent.tonv2.core.database.model.Line;
 import com.orodent.tonv2.core.database.model.Product;
 import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
 import com.orodent.tonv2.features.document.service.DocumentBrowserService;
+import com.orodent.tonv2.features.laboratory.production.presentation.BatchProductionFormState;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionReadService;
 import com.orodent.tonv2.features.laboratory.production.service.BatchProductionService;
 import com.orodent.tonv2.features.laboratory.production.view.BatchProductionView;
 import javafx.util.Duration;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -24,6 +24,7 @@ public class BatchProductionController {
     private final DebouncedTaskRunner<List<Product>> productsLoader;
     private final DebouncedTaskRunner<List<Item>> itemsLoader;
     private final DebouncedTaskRunner<ProductionCompletion> productionLoader;
+    private final BatchProductionFormState formState = new BatchProductionFormState();
 
     public BatchProductionController(BatchProductionView view,
                                      BatchProductionService service,
@@ -45,32 +46,48 @@ public class BatchProductionController {
     private void setupActions() {
         view.getLineSelector().setOnAction(e -> onLineChanged());
         view.setProductSelectionHandler(this::onProductSelected);
+        view.setQuantityChangeHandler((item, quantity) -> {
+            formState.setQuantity(item, quantity);
+            renderState();
+        });
+        view.getClearQuantitiesButton().setOnAction(e -> {
+            formState.clearQuantities();
+            view.clearQuantities();
+            renderState();
+        });
         view.getProduceButton().setOnAction(e -> produceBatch());
-        view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) ->
-                service.setLastTemplateName(newValue)
-        );
+        view.getTemplateSelector().valueProperty().addListener((obs, oldValue, newValue) -> {
+            formState.setTemplateName(newValue);
+            service.setLastTemplateName(newValue);
+            renderState();
+        });
+        renderState();
     }
 
     public void loadInitialData() {
         initialDataLoader.runNow(
                 readService::loadInitialData,
-                view::showInitialLoading,
+                () -> startLoading(view::showInitialLoading),
                 data -> {
                     view.setLines(data.lines());
                     view.setTemplateNames(data.templateNames(), data.selectedTemplateName());
-                    view.showLoadSuccess();
+                    finishLoading();
                 },
-                error -> view.showLoadError("Errore durante il caricamento della produzione batch.")
+                error -> showError("Errore durante il caricamento della produzione batch.")
         );
     }
 
     private void onLineChanged() {
         Line selected = view.getLineSelector().getValue();
+        formState.selectLine(selected);
+        renderState();
         if (selected == null) {
             productsLoader.cancel();
             itemsLoader.cancel();
             view.clearProducts();
             view.setItemRows(List.of());
+            formState.setItems(List.of());
+            renderState();
             return;
         }
 
@@ -79,25 +96,28 @@ public class BatchProductionController {
         view.setItemRows(List.of());
         productsLoader.runNow(
                 () -> readService.findProductsByLineName(selected.name()),
-                view::showProductsLoading,
+                () -> startLoading(view::showProductsLoading),
                 products -> {
                     view.setSelectableProducts(products, null);
-                    view.showLoadSuccess();
+                    finishLoading();
                 },
-                error -> view.showLoadError("Errore durante il caricamento dei prodotti.")
+                error -> showError("Errore durante il caricamento dei prodotti.")
         );
     }
 
     private void onProductSelected(Product product) {
+        formState.selectProduct(product);
         view.setItemRows(List.of());
+        renderState();
         itemsLoader.runNow(
                 () -> readService.findItemsByProduct(product.id()),
-                view::showItemsLoading,
+                () -> startLoading(view::showItemsLoading),
                 items -> {
+                    formState.setItems(items);
                     view.setItemRows(items);
-                    view.showLoadSuccess();
+                    finishLoading();
                 },
-                error -> view.showLoadError("Errore durante il caricamento degli item.")
+                error -> showError("Errore durante il caricamento degli articoli.")
         );
     }
 
@@ -110,9 +130,9 @@ public class BatchProductionController {
 
             productionLoader.runNow(
                     () -> produceAndGenerateDocument(line, requestLines, notes, templateName),
-                    view::showProductionSaving,
+                    () -> startLoading(view::showProductionSaving),
                     completion -> {
-                        view.showLoadSuccess();
+                        finishLoading();
                         if (completion.documentPath() != null) {
                             documentBrowserService.openDocument(completion.documentPath());
                         }
@@ -127,7 +147,7 @@ public class BatchProductionController {
                                 completion.documentError() != null
                         );
                     },
-                    error -> view.showLoadError(error instanceof IllegalArgumentException
+                    error -> showError(error instanceof IllegalArgumentException
                             ? error.getMessage()
                             : "Errore durante il salvataggio batch.")
             );
@@ -153,31 +173,38 @@ public class BatchProductionController {
     }
 
     private List<BatchProductionService.ProductionRequestLine> collectLines() {
-        List<BatchProductionService.ProductionRequestLine> lines = new ArrayList<>();
-
-        for (BatchProductionView.BatchRow row : view.getRows()) {
-            Item item = row.getItem();
-            String qtyRaw = row.getQuantityField().getText();
-
-            int qty;
-            if (qtyRaw == null || qtyRaw.isBlank()) {
-                qty = 0;
-            } else {
-                try {
-                    qty = Integer.parseInt(qtyRaw.trim());
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Quantità non valida per l'item " + item.code() + ".");
-                }
-            }
-
-            lines.add(new BatchProductionService.ProductionRequestLine(item.id(), qty));
-        }
+        List<BatchProductionService.ProductionRequestLine> lines = formState.itemQuantities().stream()
+                .map(entry -> new BatchProductionService.ProductionRequestLine(
+                        entry.item().id(), entry.quantity()))
+                .toList();
 
         if (lines.isEmpty()) {
             throw new IllegalArgumentException("Seleziona un prodotto con item disponibili prima di produrre.");
         }
 
         return lines;
+    }
+
+    private void renderState() {
+        view.render(formState.toViewState());
+    }
+
+    private void startLoading(Runnable viewLoadingAction) {
+        formState.setLoading(true);
+        renderState();
+        viewLoadingAction.run();
+    }
+
+    private void finishLoading() {
+        formState.setLoading(false);
+        view.showLoadSuccess();
+        renderState();
+    }
+
+    private void showError(String message) {
+        formState.setLoading(false);
+        view.showLoadError(message);
+        renderState();
     }
 
     public void dispose() {

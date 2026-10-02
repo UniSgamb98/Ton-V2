@@ -1,6 +1,5 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.view.partial;
 
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
@@ -9,19 +8,22 @@ import javafx.scene.paint.Color;
 import java.util.List;
 
 public class DiskModelPreviewView extends VBox {
+    private static final double LAYERS_PREVIEW_HEIGHT = 340;
+    private static final double OVERMATERIAL_PREVIEW_HEIGHT = 32;
 
     private final VBox stack = new VBox(2);
 
     public DiskModelPreviewView() {
         setSpacing(8);
-        setPadding(new Insets(10));
         setAlignment(Pos.TOP_CENTER);
+        getStyleClass().add("disk-model-preview");
 
         Label title = new Label("Anteprima modello disco");
-        title.setStyle("-fx-font-weight: bold;");
+        title.getStyleClass().add("preview-title");
 
-        stack.setPrefWidth(220);
-        stack.setMaxWidth(220);
+        stack.setPrefWidth(230);
+        stack.setMaxWidth(230);
+        stack.getStyleClass().add("preview-stack");
 
         getChildren().addAll(title, stack);
         update(1.0, 1.0, List.of(100.0));
@@ -30,15 +32,23 @@ public class DiskModelPreviewView extends VBox {
     public void update(double superiorOvermaterialMm, double inferiorOvermaterialMm, List<Double> layerPercentages) {
         stack.getChildren().clear();
 
-        addSegment("Over sup. " + fmt(superiorOvermaterialMm) + "mm", 18, Color.web("#f8b4b4"));
+        addSegment(
+                "Over sup. " + fmt(superiorOvermaterialMm) + "mm",
+                OVERMATERIAL_PREVIEW_HEIGHT,
+                Color.web("#f8b4b4")
+        );
 
         for (int i = 0; i < layerPercentages.size(); i++) {
             double pct = layerPercentages.get(i);
-            double h = Math.max(12, Math.min(60, pct * 0.9));
+            double h = Math.max(26, Math.min(280, pct / 100.0 * LAYERS_PREVIEW_HEIGHT));
             addSegment("Layer " + (i + 1) + "  " + fmt(pct) + "%", h, pickColor(i));
         }
 
-        addSegment("Over inf. " + fmt(inferiorOvermaterialMm) + "mm", 18, Color.web("#f8b4b4"));
+        addSegment(
+                "Over inf. " + fmt(inferiorOvermaterialMm) + "mm",
+                OVERMATERIAL_PREVIEW_HEIGHT,
+                Color.web("#f8b4b4")
+        );
     }
 
     private void addSegment(String text, double height, Color color) {
@@ -46,10 +56,11 @@ public class DiskModelPreviewView extends VBox {
         box.setMinHeight(height);
         box.setPrefHeight(height);
         box.setMaxWidth(Double.MAX_VALUE);
-        box.setStyle("-fx-background-color: " + toHex(color) + "; -fx-border-color: #374151;");
+        box.setStyle("-fx-background-color: " + toHex(color) + ";");
+        box.getStyleClass().add("preview-segment");
 
         Label label = new Label(text);
-        label.setStyle("-fx-font-size: 11px; -fx-text-fill: #000000;");
+        label.getStyleClass().add("preview-segment-label");
         box.getChildren().add(label);
 
         stack.getChildren().add(box);

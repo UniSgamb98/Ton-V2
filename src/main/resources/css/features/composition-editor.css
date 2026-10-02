@@ -1,0 +1,258 @@
+.composition-editor {
+    -fx-background-color: #1e1e1e;
+}
+
+.composition-scroll,
+.composition-scroll > .viewport,
+.composition-scroll .corner,
+.layer-navigation-scroll,
+.layer-navigation-scroll > .viewport,
+.layer-navigation-scroll .corner {
+    -fx-background-color: transparent;
+}
+
+.composition-page-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #ffffff;
+}
+
+.composition-page-subtitle,
+.composition-section-description {
+    -fx-text-fill: #a9b0b8;
+}
+
+.composition-page-subtitle {
+    -fx-font-size: 14px;
+}
+
+.composition-section-card {
+    -fx-background-color: #292929;
+    -fx-background-radius: 12;
+    -fx-border-color: #3b3b3b;
+    -fx-border-radius: 12;
+    -fx-border-width: 1;
+    -fx-padding: 18;
+}
+
+.composition-section-number {
+    -fx-background-color: #007acc;
+    -fx-background-radius: 999;
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.composition-section-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #f4f4f4;
+}
+
+.composition-section-description {
+    -fx-font-size: 12px;
+}
+
+.composition-field-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #d9dde1;
+}
+
+.composition-selector,
+.ingredient-row .combo-box,
+.ingredient-row .text-field,
+.composition-notes {
+    -fx-background-color: #202020;
+    -fx-background-radius: 7;
+    -fx-border-color: #484848;
+    -fx-border-radius: 7;
+    -fx-border-width: 1;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #737a82;
+}
+
+.composition-selector:focused,
+.ingredient-row .combo-box:focused,
+.ingredient-row .text-field:focused,
+.composition-notes:focused {
+    -fx-border-color: #168bd2;
+}
+
+.composition-selector .list-cell,
+.ingredient-row .combo-box .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: #202020;
+    -fx-border-color: #50565c;
+    -fx-border-width: 1;
+}
+
+.combo-box-popup .list-view .list-cell {
+    -fx-background-color: #202020;
+    -fx-text-fill: #f1f3f5;
+    -fx-padding: 7 9;
+}
+
+.combo-box-popup .list-view .list-cell:hover {
+    -fx-background-color: #145c88;
+    -fx-text-fill: #ffffff;
+}
+
+.combo-box-popup .list-view .list-cell:selected {
+    -fx-background-color: #007acc;
+    -fx-text-fill: #ffffff;
+}
+
+.composition-notes .content {
+    -fx-background-color: #202020;
+}
+
+.load-version-action,
+.add-ingredient-action,
+.composition-back-action {
+    -fx-background-color: transparent;
+    -fx-background-radius: 7;
+    -fx-border-color: #555b61;
+    -fx-border-radius: 7;
+    -fx-text-fill: #dce1e5;
+    -fx-padding: 8 14;
+}
+
+.load-version-action:hover,
+.add-ingredient-action:hover,
+.composition-back-action:hover {
+    -fx-background-color: #363a3e;
+    -fx-border-color: #6db8e8;
+}
+
+.layer-navigation-scroll {
+    -fx-background-color: #232323;
+    -fx-background-radius: 9;
+    -fx-border-color: #393939;
+    -fx-border-radius: 9;
+    -fx-padding: 8;
+}
+
+.layer-navigation-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 7;
+    -fx-border-color: transparent;
+    -fx-border-radius: 7;
+    -fx-text-fill: #c7ccd1;
+    -fx-font-size: 12px;
+    -fx-alignment: center-left;
+    -fx-text-alignment: left;
+    -fx-padding: 10 12;
+    -fx-cursor: hand;
+}
+
+.layer-navigation-button:hover {
+    -fx-background-color: #30343a;
+}
+
+.layer-navigation-button:selected {
+    -fx-background-color: #17364a;
+    -fx-border-color: #168bd2;
+    -fx-text-fill: #ffffff;
+}
+
+.selected-layer-container,
+.layer-summary-card {
+    -fx-background-color: #232323;
+    -fx-background-radius: 9;
+    -fx-border-color: #393939;
+    -fx-border-radius: 9;
+    -fx-padding: 14;
+}
+
+.layer-editor {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.composition-editor .layer-title,
+.summary-title,
+.layer-summary-heading {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #ffffff;
+}
+
+.ingredient-row {
+    -fx-background-color: #292929;
+    -fx-background-radius: 8;
+    -fx-border-color: #414141;
+    -fx-border-radius: 8;
+    -fx-padding: 9;
+}
+
+.remove-ingredient-action {
+    -fx-background-color: transparent;
+    -fx-border-color: #754044;
+    -fx-border-radius: 6;
+    -fx-text-fill: #ff999f;
+    -fx-padding: 6 9;
+    -fx-min-width: 36;
+    -fx-min-height: 32;
+}
+
+.remove-ingredient-action:hover {
+    -fx-background-color: #633036;
+}
+
+.layer-completion {
+    -fx-background-radius: 7;
+    -fx-border-radius: 7;
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-padding: 8 10;
+}
+
+.layer-completion-valid {
+    -fx-background-color: rgba(34, 197, 94, 0.13);
+    -fx-border-color: rgba(34, 197, 94, 0.35);
+    -fx-text-fill: #77df9a;
+}
+
+.layer-completion-invalid {
+    -fx-background-color: rgba(245, 158, 11, 0.13);
+    -fx-border-color: rgba(245, 158, 11, 0.35);
+    -fx-text-fill: #f3bd5b;
+}
+
+.layer-metrics-summary {
+    -fx-font-size: 12px;
+    -fx-text-fill: #c3c9cf;
+}
+
+.composition-action-bar {
+    -fx-background-color: #252526;
+    -fx-border-color: #3b3b3b transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 12 28;
+}
+
+.composition-save-action {
+    -fx-background-color: #007acc;
+    -fx-background-radius: 7;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-padding: 9 18;
+}
+
+.composition-save-action:hover {
+    -fx-background-color: #168bd2;
+}
+
+.composition-status {
+    -fx-font-size: 12px;
+    -fx-text-fill: #a9b0b8;
+}
+
+.composition-status-error {
+    -fx-text-fill: #ff999f;
+}

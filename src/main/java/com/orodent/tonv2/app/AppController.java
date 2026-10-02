@@ -22,6 +22,7 @@ import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompos
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
 import com.orodent.tonv2.features.laboratory.diskmodel.controller.CreateDiskModelController;
+import com.orodent.tonv2.features.laboratory.diskmodel.presentation.DiskModelEditorState;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.CreateDiskModelService;
 import com.orodent.tonv2.features.laboratory.diskmodel.service.DiskModelArchiveService;
 import com.orodent.tonv2.features.laboratory.firingprogram.controller.FiringProgramController;
@@ -52,6 +53,7 @@ import com.orodent.tonv2.features.registers.home.controller.RegistersController;
 import com.orodent.tonv2.features.registers.home.service.RegistersDocumentService;
 import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
 import com.orodent.tonv2.features.registers.home.view.RegistersView;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
@@ -59,6 +61,9 @@ import javafx.stage.Stage;
 import java.util.Objects;
 
 public class AppController implements DocumentsNavigator, LaboratoryNavigator, CubageNavigator {
+    private static final double INITIAL_SCENE_WIDTH = 900;
+    private static final double INITIAL_SCENE_HEIGHT = 700;
+
     /*
     Qua salvo i modelli dell'applicazione e tutte le variabili che servono all'intera applicazione e non alle
     singole pagine.
@@ -66,6 +71,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     private final Stage stage;
     private final AppContainer app;
     private final String cssPath;
+    private Scene scene;
     private Runnable activePageCleanup = () -> {};
 
     /*
@@ -95,7 +101,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         HomeView view = new HomeView();
         configureHeader(view.getHeader());
 
-        showScene(createSceneWithCSS(view));
+        showView(view);
         stage.setTitle("TON - Home");
     }
 
@@ -110,7 +116,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Nuovo documento");
         controller.loadInitialData();
     }
@@ -126,7 +132,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Archivio template");
         controller.loadInitialData();
     }
@@ -143,7 +149,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Modifica template");
         controller.loadInitialData();
     }
@@ -167,7 +173,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new CubageController(view, new CubageService(), this);
 
-        showScene(createSceneWithCSS(view));
+        showView(view, "/css/features/feature-dashboard.css");
         stage.setTitle("TON - Cubaggio");
     }
 
@@ -182,7 +188,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Gestione Calcoli Cubaggio");
         controller.loadInitialData();
     }
@@ -224,7 +230,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose, "/css/features/registers.css");
         stage.setTitle("TON - Registri");
         controller.loadInitialData();
     }
@@ -254,7 +260,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose, "/css/features/composition-editor.css");
         stage.setTitle(productId == null ? "TON - Nuova composizione" : "TON - Modifica Composizione");
         controller.loadInitialData();
     }
@@ -266,7 +272,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new DocumentsController(view, this);
 
-        showScene(createSceneWithCSS(view));
+        showView(view, "/css/features/feature-dashboard.css");
         stage.setTitle("TON - Documentazione");
     }
 
@@ -276,7 +282,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         configureHeader(view.getHeader());
         new LaboratoryController(view, this);
 
-        showScene(createSceneWithCSS(view));
+        showView(view, "/css/features/laboratory.css");
         stage.setTitle("TON - Laboratorio");
     }
 
@@ -298,7 +304,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose, "/css/features/batch-production.css");
         stage.setTitle("TON - Produzione batch");
         controller.loadInitialData();
     }
@@ -313,7 +319,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose, "/css/item-setup.css");
         stage.setTitle("TON - Setup Item");
         controller.loadInitialData();
     }
@@ -331,7 +337,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Nuovo Ciclo Sinterizzazione");
     }
 
@@ -353,7 +359,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Presinterizza");
         controller.loadInitialData();
     }
@@ -369,7 +375,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
     }
 
     private void showCreateDiskModelInternal(Integer blankModelId) {
-        CreateDiskModelView view = new CreateDiskModelView();
+        CreateDiskModelView view = new CreateDiskModelView(new DiskModelEditorState());
         configureHeader(view.getHeader());
         CreateDiskModelController controller = new CreateDiskModelController(
                 view,
@@ -382,7 +388,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose, "/css/features/disk-model-editor.css");
         stage.setTitle(blankModelId == null ? "TON - Nuovo modello disco" : "TON - Modifica Modello Disco");
         controller.loadInitialData();
     }
@@ -398,7 +404,7 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Archivio composizioni");
         controller.loadInitialData();
     }
@@ -414,18 +420,31 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
                 app.backgroundExecutor()
         );
 
-        showScene(createSceneWithCSS(view), controller::dispose);
+        showView(view, controller::dispose);
         stage.setTitle("TON - Archivio dischi");
         controller.loadInitialData();
     }
 
     /*
-    Creando le Scenes con questo metodo vengono collegate al CSS che può essere scritto tutto in un unico file.
+    La Scene viene creata soltanto all'apertura dell'applicazione. Durante la navigazione viene sostituito il root,
+    così lo Stage conserva dimensioni e stato della finestra. Ogni pagina può aggiungere i propri fogli di stile.
      */
-    private Scene createSceneWithCSS(Object root, String... extraCss) {
-        Scene scene = new Scene((javafx.scene.Parent) root, 900, 700);
-        scene.getStylesheets().add(cssPath);
+    private void showView(Parent root, String... extraCss) {
+        showView(root, () -> {}, extraCss);
+    }
 
+    private void showView(Parent root, Runnable pageCleanup, String... extraCss) {
+        runActivePageCleanup();
+        activePageCleanup = pageCleanup;
+
+        if (scene == null) {
+            scene = new Scene(root, INITIAL_SCENE_WIDTH, INITIAL_SCENE_HEIGHT);
+            stage.setScene(scene);
+        } else {
+            scene.setRoot(root);
+        }
+
+        scene.getStylesheets().setAll(cssPath);
         for (String css : extraCss) {
             String path = Objects.requireNonNull(
                     getClass().getResource(css)
@@ -433,17 +452,6 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
 
             scene.getStylesheets().add(path);
         }
-        return scene;
-    }
-
-    private void showScene(Scene scene) {
-        showScene(scene, () -> {});
-    }
-
-    private void showScene(Scene scene, Runnable pageCleanup) {
-        runActivePageCleanup();
-        activePageCleanup = pageCleanup;
-        stage.setScene(scene);
     }
 
     private void runActivePageCleanup() {

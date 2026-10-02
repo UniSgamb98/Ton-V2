@@ -3,14 +3,16 @@ package com.orodent.tonv2.features.laboratory.composition.controller;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
 import com.orodent.tonv2.core.database.model.BlankModel;
 import com.orodent.tonv2.core.database.model.Product;
-import com.orodent.tonv2.core.ui.form.ConfirmUnsavedChangesDialog;
-import com.orodent.tonv2.core.ui.form.DirtyStateTracker;
 import com.orodent.tonv2.core.ui.async.DebouncedTaskRunner;
 import com.orodent.tonv2.core.ui.draft.IngredientDraft;
 import com.orodent.tonv2.core.ui.draft.LayerDraft;
+import com.orodent.tonv2.core.ui.form.ConfirmUnsavedChangesDialog;
+import com.orodent.tonv2.core.ui.form.DirtyStateTracker;
+import com.orodent.tonv2.features.laboratory.composition.presentation.CompositionLayerPresenter;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionDraftStateService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
+import com.orodent.tonv2.features.laboratory.composition.service.LayerMetricsService;
 import com.orodent.tonv2.features.laboratory.composition.view.CreateCompositionView;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
@@ -31,6 +33,7 @@ public class CreateCompositionController {
     private final CreateCompositionService service;
     private final EditorMode editorMode;
     private final CompositionDraftStateService draftStateService;
+    private final CompositionLayerPresenter layerPresenter;
     private final DirtyStateTracker dirtyStateTracker;
     private final CompositionArchiveService archiveService;
     private final Integer sourceProductId;
@@ -66,6 +69,7 @@ public class CreateCompositionController {
         this.latestVersionLoader = new DebouncedTaskRunner<>(executor, Duration.ZERO);
         this.saveRunner = new DebouncedTaskRunner<>(executor, Duration.ZERO);
         this.draftStateService = new CompositionDraftStateService();
+        this.layerPresenter = new CompositionLayerPresenter(new LayerMetricsService());
         this.dirtyStateTracker = new DirtyStateTracker()
                 .track("productId", () -> view.getProductSelector().getValue() == null ? null : view.getProductSelector().getValue().id())
                 .track("lineName", () -> normalize(view.getLineSelector().getValue()))
@@ -98,6 +102,7 @@ public class CreateCompositionController {
         view.getLineSelector().getItems().addFirst(NEW_LINE_OPTION);
         view.getBlankModelSelector().getItems().setAll(data.blankModels());
         view.setAvailablePowders(data.powders());
+        view.setLayerStateProvider(layer -> layerPresenter.present(layer, data.powders()));
         pageData.snapshot().ifPresent(this::preloadFromArchiveSnapshot);
         applyingInitialData = false;
         dirtyStateTracker.captureInitialState();
@@ -209,7 +214,7 @@ public class CreateCompositionController {
         }
 
         view.setNotes(data.notes());
-        view.replaceLayers(data.layerDrafts());
+        view.replaceLayers(copyLayers(data.layerDrafts()));
         view.showLoadSuccess();
     }
 
@@ -231,7 +236,7 @@ public class CreateCompositionController {
         }
 
         view.setNotes(snapshot.notes());
-        view.replaceLayers(snapshot.layerDrafts());
+        view.replaceLayers(copyLayers(snapshot.layerDrafts()));
     }
 
     public void markAsClean() {

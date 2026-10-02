@@ -47,6 +47,16 @@ public class RegistersController {
 
     private void bindActions() {
         view.getSearchButton().setOnAction(e -> runSearch());
+        view.getClearButton().setOnAction(e -> {
+            itemSuggestionsLoader.cancel();
+            lotSuggestionsLoader.cancel();
+            updatingSuggestions = true;
+            try {
+                view.clearSearch();
+            } finally {
+                updatingSuggestions = false;
+            }
+        });
 
         view.getArticleComboBox().getEditor().textProperty().addListener((obs, oldValue, newValue) -> {
             if (updatingSuggestions) {

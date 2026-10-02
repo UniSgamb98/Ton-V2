@@ -1,0 +1,80 @@
+.registers-view { -fx-background-color: #1e1e1e; }
+.registers-scroll, .registers-scroll > .viewport, .registers-scroll .corner { -fx-background-color: transparent; }
+.registers-page-title { -fx-font-size: 28px; -fx-font-weight: 700; -fx-text-fill: white; }
+.registers-page-subtitle, .registers-muted { -fx-text-fill: #a9b0b8; }
+.registers-page-subtitle { -fx-font-size: 14px; }
+
+.registers-search-card, .registers-identity-card, .registers-tab-content {
+    -fx-background-color: #292929; -fx-background-radius: 12;
+    -fx-border-color: #3b3b3b; -fx-border-radius: 12; -fx-padding: 18;
+}
+.registers-card-title, .registers-section-title {
+    -fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #f4f4f4;
+}
+.registers-field-label, .registers-identity-label {
+    -fx-font-size: 11px; -fx-font-weight: 700; -fx-text-fill: #b7bdc4;
+}
+.registers-selector {
+    -fx-background-color: #202020; -fx-background-radius: 7;
+    -fx-border-color: #484848; -fx-border-radius: 7; -fx-text-fill: white;
+    -fx-prompt-text-fill: #737a82; -fx-pref-height: 38;
+}
+.registers-selector:focused { -fx-border-color: #168bd2; }
+.registers-selector .list-cell, .registers-selector .text-field {
+    -fx-background-color: transparent; -fx-text-fill: white; -fx-prompt-text-fill: #737a82;
+}
+.combo-box-popup .list-view { -fx-background-color: #202020; -fx-border-color: #50565c; }
+.combo-box-popup .list-view .list-cell { -fx-background-color: #202020; -fx-text-fill: #f1f3f5; -fx-padding: 7 9; }
+.combo-box-popup .list-view .list-cell:hover { -fx-background-color: #145c88; -fx-text-fill: white; }
+.combo-box-popup .list-view .list-cell:selected { -fx-background-color: #007acc; -fx-text-fill: white; }
+
+.registers-primary-action, .registers-document-action {
+    -fx-background-color: #007acc; -fx-background-radius: 7; -fx-text-fill: white;
+    -fx-font-weight: 700; -fx-padding: 9 16; -fx-cursor: hand;
+}
+.registers-primary-action:hover, .registers-document-action:hover { -fx-background-color: #168bd2; }
+.registers-secondary-action {
+    -fx-background-color: transparent; -fx-border-color: #555b61; -fx-border-radius: 7;
+    -fx-text-fill: #dce1e5; -fx-padding: 8 14; -fx-cursor: hand;
+}
+.registers-secondary-action:hover { -fx-background-color: #363a3e; -fx-border-color: #6db8e8; }
+
+.registers-empty-state {
+    -fx-background-color: #252525; -fx-background-radius: 12; -fx-border-color: #393939;
+    -fx-border-radius: 12; -fx-border-style: segments(6, 5); -fx-padding: 48;
+}
+.registers-empty-icon { -fx-font-size: 42px; -fx-text-fill: #168bd2; }
+.registers-empty-title { -fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: white; }
+
+.registers-identity-value { -fx-font-size: 18px; -fx-font-weight: 700; -fx-text-fill: white; }
+.registers-found { -fx-text-fill: #77df9a; -fx-font-weight: 700; }
+.registers-badge, .registers-quantity-badge {
+    -fx-background-color: #17364a; -fx-background-radius: 999; -fx-text-fill: #8fd0f8;
+    -fx-font-size: 11px; -fx-font-weight: 700; -fx-padding: 5 9;
+}
+
+.registers-tabs { -fx-background-color: transparent; -fx-tab-min-height: 38; }
+.registers-tabs .tab-header-area .tab-header-background { -fx-background-color: transparent; }
+.registers-tabs .tab { -fx-background-color: #292929; -fx-background-radius: 8 8 0 0; -fx-padding: 4 14; }
+.registers-tabs .tab .tab-label { -fx-text-fill: #b8bec5; -fx-font-weight: 600; }
+.registers-tabs .tab:selected { -fx-background-color: #17364a; }
+.registers-tabs .tab:selected .tab-label { -fx-text-fill: white; }
+.registers-tabs .tab-content-area { -fx-background-color: transparent; -fx-padding: 10 0 0 0; }
+
+.registers-metric-card, .registers-layer-card, .registers-data-row {
+    -fx-background-color: #232323; -fx-background-radius: 9;
+    -fx-border-color: #3d3d3d; -fx-border-radius: 9; -fx-padding: 12;
+}
+.registers-metric-value, .registers-row-value { -fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: #f3f4f6; }
+.registers-layer-title { -fx-font-size: 14px; -fx-font-weight: 700; -fx-text-fill: white; }
+.registers-ingredient-name { -fx-text-fill: #dfe3e6; }
+.registers-ingredient-percentage { -fx-text-fill: #8fd0f8; -fx-font-weight: 700; }
+.registers-notice {
+    -fx-background-color: rgba(245, 158, 11, 0.13); -fx-background-radius: 7;
+    -fx-border-color: rgba(245, 158, 11, 0.35); -fx-border-radius: 7;
+    -fx-text-fill: #f3bd5b; -fx-padding: 10;
+}
+.registers-document-icon { -fx-font-size: 22px; -fx-text-fill: #8fd0f8; }
+.registers-status { -fx-font-size: 12px; }
+.registers-status-success { -fx-text-fill: #77df9a; }
+.registers-status-error { -fx-text-fill: #ff999f; }

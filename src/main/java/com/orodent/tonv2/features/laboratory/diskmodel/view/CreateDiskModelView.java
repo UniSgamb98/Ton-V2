@@ -1,6 +1,9 @@
 package com.orodent.tonv2.features.laboratory.diskmodel.view;
 
 import com.orodent.tonv2.core.components.AppHeader;
+import com.orodent.tonv2.core.components.EditorActionBar;
+import com.orodent.tonv2.core.components.NumberedSectionCard;
+import com.orodent.tonv2.features.laboratory.diskmodel.presentation.DiskModelEditorState;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.partial.DiskModelPreviewView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,8 +15,12 @@ import java.util.List;
 
 public class CreateDiskModelView extends VBox {
 
+    private static final double CONTENT_MAX_WIDTH = 1120;
+
     private final AppHeader header = new AppHeader("Laboratorio - Nuovo Modello Disco");
+    private final DiskModelEditorState editorState;
     private final BorderPane content = new BorderPane();
+    private final ScrollPane editorScrollPane = new ScrollPane();
 
     private final TextField codeField = new TextField();
     private final TextField diameterField = new TextField();
@@ -23,7 +30,7 @@ public class CreateDiskModelView extends VBox {
     private final TextField gramsPerMmField = new TextField();
     private final TextField numLayersField = new TextField();
 
-    private final VBox layersPercentagesBox = new VBox(8);
+    private final FlowPane layersPercentagesBox = new FlowPane(8, 8);
     private final Label layersSummaryLabel = new Label("Somma layer: 0%");
 
     private final VBox rangesBox = new VBox(8);
@@ -32,28 +39,26 @@ public class CreateDiskModelView extends VBox {
     private final Button backBtn = new Button("Indietro");
     private final ProgressIndicator progressIndicator = new ProgressIndicator();
     private final Label statusLabel = new Label();
+    private final Label pageTitleLabel = new Label("Nuovo modello disco");
 
     private final DiskModelPreviewView previewView = new DiskModelPreviewView();
 
     private final List<HeightRangeRow> rangeRows = new ArrayList<>();
     private final List<LayerPercentageRow> layerRows = new ArrayList<>();
 
-    public CreateDiskModelView() {
-        setSpacing(20);
-        setPadding(new Insets(20));
+    public CreateDiskModelView(DiskModelEditorState editorState) {
+        this.editorState = editorState;
         buildLayout();
         bindPreview();
         progressIndicator.setMaxSize(24, 24);
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
-        getChildren().addAll(header, content, progressIndicator, statusLabel);
+        getStyleClass().add("disk-model-editor");
+        VBox.setVgrow(content, Priority.ALWAYS);
+        getChildren().addAll(header, content);
     }
 
     private void buildLayout() {
-        GridPane baseForm = new GridPane();
-        baseForm.setHgap(12);
-        baseForm.setVgap(10);
-
         codeField.setPromptText("Es. BM-98-A");
         diameterField.setPromptText("Es. 98.0");
         superiorOvermaterialField.setPromptText("Es. 1.2");
@@ -61,84 +66,131 @@ public class CreateDiskModelView extends VBox {
         pressureField.setPromptText("Es. 2300");
         gramsPerMmField.setPromptText("Es. 0.550");
         numLayersField.setPromptText("Es. 4");
+        configureFieldWidths();
 
-        baseForm.add(new Label("Codice"), 0, 0);
-        baseForm.add(codeField, 1, 0);
-        baseForm.add(new Label("Diametro (mm)"), 2, 0);
-        baseForm.add(diameterField, 3, 0);
+        GridPane identityGrid = createTwoColumnGrid();
+        identityGrid.add(createField("Codice modello", null, codeField), 0, 0);
+        identityGrid.add(createField("Diametro", "mm", diameterField), 1, 0);
 
-        baseForm.add(new Label("Overmaterial superiore default (mm)"), 0, 1);
-        baseForm.add(superiorOvermaterialField, 1, 1);
-        baseForm.add(new Label("Overmaterial inferiore default (mm)"), 2, 1);
-        baseForm.add(inferiorOvermaterialField, 3, 1);
+        GridPane productionGrid = createTwoColumnGrid();
+        productionGrid.add(createField("Overmaterial superiore", "mm", superiorOvermaterialField), 0, 0);
+        productionGrid.add(createField("Overmaterial inferiore", "mm", inferiorOvermaterialField), 1, 0);
+        productionGrid.add(createField("Pressione", "kg/cm²", pressureField), 0, 1);
+        productionGrid.add(createField("Peso per millimetro", "g/mm", gramsPerMmField), 1, 1);
 
-        baseForm.add(new Label("Pressione (kg/cm²)"), 0, 2);
-        baseForm.add(pressureField, 1, 2);
-        baseForm.add(new Label("Grammi per mm"), 2, 2);
-        baseForm.add(gramsPerMmField, 3, 2);
-
-        baseForm.add(new Label("Numero strati"), 0, 3);
-        baseForm.add(numLayersField, 1, 3);
-
-        ColumnConstraints labelCol = new ColumnConstraints();
-        labelCol.setMinWidth(140);
-        ColumnConstraints fieldCol = new ColumnConstraints();
-        fieldCol.setHgrow(Priority.ALWAYS);
-        fieldCol.setFillWidth(true);
-
-        baseForm.getColumnConstraints().addAll(labelCol, fieldCol, labelCol, fieldCol);
-        codeField.setMaxWidth(Double.MAX_VALUE);
-        diameterField.setMaxWidth(Double.MAX_VALUE);
-        superiorOvermaterialField.setMaxWidth(Double.MAX_VALUE);
-        inferiorOvermaterialField.setMaxWidth(Double.MAX_VALUE);
-        pressureField.setMaxWidth(Double.MAX_VALUE);
-        gramsPerMmField.setMaxWidth(Double.MAX_VALUE);
-        numLayersField.setMaxWidth(Double.MAX_VALUE);
-
-        Label layersLabel = new Label("Struttura layer modello (somma = 100%)");
-        layersSummaryLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #374151;");
-
-        VBox layersSection = new VBox(8, layersLabel, layersPercentagesBox, layersSummaryLabel);
-        HBox layersWithPreview = new HBox(18, layersSection, previewView);
-        layersWithPreview.setAlignment(Pos.TOP_LEFT);
-        HBox.setHgrow(layersSection, Priority.ALWAYS);
-
-        Label rangesLabel = new Label("Overmaterial per fascia altezza (opzionale)");
-        addRangeBtn.setOnAction(e -> addRangeRow());
-
-        VBox leftBox = new VBox(12,
-                baseForm,
-                layersWithPreview,
-                new Separator(),
-                rangesLabel,
-                rangesBox,
-                addRangeBtn
+        layersPercentagesBox.getStyleClass().add("layer-list");
+        layersPercentagesBox.setPrefWrapLength(480);
+        layersPercentagesBox.setAlignment(Pos.TOP_LEFT);
+        layersSummaryLabel.getStyleClass().addAll("layer-total", "layer-total-invalid");
+        VBox layersContent = new VBox(12,
+                createField("Numero strati", null, numLayersField),
+                layersPercentagesBox,
+                layersSummaryLabel
         );
-        leftBox.setPadding(new Insets(10));
-        leftBox.setMaxWidth(950);
-        VBox.setVgrow(layersPercentagesBox, Priority.NEVER);
 
-        HBox centerContent = new HBox(18, leftBox);
-        centerContent.setAlignment(Pos.TOP_CENTER);
+        Label rangesDescription = new Label(
+                "Personalizza gli overmaterial soltanto per specifici intervalli di altezza."
+        );
+        rangesDescription.getStyleClass().add("editor-section-description");
+        rangesDescription.setWrapText(true);
+        addRangeBtn.setOnAction(e -> addRangeRow());
+        addRangeBtn.getStyleClass().add("secondary-action");
+
+        VBox leftBox = new VBox(18,
+                new NumberedSectionCard("editor", "1", "Informazioni principali", "Identifica il modello e le sue dimensioni.", identityGrid),
+                new NumberedSectionCard("editor", "2", "Parametri di produzione", "Definisci pressatura e sovramateriali predefiniti.", productionGrid),
+                new NumberedSectionCard("editor", "3", "Struttura degli strati", "Distribuisci il modello assicurandoti che il totale sia 100%.", layersContent),
+                new NumberedSectionCard("editor", "4", "Fasce di altezza", "Configurazione opzionale", rangesDescription,
+                rangesBox,
+                addRangeBtn)
+        );
+        leftBox.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(leftBox, Priority.ALWAYS);
 
-        StackPane centered = new StackPane(centerContent);
-        centered.setPadding(new Insets(0, 10, 0, 10));
-        StackPane.setAlignment(centerContent, Pos.TOP_CENTER);
+        VBox previewCard = new VBox(14, previewView);
+        previewCard.getStyleClass().add("preview-card");
+        previewCard.setMinWidth(250);
+        previewCard.setPrefWidth(270);
+        previewCard.setMaxWidth(290);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox editorColumns = new HBox(20, leftBox, previewCard);
+        editorColumns.setAlignment(Pos.TOP_CENTER);
+
+        pageTitleLabel.getStyleClass().add("editor-page-title");
+        Label pageSubtitle = new Label(
+                "Configura geometria, parametri di pressatura e struttura degli strati."
+        );
+        pageSubtitle.getStyleClass().add("editor-page-subtitle");
+        VBox pageHeading = new VBox(6, pageTitleLabel, pageSubtitle);
+
+        VBox editorContent = new VBox(24, pageHeading, editorColumns);
+        editorContent.setMaxWidth(CONTENT_MAX_WIDTH);
+
+        StackPane centered = new StackPane(editorContent);
+        centered.setAlignment(Pos.TOP_CENTER);
+        centered.setPadding(new Insets(30, 28, 36, 28));
+
+        editorScrollPane.setContent(centered);
+        editorScrollPane.getStyleClass().add("disk-model-scroll");
+        editorScrollPane.setFitToWidth(true);
+        editorScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+
         backBtn.setVisible(false);
         backBtn.setManaged(false);
 
-        HBox bottom = new HBox(10, backBtn, spacer, saveBtn);
-        bottom.setPadding(new Insets(10));
-        bottom.setAlignment(Pos.CENTER_LEFT);
+        saveBtn.getStyleClass().add("primary-save-action");
+        backBtn.getStyleClass().add("back-action");
+        statusLabel.getStyleClass().add("editor-status");
+        HBox status = new HBox(12, progressIndicator, statusLabel);
+        status.setAlignment(Pos.CENTER_LEFT);
+        EditorActionBar bottom = new EditorActionBar("editor-action-bar", backBtn, status, saveBtn);
 
-        content.setCenter(centered);
+        content.setCenter(editorScrollPane);
         content.setBottom(bottom);
 
         numLayersField.textProperty().addListener((obs, oldVal, newVal) -> rebuildLayerRows());
+    }
+
+    private void configureFieldWidths() {
+        for (TextField field : List.of(
+                codeField, diameterField, superiorOvermaterialField, inferiorOvermaterialField,
+                pressureField, gramsPerMmField, numLayersField
+        )) {
+            field.setMaxWidth(Double.MAX_VALUE);
+            field.getStyleClass().add("editor-text-field");
+        }
+        numLayersField.setMaxWidth(220);
+    }
+
+    private GridPane createTwoColumnGrid() {
+        GridPane grid = new GridPane();
+        grid.setHgap(18);
+        grid.setVgap(14);
+        ColumnConstraints column = new ColumnConstraints();
+        column.setPercentWidth(50);
+        column.setHgrow(Priority.ALWAYS);
+        ColumnConstraints secondColumn = new ColumnConstraints();
+        secondColumn.setPercentWidth(50);
+        secondColumn.setHgrow(Priority.ALWAYS);
+        grid.getColumnConstraints().addAll(column, secondColumn);
+        return grid;
+    }
+
+    private VBox createField(String labelText, String unit, TextField field) {
+        Label label = new Label(labelText);
+        label.getStyleClass().add("editor-field-label");
+
+        if (unit == null) {
+            return new VBox(6, label, field);
+        }
+
+        Label unitLabel = new Label(unit);
+        unitLabel.getStyleClass().add("editor-field-unit");
+        StackPane fieldContainer = new StackPane(field, unitLabel);
+        StackPane.setAlignment(unitLabel, Pos.CENTER_RIGHT);
+        StackPane.setMargin(unitLabel, new Insets(0, 10, 0, 0));
+        field.setPadding(new Insets(8, 66, 8, 10));
+        return new VBox(6, label, fieldContainer);
     }
 
     private void bindPreview() {
@@ -148,7 +200,7 @@ public class CreateDiskModelView extends VBox {
     }
 
     private void rebuildLayerRows() {
-        int layers = parseIntSafe(numLayersField.getText());
+        int layers = editorState.parseLayerCount(numLayersField.getText());
         layerRows.clear();
         layersPercentagesBox.getChildren().clear();
 
@@ -158,9 +210,9 @@ public class CreateDiskModelView extends VBox {
             return;
         }
 
-        double defaultPct = 100.0 / layers;
+        List<Double> defaultPercentages = editorState.distributeLayers(layers);
         for (int i = 1; i <= layers; i++) {
-            LayerPercentageRow row = new LayerPercentageRow(i, defaultPct);
+            LayerPercentageRow row = new LayerPercentageRow(i, defaultPercentages.get(i - 1));
             row.percentageField.textProperty().addListener((obs, oldVal, newVal) -> {
                 updateLayerSummary();
                 refreshPreview();
@@ -174,23 +226,28 @@ public class CreateDiskModelView extends VBox {
     }
 
     private void updateLayerSummary() {
-        double sum = getLayerPercentageValues().stream().mapToDouble(Double::doubleValue).sum();
-        layersSummaryLabel.setText(String.format(java.util.Locale.ROOT, "Somma layer: %.2f%%", sum));
-        if (Math.abs(sum - 100.0) < 0.0001) {
-            layersSummaryLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #166534;");
+        DiskModelEditorState.LayerSummary summary = editorState.summarizeLayers(getLayerPercentageTexts());
+        layersSummaryLabel.setText(String.format(java.util.Locale.ROOT, "Somma layer: %.2f%%", summary.total()));
+        layersSummaryLabel.getStyleClass().removeAll("layer-total-valid", "layer-total-invalid");
+        if (summary.valid()) {
+            layersSummaryLabel.setText(layersSummaryLabel.getText() + "  ✓");
+            layersSummaryLabel.getStyleClass().add("layer-total-valid");
         } else {
-            layersSummaryLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #b91c1c;");
+            layersSummaryLabel.getStyleClass().add("layer-total-invalid");
         }
     }
 
     private void refreshPreview() {
-        double sup = parseDoubleSafe(superiorOvermaterialField.getText());
-        double inf = parseDoubleSafe(inferiorOvermaterialField.getText());
-        List<Double> percentages = getLayerPercentageValues();
-        if (percentages.isEmpty()) {
-            percentages = List.of(100.0);
-        }
-        previewView.update(sup, inf, percentages);
+        DiskModelEditorState.PreviewData preview = editorState.createPreview(
+                superiorOvermaterialField.getText(),
+                inferiorOvermaterialField.getText(),
+                getLayerPercentageTexts()
+        );
+        previewView.update(
+                preview.superiorOvermaterial(),
+                preview.inferiorOvermaterial(),
+                preview.percentages()
+        );
     }
 
     private void addRangeRow() {
@@ -208,11 +265,13 @@ public class CreateDiskModelView extends VBox {
     public void configureEditMode(boolean editMode) {
         if (editMode) {
             header.setTitle("Laboratorio - Modifica Modello Disco");
+            pageTitleLabel.setText("Modifica modello disco");
             saveBtn.setText("Salva Modifiche");
             backBtn.setVisible(true);
             backBtn.setManaged(true);
         } else {
             header.setTitle("Laboratorio - Nuovo Modello Disco");
+            pageTitleLabel.setText("Nuovo modello disco");
             saveBtn.setText("Salva modello disco");
             backBtn.setVisible(false);
             backBtn.setManaged(false);
@@ -240,26 +299,35 @@ public class CreateDiskModelView extends VBox {
     }
 
     public void showLoadSuccess() {
-        content.setDisable(false);
+        editorScrollPane.setDisable(false);
+        saveBtn.setDisable(false);
+        backBtn.setDisable(false);
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
         statusLabel.setText("");
+        statusLabel.getStyleClass().remove("editor-status-error");
     }
 
     public void showLoadError(String message) {
-        content.setDisable(false);
+        editorScrollPane.setDisable(false);
+        saveBtn.setDisable(false);
+        backBtn.setDisable(false);
         progressIndicator.setVisible(false);
         progressIndicator.setManaged(false);
         statusLabel.setText(message);
-        statusLabel.setStyle("-fx-text-fill: #b91c1c;");
+        if (!statusLabel.getStyleClass().contains("editor-status-error")) {
+            statusLabel.getStyleClass().add("editor-status-error");
+        }
     }
 
     private void setLoadingState(String message) {
-        content.setDisable(true);
+        editorScrollPane.setDisable(true);
+        saveBtn.setDisable(true);
+        backBtn.setDisable(true);
         progressIndicator.setVisible(true);
         progressIndicator.setManaged(true);
         statusLabel.setText(message);
-        statusLabel.setStyle("-fx-text-fill: #374151;");
+        statusLabel.getStyleClass().remove("editor-status-error");
     }
 
     public String getCode() { return codeField.getText(); }
@@ -351,29 +419,12 @@ public class CreateDiskModelView extends VBox {
         return drafts;
     }
 
-    private List<Double> getLayerPercentageValues() {
-        List<Double> values = new ArrayList<>();
+    private List<String> getLayerPercentageTexts() {
+        List<String> values = new ArrayList<>();
         for (LayerPercentageRow row : layerRows) {
-            values.add(parseDoubleSafe(row.percentageField.getText()));
+            values.add(row.percentageField.getText());
         }
         return values;
-    }
-
-    private int parseIntSafe(String raw) {
-        try {
-            return Integer.parseInt(raw == null ? "" : raw.trim());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    private double parseDoubleSafe(String raw) {
-        try {
-            String normalized = (raw == null ? "" : raw.trim()).replace(',', '.');
-            return Double.parseDouble(normalized);
-        } catch (NumberFormatException e) {
-            return 0.0;
-        }
     }
 
     public record HeightRangeDraft(String minHeight, String maxHeight, String superiorOvermaterial, String inferiorOvermaterial) {}
@@ -389,6 +440,7 @@ public class CreateDiskModelView extends VBox {
             percentageField.setPromptText("% layer");
             percentageField.setText(String.format(java.util.Locale.ROOT, "%.2f", defaultPercentage));
             percentageField.setMaxWidth(140);
+            percentageField.getStyleClass().add("layer-percentage-field");
 
             container = new HBox(8,
                     new Label("Layer " + layerNumber),
@@ -396,6 +448,11 @@ public class CreateDiskModelView extends VBox {
                     new Label("%")
             );
             container.setAlignment(Pos.CENTER_LEFT);
+            container.getStyleClass().add("layer-row");
+            container.setMinWidth(230);
+            container.setPrefWidth(230);
+            container.setMaxWidth(230);
+            HBox.setHgrow(percentageField, Priority.ALWAYS);
         }
     }
 
@@ -412,6 +469,7 @@ public class CreateDiskModelView extends VBox {
             maxHeightField.setPromptText("Max mm");
             superiorField.setPromptText("Over sup.");
             inferiorField.setPromptText("Over inf.");
+            removeButton.getStyleClass().add("danger-action");
 
             HBox.setHgrow(minHeightField, Priority.ALWAYS);
             HBox.setHgrow(maxHeightField, Priority.ALWAYS);
@@ -426,6 +484,7 @@ public class CreateDiskModelView extends VBox {
                     removeButton
             );
             container.setAlignment(Pos.CENTER_LEFT);
+            container.getStyleClass().add("height-range-row");
         }
     }
 }
