@@ -3,6 +3,7 @@ package com.orodent.tonv2.app;
 import com.orodent.tonv2.app.navigation.CubageNavigator;
 import com.orodent.tonv2.app.navigation.DocumentsNavigator;
 import com.orodent.tonv2.app.navigation.LaboratoryNavigator;
+import com.orodent.tonv2.app.navigation.RegistersNavigator;
 import com.orodent.tonv2.core.components.AppHeader;
 import com.orodent.tonv2.features.cubage.creation.controller.CubageCreationController;
 import com.orodent.tonv2.features.cubage.creation.service.CubageCreationService;
@@ -18,6 +19,10 @@ import com.orodent.tonv2.features.documents.home.view.DocumentsView;
 import com.orodent.tonv2.features.documents.template.controller.TemplateEditorController;
 import com.orodent.tonv2.features.documents.template.service.TemplateEditorWorkflowService;
 import com.orodent.tonv2.features.documents.template.view.TemplateEditorView;
+import com.orodent.tonv2.features.inventory.importing.controller.InventorySalesUpdateController;
+import com.orodent.tonv2.features.inventory.importing.presentation.InventoryImportPresenter;
+import com.orodent.tonv2.features.inventory.importing.service.InventorySnapshotImportService;
+import com.orodent.tonv2.features.inventory.importing.view.InventorySalesUpdateView;
 import com.orodent.tonv2.features.laboratory.composition.controller.CreateCompositionController;
 import com.orodent.tonv2.features.laboratory.composition.service.CompositionArchiveService;
 import com.orodent.tonv2.features.laboratory.composition.service.CreateCompositionService;
@@ -49,6 +54,8 @@ import com.orodent.tonv2.features.laboratory.diskmodel.controller.DiskModelArchi
 import com.orodent.tonv2.features.laboratory.diskmodel.view.CreateDiskModelView;
 import com.orodent.tonv2.features.laboratory.diskmodel.view.DiskModelArchiveView;
 import com.orodent.tonv2.features.laboratory.home.view.LaboratoryView;
+import com.orodent.tonv2.features.registers.dashboard.controller.RegistersDashboardController;
+import com.orodent.tonv2.features.registers.dashboard.view.RegistersDashboardView;
 import com.orodent.tonv2.features.registers.home.controller.RegistersController;
 import com.orodent.tonv2.features.registers.home.service.RegistersDocumentService;
 import com.orodent.tonv2.features.registers.home.service.RegistersSearchService;
@@ -60,7 +67,7 @@ import javafx.stage.Stage;
 
 import java.util.Objects;
 
-public class AppController implements DocumentsNavigator, LaboratoryNavigator, CubageNavigator {
+public class AppController implements DocumentsNavigator, LaboratoryNavigator, CubageNavigator, RegistersNavigator {
     private static final double INITIAL_SCENE_WIDTH = 900;
     private static final double INITIAL_SCENE_HEIGHT = 700;
 
@@ -211,7 +218,18 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         alert.showAndWait();
     }
 
+    @Override
     public void showRegisters() {
+        RegistersDashboardView view = new RegistersDashboardView();
+        configureHeader(view.getHeader());
+        new RegistersDashboardController(view, this);
+
+        showView(view, "/css/features/feature-dashboard.css");
+        stage.setTitle("TON - Registri");
+    }
+
+    @Override
+    public void showRegistersArchive() {
         RegistersView view = new RegistersView();
         configureHeader(view.getHeader());
         RegistersSearchService searchService = new RegistersSearchService(
@@ -231,8 +249,23 @@ public class AppController implements DocumentsNavigator, LaboratoryNavigator, C
         );
 
         showView(view, controller::dispose, "/css/features/registers.css");
-        stage.setTitle("TON - Registri");
+        stage.setTitle("TON - Archivio dischi prodotti");
         controller.loadInitialData();
+    }
+
+    @Override
+    public void showSalesUpdate() {
+        InventorySalesUpdateView view = new InventorySalesUpdateView();
+        configureHeader(view.getHeader());
+        InventorySalesUpdateController controller = new InventorySalesUpdateController(
+                view,
+                new InventorySnapshotImportService(),
+                new InventoryImportPresenter(),
+                app.backgroundExecutor()
+        );
+
+        showView(view, controller::dispose, "/css/features/sales-import.css");
+        stage.setTitle("TON - Aggiorna vendite");
     }
 
     @Override

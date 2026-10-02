@@ -1,0 +1,27 @@
+.sales-import-view { -fx-background-color: #1e1e1e; }
+.sales-import-scroll, .sales-import-scroll > .viewport, .sales-import-scroll .corner { -fx-background-color: transparent; }
+.sales-import-title { -fx-font-size: 28px; -fx-font-weight: 700; -fx-text-fill: white; }
+.sales-import-subtitle { -fx-font-size: 14px; -fx-text-fill: #a9b0b8; }
+.sales-import-card {
+    -fx-background-color: #292929; -fx-background-radius: 12;
+    -fx-border-color: #3b3b3b; -fx-border-radius: 12; -fx-padding: 18;
+}
+.sales-import-section-title { -fx-font-size: 16px; -fx-font-weight: 700; -fx-text-fill: #f4f4f4; }
+.sales-import-card > .label, .sales-import-file-name { -fx-text-fill: #b7bdc4; }
+.sales-import-primary-action {
+    -fx-background-color: #007acc; -fx-background-radius: 7; -fx-text-fill: white;
+    -fx-font-weight: 700; -fx-padding: 9 16; -fx-cursor: hand;
+}
+.sales-import-primary-action:hover { -fx-background-color: #168bd2; }
+.sales-import-metric {
+    -fx-background-color: #232323; -fx-background-radius: 9;
+    -fx-border-color: #3d3d3d; -fx-border-radius: 9; -fx-padding: 12;
+}
+.sales-import-metric-label { -fx-font-size: 11px; -fx-font-weight: 700; -fx-text-fill: #a9b0b8; }
+.sales-import-metric-value { -fx-font-size: 20px; -fx-font-weight: 700; -fx-text-fill: white; }
+.sales-import-status { -fx-text-fill: #a9b0b8; }
+.sales-import-status-valid { -fx-text-fill: #77df9a; -fx-font-weight: 700; }
+.sales-import-status-error { -fx-text-fill: #ff999f; -fx-font-weight: 700; }
+.sales-import-errors { -fx-background-color: #202020; -fx-border-color: #484848; -fx-border-radius: 7; }
+.sales-import-errors .list-cell { -fx-background-color: #202020; -fx-text-fill: #f0c1c4; -fx-padding: 8 10; }
+.sales-import-errors .list-cell:filled:hover { -fx-background-color: #353030; }

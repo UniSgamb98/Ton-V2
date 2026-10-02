@@ -24,7 +24,7 @@ import javafx.scene.layout.VBox;
 public class RegistersView extends VBox {
     private static final double CONTENT_MAX_WIDTH = 1120;
 
-    private final AppHeader header = new AppHeader("Registri");
+    private final AppHeader header = new AppHeader("Registri - Archivio dischi prodotti");
     private final ComboBox<String> articleComboBox = new ComboBox<>();
     private final ComboBox<String> lotComboBox = new ComboBox<>();
     private final Button searchButton = new Button("Cerca nel registro");
